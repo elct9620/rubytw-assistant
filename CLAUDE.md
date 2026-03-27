@@ -39,7 +39,9 @@ pnpm vitest run tests/index.test.ts
 
 - `src/index.ts` — **Composition root**: wires dependencies and exports `ExportedHandler<Env>` with `fetch` (Hono) and `scheduled` (cron) handlers
 - `src/usecases/` — **Use Cases**: application logic + port interfaces (e.g., `GenerateSummary` defines `GitHubSource`, `DiscordSource`, `AIService`, `DiscordNotifier` interfaces)
-- `src/adapters/` — **Interface Adapters**: controllers that bridge framework calls to use cases (e.g., `scheduled-handler.ts`)
+- `src/adapters/` — **Interface Adapters**: two kinds live here:
+  - **Controllers** bridge framework calls to use cases (e.g., `scheduled-handler.ts`)
+  - **Gateways** implement use case port interfaces for external services (e.g., `discord-notifier.ts` implements `DiscordNotifier`). Gateways accept a `fetchFn` parameter (defaults to global `fetch`) for testability.
 
 Dependencies point inward: adapters → usecases. Port interfaces are defined in the use case layer, not in adapters.
 
@@ -49,7 +51,9 @@ Dependencies are constructed **inside handler scope** via factory functions, not
 
 ```ts
 const scheduledHandler = createScheduledHandler((env) => ({
-  usecase: new GenerateSummary({ /* adapters using env */ }),
+  usecase: new GenerateSummary({
+    /* adapters using env */
+  }),
   channelId: env.DISCORD_CHANNEL_ID,
   hours: Number(env.SUMMARY_HOURS),
 }))
@@ -59,10 +63,12 @@ const scheduledHandler = createScheduledHandler((env) => ({
 
 - `wrangler.jsonc` — Cloudflare Workers configuration (bindings, cron triggers, compatibility settings)
 - `worker-configuration.d.ts` — Auto-generated types from `cf-typegen`; do not edit manually
+- `.dev.vars` — Local secret placeholders (gitignored); used by `cf-typegen` to generate `Env` types for secrets. Copy from `.dev.vars.example` and fill in real values for local dev. After adding new secrets, run `pnpm run cf-typegen` to regenerate types.
 
 ### Testing Pattern
 
 Tests use `cloudflare:test` helpers for the Workers runtime environment:
+
 - `env` — provides bindings defined in `wrangler.jsonc`
 - `createScheduledController()` / `createExecutionContext()` / `waitOnExecutionContext()` — for testing scheduled handlers
 - Tests import the worker and call `worker.fetch()` / `worker.scheduled()` directly (not `app.request()`)
@@ -73,5 +79,5 @@ Tests use `cloudflare:test` helpers for the Workers runtime environment:
 - Hono app should use `Env` generic for type-safe bindings: `new Hono<{ Bindings: Env }>()`
 - Tests run inside the Cloudflare Workers runtime via `@cloudflare/vitest-pool-workers`, not Node.js
 - ESLint ignores `dist/`, `.wrangler/`, and `worker-configuration.d.ts`
-- Secrets are managed via `wrangler secret put` (DISCORD_PUBLIC_KEY, DISCORD_BOT_TOKEN, DISCORD_CHANNEL_ID, GITHUB_APP_ID, GITHUB_PRIVATE_KEY, GITHUB_INSTALLATION_ID)
+- Production secrets are deployed via `wrangler secret put`; local secrets go in `.dev.vars` (see Configuration Files above)
 - Cron trigger runs at `0 16 * * *` UTC (midnight Taiwan time, UTC+8)
