@@ -12,11 +12,17 @@
     "format:check": "prettier --check ."
   },
   "dependencies": {
-    "hono": "^4.12.9"
+    "ai": "^6.0.140",
+    "discord-api-types": "^0.38.42",
+    "discord-interactions": "^4.4.0",
+    "hono": "^4.12.9",
+    "octokit": "^5.0.5",
+    "workers-ai-provider": "^3.1.8"
   },
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "^0.13.4",
     "@eslint/js": "^10.0.1",
+    "@types/node": "^25.5.0",
     "eslint": "^10.1.0",
     "eslint-config-prettier": "^10.1.8",
     "prettier": "^3.8.1",

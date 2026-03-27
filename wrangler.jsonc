@@ -3,36 +3,23 @@
   "name": "rubytw-assistant",
   "main": "src/index.ts",
   "compatibility_date": "2026-03-27",
-  // "compatibility_flags": [
-  //   "nodejs_compat"
-  // ],
-  // "vars": {
-  //   "MY_VAR": "my-variable"
-  // },
-  // "kv_namespaces": [
-  //   {
-  //     "binding": "MY_KV_NAMESPACE",
-  //     "id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-  //   }
-  // ],
-  // "r2_buckets": [
-  //   {
-  //     "binding": "MY_BUCKET",
-  //     "bucket_name": "my-bucket"
-  //   }
-  // ],
-  // "d1_databases": [
-  //   {
-  //     "binding": "MY_DB",
-  //     "database_name": "my-database",
-  //     "database_id": ""
-  //   }
-  // ],
-  // "ai": {
-  //   "binding": "AI"
-  // },
-  // "observability": {
-  //   "enabled": true,
-  //   "head_sampling_rate": 1
-  // }
+  "compatibility_flags": ["nodejs_compat"],
+  "vars": {
+    "SUMMARY_HOURS": "24",
+    "SUMMARY_ITEM_LIMIT": "30"
+  },
+  "ai": {
+    "binding": "AI"
+  },
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  }
+  // Secrets (set via `wrangler secret put`):
+  // - DISCORD_PUBLIC_KEY
+  // - DISCORD_BOT_TOKEN
+  // - DISCORD_CHANNEL_ID
+  // - GITHUB_APP_ID
+  // - GITHUB_PRIVATE_KEY
+  // - GITHUB_INSTALLATION_ID
 }
