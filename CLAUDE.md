@@ -28,17 +28,39 @@ pnpm run format       # Format with Prettier
 pnpm run format:check # Check formatting
 pnpm run cf-typegen   # Regenerate CloudflareBindings types from wrangler.jsonc
 pnpm run deploy       # Deploy to Cloudflare Workers
+
+# Run a single test file
+pnpm vitest run tests/index.test.ts
 ```
 
 ## Architecture
 
-- `src/index.ts` — App entrypoint, exports a Hono app as the default export (Cloudflare Workers convention)
-- `tests/` — Test files using Vitest; tests use `cloudflare:test` for the Workers environment and call `app.request()` directly
-- `wrangler.jsonc` — Cloudflare Workers configuration (bindings, compatibility settings)
+- `src/index.ts` — App entrypoint, exports `ExportedHandler<Env>` with both `fetch` (Hono app) and `scheduled` (cron) handlers
+- `tests/` — Test files using Vitest; tests import the worker and call `worker.fetch()` directly (not `app.request()`)
+- `wrangler.jsonc` — Cloudflare Workers configuration (bindings, cron triggers, compatibility settings)
 - `worker-configuration.d.ts` — Auto-generated types from `cf-typegen`; do not edit manually
+
+### Worker Export Pattern
+
+The default export uses `satisfies ExportedHandler<Env>` to combine Hono's fetch handler with the scheduled handler:
+
+```ts
+export default {
+  fetch: app.fetch,
+  scheduled(controller: ScheduledController) { /* ... */ },
+} satisfies ExportedHandler<Env>
+```
+
+### Testing Pattern
+
+Tests use `cloudflare:test` helpers for the Workers runtime environment:
+- `env` — provides bindings defined in `wrangler.jsonc`
+- `createScheduledController()` / `createExecutionContext()` / `waitOnExecutionContext()` — for testing scheduled handlers
 
 ## Key Conventions
 
 - Hono app should use `Env` generic for type-safe bindings: `new Hono<{ Bindings: Env }>()`
 - Tests run inside the Cloudflare Workers runtime via `@cloudflare/vitest-pool-workers`, not Node.js
 - ESLint ignores `dist/`, `.wrangler/`, and `worker-configuration.d.ts`
+- Secrets are managed via `wrangler secret put` (DISCORD_PUBLIC_KEY, DISCORD_BOT_TOKEN, DISCORD_CHANNEL_ID, GITHUB_APP_ID, GITHUB_PRIVATE_KEY, GITHUB_INSTALLATION_ID)
+- Cron trigger runs at `0 16 * * *` UTC (midnight Taiwan time, UTC+8)
