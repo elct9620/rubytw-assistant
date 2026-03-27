@@ -1,4 +1,6 @@
 import { Hono } from 'hono'
+import { GenerateSummary } from './usecases/generate-summary'
+import { createScheduledHandler } from './adapters/scheduled-handler'
 
 const app = new Hono<{ Bindings: Env }>()
 
@@ -6,11 +8,26 @@ app.get('/', (c) => {
   return c.text('Hello Hono!')
 })
 
+// TODO: replace stubs with real adapter implementations
+const usecase = new GenerateSummary({
+  github: {
+    getIssues: async () => [],
+    getProjectActivities: async () => [],
+  },
+  discord: {
+    getChannelMessages: async () => [],
+  },
+  ai: {
+    generateSummary: async () => '',
+  },
+  notifier: {
+    sendMessage: async () => {},
+  },
+})
+
+const scheduledHandler = createScheduledHandler(usecase, '', 24)
+
 export default {
   fetch: app.fetch,
-  scheduled(controller: ScheduledController) {
-    console.log(
-      `cron triggered: ${controller.cron} at ${controller.scheduledTime}`,
-    )
-  },
+  scheduled: scheduledHandler,
 } satisfies ExportedHandler<Env>
