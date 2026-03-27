@@ -32,7 +32,7 @@
 
 ### 1. 每日 AI 摘要
 
-系統每日定時收集 GitHub Issues、Project 活動以及 Discord 過去一天的討論內容，透過 AI 產生結構化摘要，發送至指定的 Discord 頻道。
+系統於每日台灣時間 00:00（UTC+8）收集 GitHub Issues、Project 活動以及營運團隊指定 Discord 頻道過去一天的討論內容，透過 AI 產生待辦清單格式的摘要，發送至該 Discord 頻道。
 
 **User Journey:**
 
@@ -40,16 +40,17 @@
 |---------|--------|---------|
 | 營運人員在每日開始工作時 | 系統已自動將摘要發送至 Discord 頻道 | 營運人員閱讀摘要即可掌握前一日動態 |
 
-### 2. Discord 互動指令
+### 2. Discord 互動指令（尚未支援）
 
 營運人員在 Discord 中透過 Slash Command 下達查詢指令，系統透過 GitHub App 取得資料後回覆。
+
+> 此功能尚未支援，以下為預定的使用流程，具體行為待後續定義。
 
 **User Journey:**
 
 | Context | Action | Outcome |
 |---------|--------|---------|
-| 營運人員需要查詢特定 Issue 狀態 | 在 Discord 中使用指令查詢 | 系統回覆 Issue 的當前狀態與摘要 |
-| 營運人員需要了解專案進度 | 在 Discord 中使用指令查詢 Project | 系統回覆 Project 的進度概覽 |
+| 待定義 | 待定義 | 待定義 |
 
 ### 3. GitHub App 整合
 
@@ -66,7 +67,7 @@
 | 類型 | 系統內 | 系統外 |
 |------|--------|--------|
 | 責任 | 資料收集、AI 摘要產生、查詢回覆 | Discord 伺服器管理、GitHub 專案管理 |
-| 互動 | 接收 Discord Interaction Webhook；呼叫 GitHub API 與 AI 服務 | Discord 使用者認證；GitHub 權限設定 |
+| 互動 | 接收 Discord Interaction Webhook；呼叫 GitHub API 與 AI 服務；讀取營運團隊指定頻道歷史訊息 | Discord 使用者認證；GitHub 權限設定；Discord 頻道配置 |
 | 控制 | 摘要排程與內容格式 | Discord 頻道配置；GitHub Project 結構 |
 
 ## Behaviors
@@ -75,20 +76,19 @@
 
 | 狀態 | 操作 | 結果 |
 |------|------|------|
-| 排程時間到達 | 觸發摘要產生流程 | 系統開始收集資料 |
-| GitHub 資料收集成功 | 取得 Issues 與 Project 活動 | 資料暫存供 AI 處理 |
-| Discord 歷史訊息收集成功 | 取得過去 24 小時的討論內容 | 資料暫存供 AI 處理 |
-| 所有資料收集完成 | AI 產生結構化摘要 | 摘要包含 GitHub 動態與 Discord 討論重點 |
-| 摘要產生完成 | 發送至指定 Discord 頻道 | 營運人員可在頻道中閱讀摘要 |
+| 台灣時間 00:00（UTC+8）到達 | 觸發摘要產生流程 | 系統開始收集資料 |
+| GitHub 資料收集成功 | 取得前一日 Issues 與 Project 活動 | 資料暫存供 AI 處理 |
+| Discord 歷史訊息收集成功 | 取得營運團隊指定頻道過去 24 小時的討論內容 | 資料暫存供 AI 處理 |
+| 所有資料收集完成 | AI 產生待辦清單格式摘要 | 摘要為條目式清單，每項標註狀態（如：`- [待辦] 蒼時需要更新官網`） |
+| 摘要產生完成 | 發送至營運團隊指定 Discord 頻道 | 營運人員可在頻道中閱讀摘要 |
 
-### Discord 互動指令
+### Discord 互動指令（尚未支援）
 
 | 狀態 | 操作 | 結果 |
 |------|------|------|
 | 收到 Discord Interaction Webhook | 驗證請求簽章 | 驗證通過則處理指令；驗證失敗則拒絕請求 |
-| 指令為查詢 Issue | 透過 GitHub App 取得 Issue 資料 | 回覆 Issue 標題、狀態、標籤與最近活動 |
-| 指令為查詢 Project | 透過 GitHub App 取得 Project 資料 | 回覆 Project 中各欄位的 Issue 數量與摘要 |
-| 指令格式無效 | 回傳使用說明 | 營運人員可依據說明修正指令 |
+
+> 具體指令行為待後續定義。
 
 ### GitHub App 整合
 
@@ -102,12 +102,18 @@
 
 | 場景 | 系統行為 |
 |------|----------|
-| GitHub API 請求失敗（網路錯誤、速率限制） | 重試暫時性失敗；將永久性失敗記錄至日誌 |
-| Discord API 請求失敗（發送摘要失敗） | 重試暫時性失敗；將永久性失敗記錄至日誌 |
-| AI 服務無法產生摘要 | 發送原始資料摘要（不含 AI 分析）至 Discord 頻道，並附上錯誤提示 |
-| Discord 歷史訊息收集失敗 | 僅使用 GitHub 資料產生摘要，並註明 Discord 資料缺失 |
-| GitHub App 認證失敗 | 記錄錯誤至日誌，不發送摘要 |
+| GitHub API 請求失敗（網路錯誤、速率限制） | 套用「自動退避重試」；永久性失敗記錄至日誌 |
+| Discord API 請求失敗（發送摘要失敗） | 套用「自動退避重試」；永久性失敗記錄至日誌 |
+| AI 服務無法產生摘要 | 套用「自動退避重試」；重試皆失敗後，發送原始資料摘要（不含 AI 分析）至 Discord 頻道，並附上錯誤提示 |
+| Discord 歷史訊息收集失敗 | 套用「自動退避重試」；重試皆失敗後，僅使用 GitHub 資料產生摘要，並註明 Discord 資料缺失 |
+| GitHub App 認證失敗 | 套用「自動退避重試」；重試皆失敗後，記錄錯誤至日誌，不發送摘要 |
 | 互動指令逾時（Cloudflare Workers 限制） | 回覆逾時提示訊息，建議稍後重試 |
+
+## Patterns
+
+### 自動退避重試
+
+外部服務呼叫（GitHub API、Discord API、AI 服務）發生暫時性失敗時，系統以指數退避方式自動重試，最多 3 次。3 次重試皆失敗後，視為永久性失敗，依各 Error Scenario 定義的降級行為處理。
 
 ## Terminology
 
@@ -116,6 +122,7 @@
 | 摘要 | 系統透過 AI 彙整後產生的結構化資訊報告 |
 | 營運人員 | Ruby Taiwan 核心團隊中負責社群營運的成員 |
 | 指令 | 營運人員在 Discord 中透過 Slash Command 發出的查詢請求 |
+| 待辦清單 | 摘要的呈現格式，每項以 `- [狀態] 描述` 表示，狀態包含「待辦」「進行中」「完成」等 |
 | 排程 | 系統定時觸發摘要產生流程的機制（Cloudflare Workers Cron Trigger） |
 
 ## Contracts
