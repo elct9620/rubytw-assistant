@@ -35,27 +35,38 @@ pnpm vitest run tests/index.test.ts
 
 ## Architecture
 
-- `src/index.ts` — App entrypoint, exports `ExportedHandler<Env>` with both `fetch` (Hono app) and `scheduled` (cron) handlers
-- `tests/` — Test files using Vitest; tests import the worker and call `worker.fetch()` directly (not `app.request()`)
-- `wrangler.jsonc` — Cloudflare Workers configuration (bindings, cron triggers, compatibility settings)
-- `worker-configuration.d.ts` — Auto-generated types from `cf-typegen`; do not edit manually
+### Layered Structure (Clean Architecture)
 
-### Worker Export Pattern
+- `src/index.ts` — **Composition root**: wires dependencies and exports `ExportedHandler<Env>` with `fetch` (Hono) and `scheduled` (cron) handlers
+- `src/usecases/` — **Use Cases**: application logic + port interfaces (e.g., `GenerateSummary` defines `GitHubSource`, `DiscordSource`, `AIService`, `DiscordNotifier` interfaces)
+- `src/adapters/` — **Interface Adapters**: controllers that bridge framework calls to use cases (e.g., `scheduled-handler.ts`)
 
-The default export uses `satisfies ExportedHandler<Env>` to combine Hono's fetch handler with the scheduled handler:
+Dependencies point inward: adapters → usecases. Port interfaces are defined in the use case layer, not in adapters.
+
+### Composition Pattern
+
+Dependencies are constructed **inside handler scope** via factory functions, not at module scope. This is required because Cloudflare Workers `Env` bindings (secrets) are only available within `fetch`/`scheduled` handler invocations.
 
 ```ts
-export default {
-  fetch: app.fetch,
-  scheduled(controller: ScheduledController) { /* ... */ },
-} satisfies ExportedHandler<Env>
+const scheduledHandler = createScheduledHandler((env) => ({
+  usecase: new GenerateSummary({ /* adapters using env */ }),
+  channelId: env.DISCORD_CHANNEL_ID,
+  hours: Number(env.SUMMARY_HOURS),
+}))
 ```
+
+### Configuration Files
+
+- `wrangler.jsonc` — Cloudflare Workers configuration (bindings, cron triggers, compatibility settings)
+- `worker-configuration.d.ts` — Auto-generated types from `cf-typegen`; do not edit manually
 
 ### Testing Pattern
 
 Tests use `cloudflare:test` helpers for the Workers runtime environment:
 - `env` — provides bindings defined in `wrangler.jsonc`
 - `createScheduledController()` / `createExecutionContext()` / `waitOnExecutionContext()` — for testing scheduled handlers
+- Tests import the worker and call `worker.fetch()` / `worker.scheduled()` directly (not `app.request()`)
+- Use case tests use stub implementations of port interfaces, not the Workers test helpers
 
 ## Key Conventions
 
