@@ -6,4 +6,11 @@ app.get('/', (c) => {
   return c.text('Hello Hono!')
 })
 
-export default app
+export default {
+  fetch: app.fetch,
+  scheduled(controller: ScheduledController) {
+    console.log(
+      `cron triggered: ${controller.cron} at ${controller.scheduledTime}`,
+    )
+  },
+} satisfies ExportedHandler<Env>

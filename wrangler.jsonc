@@ -1,20 +1,24 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "rubytw-assistant",
+  "account_id": "614fcd230e7a893b205fd36259d9aff3",
   "main": "src/index.ts",
   "compatibility_date": "2026-03-27",
   "compatibility_flags": ["nodejs_compat"],
   "vars": {
     "SUMMARY_HOURS": "24",
-    "SUMMARY_ITEM_LIMIT": "30"
+    "SUMMARY_ITEM_LIMIT": "30",
   },
   "ai": {
-    "binding": "AI"
+    "binding": "AI",
   },
   "observability": {
     "enabled": true,
-    "head_sampling_rate": 1
-  }
+    "head_sampling_rate": 1,
+  },
+  "triggers": {
+    "crons": ["0 16 * * *"],
+  },
   // Secrets (set via `wrangler secret put`):
   // - DISCORD_PUBLIC_KEY
   // - DISCORD_BOT_TOKEN
