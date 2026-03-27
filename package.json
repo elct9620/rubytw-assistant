@@ -1,0 +1,15 @@
+{
+  "name": "rubytw-assistant",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy --minify",
+    "cf-typegen": "wrangler types"
+  },
+  "dependencies": {
+    "hono": "^4.12.9"
+  },
+  "devDependencies": {
+    "wrangler": "^4.4.0"
+  }
+}
