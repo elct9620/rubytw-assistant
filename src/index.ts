@@ -9,23 +9,25 @@ app.get('/', (c) => {
 })
 
 // TODO: replace stubs with real adapter implementations
-const usecase = new GenerateSummary({
-  github: {
-    getIssues: async () => [],
-    getProjectActivities: async () => [],
-  },
-  discord: {
-    getChannelMessages: async () => [],
-  },
-  ai: {
-    generateSummary: async () => '',
-  },
-  notifier: {
-    sendMessage: async () => {},
-  },
-})
-
-const scheduledHandler = createScheduledHandler(usecase, '', 24)
+const scheduledHandler = createScheduledHandler(() => ({
+  usecase: new GenerateSummary({
+    github: {
+      getIssues: async () => [],
+      getProjectActivities: async () => [],
+    },
+    discord: {
+      getChannelMessages: async () => [],
+    },
+    ai: {
+      generateSummary: async () => '',
+    },
+    notifier: {
+      sendMessage: async () => {},
+    },
+  }),
+  channelId: '',
+  hours: 24,
+}))
 
 export default {
   fetch: app.fetch,
