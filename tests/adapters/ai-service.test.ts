@@ -255,6 +255,19 @@ describe('AIServiceAdapter', () => {
   })
 
   describe('memory tool execution', () => {
+    async function getMemoryTools(storeOverrides?: Partial<MemoryStore>) {
+      const store = createStubMemoryStore(storeOverrides)
+      mockGenerateText.mockResolvedValue({ output: { groups: [] } })
+      const adapter = new AIServiceAdapter(
+        'test-token',
+        'openai/gpt-4.1-mini',
+        store,
+        32,
+      )
+      await adapter.groupConversations(['msg'])
+      return { tools: mockGenerateText.mock.calls[0][0].tools, store }
+    }
+
     it('memory_read should return entries from store', async () => {
       const entries = [
         {
@@ -263,55 +276,27 @@ describe('AIServiceAdapter', () => {
           updatedAt: '2026-03-28T00:00:00.000Z',
         },
       ]
-      const store = createStubMemoryStore({
+      const { tools } = await getMemoryTools({
         list: vi.fn().mockResolvedValue(entries),
       })
-      mockGenerateText.mockResolvedValue({ output: { groups: [] } })
-      const adapter = new AIServiceAdapter(
-        'test-token',
-        'openai/gpt-4.1-mini',
-        store,
-        32,
-      )
 
-      await adapter.groupConversations(['msg'])
-
-      const tools = mockGenerateText.mock.calls[0][0].tools
       const result = await tools.memory_read.execute({})
       expect(result).toEqual({ entries, count: 1, limit: 32 })
     })
 
     it('memory_read should return error object on failure', async () => {
-      const store = createStubMemoryStore({
+      const { tools } = await getMemoryTools({
         list: vi.fn().mockRejectedValue(new Error('KV error')),
       })
-      mockGenerateText.mockResolvedValue({ output: { groups: [] } })
-      const adapter = new AIServiceAdapter(
-        'test-token',
-        'openai/gpt-4.1-mini',
-        store,
-      )
 
-      await adapter.groupConversations(['msg'])
-
-      const tools = mockGenerateText.mock.calls[0][0].tools
       const result = await tools.memory_read.execute({})
       expect(result.error).toBe('read failed')
       expect(result.entries).toEqual([])
     })
 
     it('memory_write should call store.put with entry', async () => {
-      const store = createStubMemoryStore()
-      mockGenerateText.mockResolvedValue({ output: { groups: [] } })
-      const adapter = new AIServiceAdapter(
-        'test-token',
-        'openai/gpt-4.1-mini',
-        store,
-      )
+      const { tools, store } = await getMemoryTools()
 
-      await adapter.groupConversations(['msg'])
-
-      const tools = mockGenerateText.mock.calls[0][0].tools
       const result = await tools.memory_write.execute({
         key: 'test-key',
         content: 'test content',
@@ -329,19 +314,10 @@ describe('AIServiceAdapter', () => {
     })
 
     it('memory_write should return error on failure', async () => {
-      const store = createStubMemoryStore({
+      const { tools } = await getMemoryTools({
         put: vi.fn().mockRejectedValue(new Error('limit reached')),
       })
-      mockGenerateText.mockResolvedValue({ output: { groups: [] } })
-      const adapter = new AIServiceAdapter(
-        'test-token',
-        'openai/gpt-4.1-mini',
-        store,
-      )
 
-      await adapter.groupConversations(['msg'])
-
-      const tools = mockGenerateText.mock.calls[0][0].tools
       const result = await tools.memory_write.execute({
         key: 'k',
         content: 'c',
@@ -351,17 +327,8 @@ describe('AIServiceAdapter', () => {
     })
 
     it('memory_delete should call store.delete', async () => {
-      const store = createStubMemoryStore()
-      mockGenerateText.mockResolvedValue({ output: { groups: [] } })
-      const adapter = new AIServiceAdapter(
-        'test-token',
-        'openai/gpt-4.1-mini',
-        store,
-      )
+      const { tools, store } = await getMemoryTools()
 
-      await adapter.groupConversations(['msg'])
-
-      const tools = mockGenerateText.mock.calls[0][0].tools
       const result = await tools.memory_delete.execute({ key: 'old-key' })
       expect(result).toEqual({ success: true })
       expect(store.delete).toHaveBeenCalledWith('old-key')

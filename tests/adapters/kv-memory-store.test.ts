@@ -56,6 +56,35 @@ describe('KVMemoryStoreAdapter', () => {
       const entries = await adapter.list()
       expect(entries).toEqual([entry])
     })
+
+    it('should filter out null entries from stale keys', async () => {
+      mock.store.set(
+        'memory:valid',
+        JSON.stringify({
+          key: 'valid',
+          content: 'data',
+          updatedAt: '2026-03-28T00:00:00.000Z',
+        }),
+      )
+      // Simulate KV eventual consistency: key exists in list but get returns null
+      const originalGet = mock.kv.get.getMockImplementation()!
+      mock.kv.get.mockImplementation((key: string, type?: string) => {
+        if (key === 'memory:stale') return null
+        return originalGet(key, type)
+      })
+      // Add a stale key that list() will see but get() returns null for
+      mock.kv.list.mockImplementation(({ prefix }: { prefix: string }) => {
+        const keys = [...mock.store.keys()]
+          .filter((k) => k.startsWith(prefix))
+          .map((name) => ({ name }))
+        keys.push({ name: 'memory:stale' })
+        return { keys }
+      })
+
+      const entries = await adapter.list()
+      expect(entries).toHaveLength(1)
+      expect(entries[0].key).toBe('valid')
+    })
   })
 
   describe('put', () => {
