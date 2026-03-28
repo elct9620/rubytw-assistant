@@ -15,7 +15,7 @@ Provide automated information aggregation and query tools for Ruby Taiwan commun
 | Behavior Change       | Current State                                                    | Target State                                               |
 | --------------------- | ---------------------------------------------------------------- | ---------------------------------------------------------- |
 | Information Gathering | Operators manually browse GitHub and Discord to stay informed    | System automatically aggregates and pushes daily summaries |
-| Data Querying         | Operators switch to GitHub UI to search Issues or Project status | Query directly in Discord via commands                     |
+| Data Querying         | Operators switch to GitHub UI to search Issues or Project status | _(Deferred)_ Query directly in Discord via commands        |
 
 ## Success Criteria
 
@@ -207,17 +207,17 @@ When the AI pipeline fails after all retries, the system sends a fallback messag
 
 ## Terminology
 
-| Term               | Definition                                                                                                                   |
-| ------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
-| Summary            | Structured action item list produced by the two-phase AI pipeline                                                            |
-| Operator           | A member of the Ruby Taiwan core team responsible for community operations                                                   |
-| Command            | A query request issued by an operator via Discord Slash Command                                                              |
-| Group              | Phase 1 output; aggregates contextually related conversation messages into a topic group with summary and attribute tags     |
-| Action Item        | Phase 2 output; a structured to-do extracted from a group, containing status, assignee, task description, and reason         |
-| Action Item Status | Classification label for action items: to-do, in-progress, done, stalled, or discussion                                      |
-| Memory Tool        | An AI-accessible memory tool that stores and retrieves structured context memory for retaining information across executions |
-| GitHub Tool        | An AI-accessible query tool that provides read-only access to GitHub Projects and Issues via GitHub App                      |
-| Schedule           | The mechanism that triggers the summary generation pipeline on a timed basis, driven by platform scheduling                  |
+| Term               | Definition                                                                                                                          |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
+| Summary            | Structured action item list produced by the two-phase AI pipeline                                                                   |
+| Operator           | A member of the Ruby Taiwan core team responsible for community operations                                                          |
+| Command            | A query request issued by an operator via Discord Slash Command                                                                     |
+| Group              | Phase 1 output; aggregates contextually related conversation messages into a topic group with summary and attribute tags            |
+| Action Item        | Phase 2 output; a structured to-do extracted from a group, containing status, assignee, task description, and reason                |
+| Action Item Status | Classification label for action items: to-do, in-progress, done, stalled, or discussion                                             |
+| Memory Tool        | An AI-accessible tool that reads and writes context memory with AI-determined structure for retaining information across executions |
+| GitHub Tool        | An AI-accessible query tool that provides read-only access to GitHub Projects and Issues via GitHub App                             |
+| Schedule           | The mechanism that triggers the summary generation pipeline on a timed basis, driven by platform scheduling                         |
 
 ## Contracts
 
