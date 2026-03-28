@@ -4,9 +4,54 @@ import { type FetchFn, assertDiscordResponse } from './shared'
 const DISCORD_EPOCH = 1420070400000n
 const MAX_MESSAGES_PER_REQUEST = 100
 
+interface DiscordAuthor {
+  id: string
+  global_name: string | null
+  username: string
+  bot?: boolean
+}
+
+interface DiscordAttachment {
+  filename: string
+  url: string
+}
+
+interface DiscordMention {
+  id: string
+  global_name: string | null
+  username: string
+}
+
 interface DiscordMessage {
   id: string
   content: string
+  author: DiscordAuthor
+  timestamp: string
+  attachments: DiscordAttachment[]
+  mentions: DiscordMention[]
+}
+
+export function formatMessageToXml(msg: DiscordMessage): string {
+  const authorName = msg.author.global_name ?? msg.author.username
+  const isBot = msg.author.bot ?? false
+  const attachmentLines = msg.attachments
+    .map((a) => `${a.filename} - ${a.url}`)
+    .join('\n')
+  const mentionLines = msg.mentions
+    .map((m) => `<user id="${m.id}">${m.global_name ?? m.username}</user>`)
+    .join('\n')
+
+  return `<item id="${msg.id}">
+<user bot="${isBot}">${authorName}</user>
+<timestamp>${msg.timestamp}</timestamp>
+<content>${msg.content}</content>
+<attachments size="${msg.attachments.length}">
+${attachmentLines}
+</attachments>
+<mentions>
+${mentionLines}
+</mentions>
+</item>`
 }
 
 export class DiscordSourceAdapter implements DiscordSource {
@@ -19,13 +64,13 @@ export class DiscordSourceAdapter implements DiscordSource {
   async getChannelMessages(hours: number): Promise<string[]> {
     const sinceMs = BigInt(Date.now() - hours * 3600 * 1000)
     let afterSnowflake = String((sinceMs - DISCORD_EPOCH) << 22n)
-    const messages: string[] = []
+    const collected: DiscordMessage[] = []
 
     for (;;) {
       const batch = await this.fetchMessages(afterSnowflake)
       for (const msg of batch) {
         if (msg.content) {
-          messages.push(msg.content)
+          collected.push(msg)
         }
       }
 
@@ -33,7 +78,7 @@ export class DiscordSourceAdapter implements DiscordSource {
       afterSnowflake = batch[batch.length - 1].id
     }
 
-    return messages
+    return collected.map(formatMessageToXml)
   }
 
   private async fetchMessages(after: string): Promise<DiscordMessage[]> {
