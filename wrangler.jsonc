@@ -20,7 +20,6 @@
   "kv_namespaces": [
     {
       "binding": "MEMORY_KV",
-      "id": "PLACEHOLDER_REPLACE_AFTER_KV_CREATE",
     },
   ],
   "observability": {
