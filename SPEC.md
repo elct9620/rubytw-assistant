@@ -95,11 +95,12 @@ A development-only HTTP endpoint that triggers the same AI summary pipeline as F
 
 **Constraints:**
 
-| Aspect          | Decision                                                                |
-| --------------- | ----------------------------------------------------------------------- |
-| Availability    | Development environment only; the endpoint does not exist in production |
-| Authentication  | None; environment isolation is the sole access control mechanism        |
-| Result delivery | HTTP response body; no Discord message sent                             |
+| Aspect          | Decision                                                                                                             |
+| --------------- | -------------------------------------------------------------------------------------------------------------------- |
+| Availability    | Development environment only; the endpoint does not exist in production                                              |
+| Authentication  | None; environment isolation is the sole access control mechanism                                                     |
+| Result delivery | HTTP response body containing pipeline intermediate results (topic groups and action items); no Discord message sent |
+| Prerequisites   | Development environment must have access to the same Discord Bot Token and AI Service as production                  |
 
 **Parameters:**
 
@@ -162,12 +163,14 @@ A development-only HTTP endpoint that triggers the same AI summary pipeline as F
 
 ### Debug Summary Preview
 
-| State                                                  | Action                                                                    | Result                                                                  |
-| ------------------------------------------------------ | ------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| Debug endpoint receives request with source channel ID | Collect messages from specified channel within time window                | Messages retrieved using same data collection logic as Daily AI Summary |
-| Messages collected                                     | Execute full AI pipeline (Conversation Grouping → Action Item Generation) | Topic groups and action items produced                                  |
-| Pipeline complete                                      | Return topic groups and action items in HTTP response                     | Operator inspects result; no Discord message sent                       |
-| No messages found in time window                       | Skip AI pipeline                                                          | Return empty result indicating no messages found                        |
+| State                                                  | Action                                                                    | Result                                                                                           |
+| ------------------------------------------------------ | ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| Debug endpoint receives request with source channel ID | Collect messages from specified channel within time window                | Messages retrieved using same data collection logic as Daily AI Summary                          |
+| Messages collected                                     | Execute full AI pipeline (Conversation Grouping → Action Item Generation) | Topic groups (with summaries and attribute tags) and action items produced                       |
+| Pipeline complete                                      | Return intermediate results in HTTP response                              | Response contains topic groups and action items as structured data; no Discord message sent      |
+| No messages found in time window                       | Skip AI pipeline                                                          | Return empty result indicating no messages found                                                 |
+| Source channel ID is invalid or inaccessible           | Discord API returns error                                                 | Return error indicating the channel could not be accessed                                        |
+| Discord message collection fails                       | Transient or permanent API failure                                        | Return error indicating collection failure with the failure reason; do not retry (debug context) |
 
 ### Discord Interaction Commands
 
@@ -187,20 +190,22 @@ A development-only HTTP endpoint that triggers the same AI summary pipeline as F
 
 ## Error Scenarios
 
-| Scenario                                                        | System Behavior                                                                                    |
-| --------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| Discord message history collection fails                        | Apply "exponential backoff retry"; after all retries fail, log error, do not send summary          |
-| Discord API request fails (sending summary)                     | Apply "exponential backoff retry"; permanent failure logged                                        |
-| No messages found in collection time window                     | Send a "no action items" notice to the designated Discord channel; do not invoke AI pipeline       |
-| AI service fails to complete grouping or action item generation | Apply "exponential backoff retry"; after all retries fail, apply "raw message fallback"            |
-| AI output does not conform to expected structure                | Treat as AI service failure; apply same fallback behavior                                          |
-| Memory Tool read/write fails                                    | Log warning; AI continues processing without memory assistance (degraded but not interrupted)      |
-| Memory Store reaches Entry Limit                                | AI decides eviction strategy (merge or overwrite existing entries) to make room for new entries    |
-| GitHub Tool query fails (auth failure, rate limit)              | Log warning; AI continues processing without GitHub data assistance (degraded but not interrupted) |
-| GitHub App authentication fails                                 | Apply "exponential backoff retry"; after all retries fail, log error, GitHub Tool unavailable      |
-| Interaction command timeout (platform time limit)               | Reply with timeout notice, suggest retrying later                                                  |
-| Debug endpoint called in production environment                 | Endpoint does not exist; return standard HTTP 404                                                  |
-| Debug endpoint: AI pipeline fails                               | Return error details in HTTP response; no fallback message sent to Discord                         |
+| Scenario                                                        | System Behavior                                                                                                          |
+| --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| Discord message history collection fails                        | Apply "exponential backoff retry"; after all retries fail, log error, do not send summary                                |
+| Discord API request fails (sending summary)                     | Apply "exponential backoff retry"; permanent failure logged                                                              |
+| No messages found in collection time window                     | Send a "no action items" notice to the designated Discord channel; do not invoke AI pipeline                             |
+| AI service fails to complete grouping or action item generation | Apply "exponential backoff retry"; after all retries fail, apply "raw message fallback"                                  |
+| AI output does not conform to expected structure                | Treat as AI service failure; apply same fallback behavior                                                                |
+| Memory Tool read/write fails                                    | Log warning; AI continues processing without memory assistance (degraded but not interrupted)                            |
+| Memory Store reaches Entry Limit                                | AI decides eviction strategy (merge or overwrite existing entries) to make room for new entries                          |
+| GitHub Tool query fails (auth failure, rate limit)              | Log warning; AI continues processing without GitHub data assistance (degraded but not interrupted)                       |
+| GitHub App authentication fails                                 | Apply "exponential backoff retry"; after all retries fail, log error, GitHub Tool unavailable                            |
+| Interaction command timeout (platform time limit)               | Reply with timeout notice, suggest retrying later                                                                        |
+| Debug endpoint called in production environment                 | Endpoint does not exist; return standard HTTP 404                                                                        |
+| Debug endpoint: source channel inaccessible                     | Return error indicating the channel could not be accessed; no retry                                                      |
+| Debug endpoint: Discord message collection fails                | Return error with failure reason; no retry (debug context favors fast feedback over resilience)                          |
+| Debug endpoint: AI pipeline fails                               | Return error with the failed phase name and failure reason; no fallback message sent, no retry (unlike Daily AI Summary) |
 
 ## Patterns
 
