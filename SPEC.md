@@ -2,147 +2,186 @@
 
 ## Purpose
 
-為 Ruby Taiwan 社群營運人員提供自動化資訊彙整與查詢工具，減少手動追蹤 GitHub 專案進度與 Discord 社群討論的負擔。
+Provide automated information aggregation and query tools for Ruby Taiwan community operators, reducing the burden of manually tracking GitHub project progress and Discord community discussions.
 
 ## Users
 
-| 使用者       | 角色                     | 目標                                         |
-| ------------ | ------------------------ | -------------------------------------------- |
-| 社群營運人員 | Ruby Taiwan 核心團隊成員 | 掌握社群動態、追蹤專案進度、快速回應社群需求 |
+| User               | Role                        | Goal                                                          |
+| ------------------ | --------------------------- | ------------------------------------------------------------- |
+| Community Operator | Ruby Taiwan core team member | Stay informed on community activity, track project progress, respond to community needs quickly |
 
 ## Impacts
 
-| 行為變化 | 現狀                                              | 目標狀態                    |
-| -------- | ------------------------------------------------- | --------------------------- |
-| 資訊彙整 | 營運人員需手動瀏覽 GitHub 和 Discord 才能掌握動態 | 系統每日自動彙整並推送摘要  |
-| 資料查詢 | 需切換到 GitHub 介面搜尋 Issue 或 Project 狀態    | 在 Discord 中直接下指令查詢 |
+| Behavior Change       | Current State                                                    | Target State                              |
+| --------------------- | ---------------------------------------------------------------- | ----------------------------------------- |
+| Information Gathering | Operators manually browse GitHub and Discord to stay informed    | System automatically aggregates and pushes daily summaries |
+| Data Querying         | Operators switch to GitHub UI to search Issues or Project status | Query directly in Discord via commands    |
 
 ## Success Criteria
 
-- 營運人員每日收到一則涵蓋 GitHub 與 Discord 動態的 AI 摘要
-- 營運人員可在 Discord 中查詢 Issue 狀態與專案進度並即時取得回覆
+- Operators receive a daily AI summary covering GitHub and Discord activity
+- Operators can query Issue status and project progress in Discord and get immediate responses
 
 ## Non-goals
 
-- 不處理 Discord 的使用者權限管理
-- 不提供 GitHub Issue 的建立或修改功能（唯讀存取）
-- 不提供面向一般社群成員的功能（僅限營運人員使用）
+- Does not handle Discord user permission management
+- Does not provide GitHub Issue creation or modification (read-only access)
+- Does not provide features for general community members (operators only)
 
 ## Features
 
-### 1. 每日 AI 摘要
+### 1. Daily AI Summary
 
-系統依排程收集 GitHub Issues、Project 活動以及營運團隊指定 Discord 頻道過去可設定時數（預設 24 小時）的討論內容，透過 AI 產生待辦清單格式的摘要，發送至該 Discord 頻道。
+The system collects discussion messages from a designated Discord channel over a configurable time window (default: 24 hours) on a schedule, processes them through a two-phase AI pipeline, and sends a structured action item list to the same Discord channel.
+
+**Processing Pipeline:**
+
+| Phase                    | Input                          | Output                                                                  |
+| ------------------------ | ------------------------------ | ----------------------------------------------------------------------- |
+| Data Collection          | Discord channel message history | Time-sorted message list (with author, content, timestamp, attachments, mentions) |
+| Phase 1: Conversation Grouping | Sorted message list       | Topic groups, each with a summary and attribute tags (community-related, small talk, lost context) |
+| Phase 2: Action Items    | Topic groups                   | Structured action item list, each with status, assignee, task description, and reason |
+
+**AI Available Tools:**
+
+| Tool        | Capability                                        | Purpose                                              |
+| ----------- | ------------------------------------------------- | ---------------------------------------------------- |
+| Memory Tool | Read/write JSON context memory (capped by config) | Retain important context across executions, avoid redundant processing |
+| GitHub Tool | Read-only access to GitHub Projects and Issues    | Verify task status, assist action item classification |
 
 **User Journey:**
 
-| Context                  | Action                              | Outcome                          |
-| ------------------------ | ----------------------------------- | -------------------------------- |
-| 營運人員在每日開始工作時 | 系統已自動將摘要發送至 Discord 頻道 | 營運人員閱讀摘要即可掌握近期動態 |
+| Context                            | Action                                          | Outcome                                                        |
+| ---------------------------------- | ----------------------------------------------- | -------------------------------------------------------------- |
+| Operator starts their daily work   | System has already sent summary to Discord channel | Operator reads action item list to grasp recent activity and to-dos |
 
-### 2. Discord 互動指令
+### 2. Discord Interaction Commands
 
-營運人員在 Discord 中透過 Slash Command 下達查詢指令，系統透過 GitHub App 取得資料後回覆。
+Operators issue query commands via Slash Commands in Discord. The system retrieves data through the GitHub App and responds.
 
 **User Journey:**
 
-| Context                               | Action                          | Outcome          |
-| ------------------------------------- | ------------------------------- | ---------------- |
-| 營運人員需要查詢特定 Issue 或專案狀態 | 在 Discord 中輸入 Slash Command | 系統回覆查詢結果 |
+| Context                                       | Action                              | Outcome                  |
+| --------------------------------------------- | ----------------------------------- | ------------------------ |
+| Operator needs to check a specific Issue or project status | Enter Slash Command in Discord | System responds with query results |
 
 **To be decided:**
 
-- 具體支援的指令清單與參數格式
-- 查詢結果的呈現格式
-- 權限控制機制（如何限制僅營運人員可使用）
+- Supported command list and parameter formats
+- Query result display format
+- Access control mechanism (how to restrict to operators only)
 
-### 3. GitHub App 整合
+### 3. GitHub App Integration
 
-系統作為 GitHub App 安裝於 Ruby Taiwan 組織，以唯讀權限存取 Project 與 Issues 資料，作為每日摘要與互動指令的資料來源。
+The system is installed as a GitHub App on the Ruby Taiwan organization with read-only permissions to access Project and Issues data, serving as the data source for daily summaries and interaction commands.
 
 **User Journey:**
 
-| Context                  | Action                              | Outcome                           |
-| ------------------------ | ----------------------------------- | --------------------------------- |
-| 系統需要存取 GitHub 資料 | 透過 GitHub App 認證後發送 API 請求 | 取得 Project 和 Issues 的最新資料 |
+| Context                          | Action                                        | Outcome                                 |
+| -------------------------------- | --------------------------------------------- | --------------------------------------- |
+| System needs to access GitHub data | Authenticate via GitHub App and send API request | Retrieve latest Project and Issues data |
 
 ## Configuration
 
-| 設定項目        | 說明                                         | 預設值           |
-| --------------- | -------------------------------------------- | ---------------- |
-| Discord 頻道 ID | 營運團隊指定的摘要發送與訊息收集頻道         | （必填，無預設） |
-| 摘要收集時數    | 收集過去 N 小時的 Discord 訊息與 GitHub 活動 | 24               |
-| 摘要項目上限    | 單次摘要的最大條目數量                       | 30               |
+| Setting              | Description                                        | Default          |
+| -------------------- | -------------------------------------------------- | ---------------- |
+| Discord Channel ID   | Designated channel for summary delivery and message collection | (required, no default) |
+| Summary Collection Hours | Collect Discord messages from the past N hours  | 24               |
+| Summary Item Limit   | Maximum number of action items per summary         | 30               |
+| Memory Entry Limit   | Maximum number of memory entries for Memory Tool   | 32               |
 
 ## System Boundary
 
-| 類型 | 系統內                                                                                     | 系統外                                                |
-| ---- | ------------------------------------------------------------------------------------------ | ----------------------------------------------------- |
-| 責任 | 資料收集、AI 摘要產生、查詢回覆                                                            | Discord 伺服器管理、GitHub 專案管理                   |
-| 互動 | 接收 Discord Interaction Webhook；呼叫 GitHub API 與 AI 服務；讀取營運團隊指定頻道歷史訊息 | Discord 使用者認證；GitHub 權限設定；Discord 頻道配置 |
-| 控制 | 摘要排程與內容格式；頻道與收集時數配置                                                     | Discord 頻道配置；GitHub Project 結構                 |
+| Aspect       | Inside System                                                                                                   | Outside System                                           |
+| ------------ | --------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
+| Responsibility | Data collection, two-phase AI summary generation, memory management, query responses                          | Discord server administration, GitHub project management |
+| Interaction  | Receive Discord Interaction Webhook; call GitHub API and AI service; read channel message history; read/write Workers KV memory | Discord user authentication; GitHub permission settings; Discord channel configuration |
+| Control      | Summary schedule and content format; channel and collection hours configuration; memory entry limit             | Discord channel configuration; GitHub Project structure  |
 
 ## Behaviors
 
-### 每日 AI 摘要
+### Daily AI Summary
 
-| 狀態                     | 操作                                       | 結果                                                                            |
-| ------------------------ | ------------------------------------------ | ------------------------------------------------------------------------------- |
-| 排程時間到達             | 觸發摘要產生流程                           | 系統開始收集資料                                                                |
-| GitHub 資料收集成功      | 取得設定時數內的 Issues 與 Project 活動    | 資料暫存供 AI 處理                                                              |
-| Discord 歷史訊息收集成功 | 取得指定頻道設定時數內的討論內容           | 資料暫存供 AI 處理                                                              |
-| 所有資料收集完成         | AI 依 Agent 系統提示詞產生待辦清單格式摘要 | 摘要為條目式清單（上限依設定），每項標註狀態（如：`- [待辦] 蒼時需要更新官網`） |
-| 摘要產生完成             | 發送至指定 Discord 頻道                    | 營運人員可在頻道中閱讀摘要                                                      |
+#### Data Collection
 
-### Discord 互動指令
+| State                              | Action                                              | Result                                                          |
+| ---------------------------------- | --------------------------------------------------- | --------------------------------------------------------------- |
+| Scheduled time reached             | Trigger summary generation pipeline                 | System begins collecting data                                   |
+| Discord message history collected  | Retrieve messages from designated channel within configured time window | Messages sorted by time; extract author, content, timestamp, attachments, mentions |
 
-| 狀態                             | 操作         | 結果                                   |
-| -------------------------------- | ------------ | -------------------------------------- |
-| 收到 Discord Interaction Webhook | 驗證請求簽章 | 驗證通過則處理指令；驗證失敗則拒絕請求 |
+#### Phase 1: Conversation Grouping
 
-**To be decided:** 具體指令的行為定義（依 Feature 2 待決定項目補完後更新）。
+| State                          | Action                                                                      | Result                                                                |
+| ------------------------------ | --------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| Sorted message list received   | AI identifies existing action items from bot messages (previous summaries)  | Existing action items considered during grouping to avoid duplication  |
+| Existing action items identified | AI groups messages by topic and context, tagging each group with attributes (community-related, small talk, lost context) | Topic group list produced, each with summary and attribute tags |
+| Grouping complete              | AI may read/update cross-execution context memory via Memory Tool          | Memory assists grouping decisions; updated after processing for next run |
+| Grouping complete              | AI may query Projects and Issues via GitHub Tool                           | GitHub data assists in determining whether messages relate to existing tasks |
 
-### GitHub App 整合
+#### Phase 2: Action Item Generation
 
-| 狀態                 | 操作                                        | 結果                   |
-| -------------------- | ------------------------------------------- | ---------------------- |
-| 需要存取 GitHub 資料 | 使用 App 憑證取得 Installation Access Token | 取得有時效性的存取權杖 |
-| Access Token 有效    | 發送 GitHub API 請求                        | 取得所需資料           |
-| Access Token 過期    | 重新取得 Installation Access Token          | 更新權杖後重試請求     |
+| State                          | Action                                                                              | Result                                                                         |
+| ------------------------------ | ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| Topic group list received      | AI filters out non-community-related (`community-related=no`) and small talk (`small talk=yes`) groups | Only community-relevant groups retained                                 |
+| Relevant groups filtered       | AI generates an action item for each group, classified as to-do, in-progress, done, stalled, or discussion | At most one action item per group, with assignee, task description, and reason |
+| Action items generated         | AI may update memory via Memory Tool; may verify task status via GitHub Tool        | Memory and GitHub data assist action item status classification                |
+| All action items generated     | Compile into action item list (capped by config), formatted as `- [Status] Description` | List sent to designated Discord channel for operators to read                |
+
+### Discord Interaction Commands
+
+| State                                | Action             | Result                                              |
+| ------------------------------------ | ------------------ | --------------------------------------------------- |
+| Discord Interaction Webhook received | Verify request signature | Process command if valid; reject request if invalid |
+
+**To be decided:** Command behavior definitions (to be updated after Feature 2 decisions are finalized).
+
+### GitHub App Integration
+
+| State                    | Action                                       | Result                          |
+| ------------------------ | -------------------------------------------- | ------------------------------- |
+| GitHub data access needed | Use App credentials to obtain Installation Access Token | Obtain time-limited access token |
+| Access Token valid       | Send GitHub API request                      | Retrieve requested data         |
+| Access Token expired     | Re-obtain Installation Access Token          | Retry request with refreshed token |
 
 ## Error Scenarios
 
-| 場景                                      | 系統行為                                                                                            |
-| ----------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| GitHub API 請求失敗（網路錯誤、速率限制） | 套用「自動退避重試」；永久性失敗記錄至日誌                                                          |
-| Discord API 請求失敗（發送摘要失敗）      | 套用「自動退避重試」；永久性失敗記錄至日誌                                                          |
-| AI 服務無法產生摘要                       | 套用「自動退避重試」；重試皆失敗後，發送原始資料摘要（不含 AI 分析）至 Discord 頻道，並附上錯誤提示 |
-| Discord 歷史訊息收集失敗                  | 套用「自動退避重試」；重試皆失敗後，僅使用 GitHub 資料產生摘要，並註明 Discord 資料缺失             |
-| GitHub App 認證失敗                       | 套用「自動退避重試」；重試皆失敗後，記錄錯誤至日誌，不發送摘要                                      |
-| 互動指令逾時（平台執行時間限制）          | 回覆逾時提示訊息，建議稍後重試                                                                      |
+| Scenario                                          | System Behavior                                                                                       |
+| ------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| Discord message history collection fails          | Apply "exponential backoff retry"; after all retries fail, log error, do not send summary             |
+| Discord API request fails (sending summary)       | Apply "exponential backoff retry"; permanent failure logged                                           |
+| AI service fails to complete grouping or action item generation | Apply "exponential backoff retry"; after all retries fail, send raw message summary (without AI analysis) to Discord channel with error notice |
+| Memory Tool read/write fails                      | Log warning; AI continues processing without memory assistance (degraded but not interrupted)         |
+| GitHub Tool query fails (auth failure, rate limit) | Log warning; AI continues processing without GitHub data assistance (degraded but not interrupted)   |
+| GitHub App authentication fails                   | Apply "exponential backoff retry"; after all retries fail, log error, GitHub Tool unavailable         |
+| Interaction command timeout (platform time limit)  | Reply with timeout notice, suggest retrying later                                                    |
 
 ## Patterns
 
-### 自動退避重試
+### Exponential Backoff Retry
 
-外部服務呼叫（GitHub API、Discord API、AI 服務）發生暫時性失敗時，系統以指數退避方式自動重試，最多重試 3 次。全部重試失敗後，視為永久性失敗，依各 Error Scenario 定義的降級行為處理。
+When external service calls (GitHub API, Discord API, AI service) encounter transient failures, the system retries with exponential backoff, up to 3 attempts. After all retries fail, the failure is treated as permanent and handled according to the degradation behavior defined in each Error Scenario.
 
 ## Terminology
 
-| 用語     | 定義                                                                              |
-| -------- | --------------------------------------------------------------------------------- |
-| 摘要     | 系統透過 AI 彙整後產生的結構化資訊報告                                            |
-| 營運人員 | Ruby Taiwan 核心團隊中負責社群營運的成員                                          |
-| 指令     | 營運人員在 Discord 中透過 Slash Command 發出的查詢請求                            |
-| 待辦清單 | 摘要的呈現格式，每項以 `- [狀態] 描述` 表示，狀態包含「待辦」「進行中」「完成」等 |
-| 排程     | 系統定時觸發摘要產生流程的機制，由平台排程設定驅動                                |
+| Term               | Definition                                                                                            |
+| ------------------ | ----------------------------------------------------------------------------------------------------- |
+| Summary            | Structured action item list produced by the two-phase AI pipeline                                    |
+| Operator           | A member of the Ruby Taiwan core team responsible for community operations                            |
+| Command            | A query request issued by an operator via Discord Slash Command                                      |
+| Group              | Phase 1 output; aggregates contextually related conversation messages into a topic group with summary and attribute tags |
+| Action Item        | Phase 2 output; a structured to-do extracted from a group, containing status, assignee, task description, and reason |
+| Action Item Status | Classification label for action items: to-do, in-progress, done, stalled, or discussion              |
+| Memory Tool        | An AI-accessible memory tool that stores and retrieves JSON context memory via Workers KV for retaining information across executions |
+| GitHub Tool        | An AI-accessible query tool that provides read-only access to GitHub Projects and Issues via GitHub App |
+| Schedule           | The mechanism that triggers the summary generation pipeline on a timed basis, driven by platform scheduling |
 
 ## Contracts
 
-| 互動點                      | 契約                                                                 |
-| --------------------------- | -------------------------------------------------------------------- |
-| Discord Interaction Webhook | 系統接收 HTTP POST 請求，驗證 Ed25519 簽章後處理指令，回傳 JSON 回應 |
-| GitHub API                  | 系統以 GitHub App Installation Token 進行唯讀 REST/GraphQL API 呼叫  |
-| Discord Bot API             | 系統透過 Bot Token 發送訊息至指定頻道、讀取頻道歷史訊息              |
-| AI Service                  | 系統將收集的文字資料送至 AI 服務，接收結構化摘要文字                 |
-| Cron Trigger                | 平台依設定排程觸發摘要產生流程                                       |
+| Interaction Point         | Contract                                                                                              |
+| ------------------------- | ----------------------------------------------------------------------------------------------------- |
+| Discord Interaction Webhook | System receives HTTP POST requests, verifies Ed25519 signature, processes commands, returns JSON response |
+| GitHub API                | System makes read-only REST/GraphQL API calls using GitHub App Installation Token; also serves as the backend for AI GitHub Tool |
+| Discord Bot API           | System sends messages to designated channel and reads channel message history via Bot Token           |
+| AI Service                | System calls AI service in two phases: Phase 1 receives message list and produces groups; Phase 2 receives groups and produces action item list |
+| Memory Store              | AI reads and writes JSON memory entries via Workers KV; entry count capped by configuration           |
+| Cron Trigger              | Platform triggers summary generation pipeline on configured schedule                                  |
