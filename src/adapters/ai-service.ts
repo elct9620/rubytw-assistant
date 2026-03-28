@@ -15,11 +15,11 @@ const ACCOUNT_ID = '614fcd230e7a893b205fd36259d9aff3'
 const GATEWAY_ID = 'rubytw-assistant'
 
 const TopicGroupSchema = z.object({
-  topic: z.string().describe('主題名稱'),
-  summary: z.string().describe('主題摘要'),
-  communityRelated: z.enum(['yes', 'no']).describe('是否與社群活動相關'),
-  smallTalk: z.enum(['yes', 'no']).describe('是否為閒聊'),
-  lostContext: z.enum(['yes', 'no']).describe('是否缺乏足夠上下文'),
+  topic: z.string().describe('topic title'),
+  summary: z.string().describe('topic summary'),
+  communityRelated: z.enum(['yes', 'no']).describe('whether community related'),
+  smallTalk: z.enum(['yes', 'no']).describe('whether small talk'),
+  lostContext: z.enum(['yes', 'no']).describe('whether context is lost'),
 })
 
 const Phase1OutputSchema = z.object({
@@ -29,10 +29,10 @@ const Phase1OutputSchema = z.object({
 const ActionItemSchema = z.object({
   status: z
     .enum(['to-do', 'in-progress', 'done', 'stalled', 'discussion'])
-    .describe('待辦事項狀態'),
-  description: z.string().describe('任務描述'),
-  assignee: z.string().describe('負責人'),
-  reason: z.string().describe('原因'),
+    .describe('action item status'),
+  description: z.string().describe('task description'),
+  assignee: z.string().describe('assignee'),
+  reason: z.string().describe('reason'),
 })
 
 const Phase2OutputSchema = z.object({

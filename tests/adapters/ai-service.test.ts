@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { AIServiceAdapter } from '../../src/adapters/ai-service'
+import PHASE1_SYSTEM_PROMPT from '../../src/prompts/phase1-group-conversations.md'
+import PHASE2_SYSTEM_PROMPT from '../../src/prompts/phase2-generate-action-items.md'
 
 const mockGenerateText = vi.fn()
 vi.mock('ai', () => ({
@@ -37,7 +39,7 @@ describe('AIServiceAdapter', () => {
         expect.objectContaining({
           model: expect.anything(),
           output: expect.objectContaining({ type: 'object' }),
-          system: expect.stringContaining('Contextual Groups'),
+          system: PHASE1_SYSTEM_PROMPT,
           prompt: 'msg-1\nmsg-2',
           temperature: 0.3,
         }),
@@ -103,7 +105,7 @@ describe('AIServiceAdapter', () => {
         expect.objectContaining({
           model: expect.anything(),
           output: expect.objectContaining({ type: 'object' }),
-          system: expect.stringContaining('action items'),
+          system: PHASE2_SYSTEM_PROMPT,
           prompt: JSON.stringify(groups),
           temperature: 0.3,
         }),

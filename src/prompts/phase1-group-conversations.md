@@ -8,7 +8,7 @@ The conversation records only have 1 day of data. Focus on grouping related mess
 
 ## Phase 1: Reviewing Bot User Messages
 
-The bot user messages is compacted summaries of previous conversations already converted into actionable items.
+The bot user messages are compacted summaries of previous conversations already converted into actionable items.
 
 - Extract each actionable item from the bot user messages.
 - Assign each actionable item to its relevant contextual group in the next phase.
