@@ -89,6 +89,31 @@ The system is installed as a GitHub App on the Ruby Taiwan organization with rea
 | ---------------------------------- | ------------------------------------------------ | --------------------------------------- |
 | System needs to access GitHub data | Authenticate via GitHub App and send API request | Retrieve latest Project and Issues data |
 
+### 4. Debug Summary Preview
+
+A development-only HTTP endpoint that triggers the same AI summary pipeline as Feature 1, but returns the result directly in the HTTP response instead of sending it to a Discord channel. This allows operators to inspect and verify AI parsing output without polluting any channel.
+
+**Constraints:**
+
+| Aspect          | Decision                                                                |
+| --------------- | ----------------------------------------------------------------------- |
+| Availability    | Development environment only; the endpoint does not exist in production |
+| Authentication  | None; environment isolation is the sole access control mechanism        |
+| Result delivery | HTTP response body; no Discord message sent                             |
+
+**Parameters:**
+
+| Parameter         | Description                              | Required                                                |
+| ----------------- | ---------------------------------------- | ------------------------------------------------------- |
+| Source Channel ID | Discord channel to collect messages from | Yes                                                     |
+| Hours             | Time window for message collection       | No (defaults to Summary Collection Hours configuration) |
+
+**User Journey:**
+
+| Context                                                           | Action                                                       | Outcome                                                                                                                |
+| ----------------------------------------------------------------- | ------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------- |
+| Operator is tuning AI summary behavior and wants to verify output | Send HTTP request to debug endpoint with a source channel ID | Operator receives the full pipeline result (topic groups and action items) in the response and can inspect correctness |
+
 ## Configuration
 
 | Setting                  | Description                                                    | Default                |
@@ -135,6 +160,15 @@ The system is installed as a GitHub App on the Ruby Taiwan organization with rea
 | Action items generated     | AI may update memory via Memory Tool; may verify task status via GitHub Tool                                | Memory and GitHub data assist action item status classification                |
 | All action items generated | Compile into action item list (capped by config), formatted as `- [Status] Description (Assignee) — Reason` | List sent to designated Discord channel for operators to read                  |
 
+### Debug Summary Preview
+
+| State                                                  | Action                                                                    | Result                                                                  |
+| ------------------------------------------------------ | ------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| Debug endpoint receives request with source channel ID | Collect messages from specified channel within time window                | Messages retrieved using same data collection logic as Daily AI Summary |
+| Messages collected                                     | Execute full AI pipeline (Conversation Grouping → Action Item Generation) | Topic groups and action items produced                                  |
+| Pipeline complete                                      | Return topic groups and action items in HTTP response                     | Operator inspects result; no Discord message sent                       |
+| No messages found in time window                       | Skip AI pipeline                                                          | Return empty result indicating no messages found                        |
+
 ### Discord Interaction Commands
 
 | State                                | Action                   | Result                                              |
@@ -165,6 +199,8 @@ The system is installed as a GitHub App on the Ruby Taiwan organization with rea
 | GitHub Tool query fails (auth failure, rate limit)              | Log warning; AI continues processing without GitHub data assistance (degraded but not interrupted) |
 | GitHub App authentication fails                                 | Apply "exponential backoff retry"; after all retries fail, log error, GitHub Tool unavailable      |
 | Interaction command timeout (platform time limit)               | Reply with timeout notice, suggest retrying later                                                  |
+| Debug endpoint called in production environment                 | Endpoint does not exist; return standard HTTP 404                                                  |
+| Debug endpoint: AI pipeline fails                               | Return error details in HTTP response; no fallback message sent to Discord                         |
 
 ## Patterns
 
@@ -200,3 +236,4 @@ When the AI pipeline fails after all retries, the system sends a fallback messag
 | AI Service                  | System makes two separate AI service calls: Phase 1 receives message list and produces groups; Phase 2 receives groups and produces action item list. Each phase is an independent request-response cycle. |
 | Memory Store                | AI reads and writes structured memory entries via persistent key-value store; entry count capped by configuration                                                                                          |
 | Cron Trigger                | Platform triggers summary generation pipeline on configured schedule                                                                                                                                       |
+| Debug Summary Endpoint      | Development-only HTTP endpoint; accepts source channel ID and optional hours; returns pipeline result in response body; does not exist in production                                                       |
