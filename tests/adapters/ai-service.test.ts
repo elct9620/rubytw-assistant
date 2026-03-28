@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { AIServiceAdapter } from '../../src/adapters/ai-service'
 
 const mockGenerateText = vi.fn()
@@ -10,6 +10,10 @@ vi.mock('ai', () => ({
 }))
 
 describe('AIServiceAdapter', () => {
+  beforeEach(() => {
+    mockGenerateText.mockReset()
+  })
+
   describe('groupConversations', () => {
     it('should call generateText with Phase 1 output schema and system prompt', async () => {
       mockGenerateText.mockResolvedValue({

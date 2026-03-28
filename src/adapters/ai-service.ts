@@ -2,8 +2,10 @@ import { generateText, Output } from 'ai'
 import { createAiGateway } from 'ai-gateway-provider'
 import { createUnified } from 'ai-gateway-provider/providers/unified'
 import { z } from 'zod'
-import type { ConversationGrouper } from '../usecases/generate-summary'
-import type { ActionItemGenerator } from '../usecases/generate-summary'
+import type {
+  ConversationGrouper,
+  ActionItemGenerator,
+} from '../usecases/generate-summary'
 import type { TopicGroup } from '../entities/topic-group'
 import type { ActionItem } from '../entities/action-item'
 
@@ -34,7 +36,7 @@ const TopicGroupSchema = z.object({
   summary: z.string().describe('主題摘要'),
   communityRelated: z.enum(['yes', 'no']).describe('是否與社群活動相關'),
   smallTalk: z.enum(['yes', 'no']).describe('是否為閒聊'),
-  lostContext: z.enum(['yes', 'no']).describe('���否缺乏足夠上下文'),
+  lostContext: z.enum(['yes', 'no']).describe('是否缺乏足夠上下文'),
 })
 
 const Phase1OutputSchema = z.object({

@@ -16,6 +16,7 @@ describe('DiscordSourceAdapter', () => {
 
   afterEach(() => {
     vi.useRealTimers()
+    vi.restoreAllMocks()
   })
 
   it('should request messages from correct API endpoint with after snowflake', async () => {
