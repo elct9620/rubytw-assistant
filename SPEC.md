@@ -19,7 +19,7 @@ Provide automated information aggregation and query tools for Ruby Taiwan commun
 
 ## Success Criteria
 
-- Operators receive a daily AI summary covering GitHub and Discord activity
+- Operators receive a daily AI-generated action item list based on Discord discussions
 - Operators can query Issue status and project progress in Discord and get immediate responses
 
 ## Non-goals
@@ -46,7 +46,7 @@ The system collects discussion messages from a designated Discord channel over a
 
 | Tool        | Capability                                        | Purpose                                              |
 | ----------- | ------------------------------------------------- | ---------------------------------------------------- |
-| Memory Tool | Read/write JSON context memory (capped by config) | Retain important context across executions, avoid redundant processing |
+| Memory Tool | Read/write structured context memory (capped by config) | Retain important context across executions, avoid redundant processing |
 | GitHub Tool | Read-only access to GitHub Projects and Issues    | Verify task status, assist action item classification |
 
 **User Journey:**
@@ -95,7 +95,7 @@ The system is installed as a GitHub App on the Ruby Taiwan organization with rea
 | Aspect       | Inside System                                                                                                   | Outside System                                           |
 | ------------ | --------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
 | Responsibility | Data collection, two-phase AI summary generation, memory management, query responses                          | Discord server administration, GitHub project management |
-| Interaction  | Receive Discord Interaction Webhook; call GitHub API and AI service; read channel message history; read/write Workers KV memory | Discord user authentication; GitHub permission settings; Discord channel configuration |
+| Interaction  | Receive Discord Interaction Webhook; call GitHub API and AI service; read channel message history; read/write persistent memory store | Discord user authentication; GitHub permission settings; Discord channel configuration |
 | Control      | Summary schedule and content format; channel and collection hours configuration; memory entry limit             | Discord channel configuration; GitHub Project structure  |
 
 ## Behaviors
@@ -171,7 +171,7 @@ When external service calls (GitHub API, Discord API, AI service) encounter tran
 | Group              | Phase 1 output; aggregates contextually related conversation messages into a topic group with summary and attribute tags |
 | Action Item        | Phase 2 output; a structured to-do extracted from a group, containing status, assignee, task description, and reason |
 | Action Item Status | Classification label for action items: to-do, in-progress, done, stalled, or discussion              |
-| Memory Tool        | An AI-accessible memory tool that stores and retrieves JSON context memory via Workers KV for retaining information across executions |
+| Memory Tool        | An AI-accessible memory tool that stores and retrieves structured context memory for retaining information across executions |
 | GitHub Tool        | An AI-accessible query tool that provides read-only access to GitHub Projects and Issues via GitHub App |
 | Schedule           | The mechanism that triggers the summary generation pipeline on a timed basis, driven by platform scheduling |
 
@@ -183,5 +183,5 @@ When external service calls (GitHub API, Discord API, AI service) encounter tran
 | GitHub API                | System makes read-only REST/GraphQL API calls using GitHub App Installation Token; also serves as the backend for AI GitHub Tool |
 | Discord Bot API           | System sends messages to designated channel and reads channel message history via Bot Token           |
 | AI Service                | System calls AI service in two phases: Phase 1 receives message list and produces groups; Phase 2 receives groups and produces action item list |
-| Memory Store              | AI reads and writes JSON memory entries via Workers KV; entry count capped by configuration           |
+| Memory Store              | AI reads and writes structured memory entries via persistent key-value store; entry count capped by configuration |
 | Cron Trigger              | Platform triggers summary generation pipeline on configured schedule                                  |
