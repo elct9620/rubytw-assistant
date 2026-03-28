@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { AIServiceAdapter } from '../../src/adapters/ai-service'
-import type { MemoryStore } from '../../src/usecases/memory-store'
+import type { MemoryStore } from '../../src/usecases/ports'
 import PHASE1_SYSTEM_PROMPT from '../../src/prompts/phase1-group-conversations.md'
 import PHASE2_SYSTEM_PROMPT from '../../src/prompts/phase2-generate-action-items.md'
 

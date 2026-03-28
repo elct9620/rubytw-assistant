@@ -7,9 +7,6 @@ import type {
   SummaryResult,
 } from './ports'
 
-export type { SummaryResult } from './ports'
-export type { SummaryPresenter } from './ports'
-
 export interface GenerateSummaryDeps {
   github: GitHubSource
   discord: DiscordSource

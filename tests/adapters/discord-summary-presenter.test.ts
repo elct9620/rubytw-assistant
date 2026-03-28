@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { DiscordSummaryPresenter } from '../../src/adapters/discord-summary-presenter'
-import type { SummaryResult } from '../../src/usecases/generate-summary'
+import type { SummaryResult } from '../../src/usecases/ports'
 import type { ActionItem } from '../../src/entities/action-item'
 import type { TopicGroup } from '../../src/entities/topic-group'
 
