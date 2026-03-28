@@ -1,9 +1,12 @@
+import { injectable, inject } from 'tsyringe'
 import type { DiscordNotifier } from '../usecases/generate-summary'
 import { type FetchFn, assertDiscordResponse } from './shared'
+import { TOKENS } from '../tokens'
 
+@injectable()
 export class DiscordNotifierAdapter implements DiscordNotifier {
   constructor(
-    private botToken: string,
+    @inject(TOKENS.DiscordBotToken) private botToken: string,
     private fetchFn: FetchFn = fetch,
   ) {}
 

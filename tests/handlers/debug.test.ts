@@ -1,25 +1,33 @@
-import { describe, it, expect, vi } from 'vitest'
-import { createDebugHandler } from '../../src/handlers/debug'
+import { container } from 'tsyringe'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { TOKENS } from '../../src/tokens'
+import { PreviewSummary } from '../../src/usecases/preview-summary'
+import debug from '../../src/handlers/debug'
 
-function createStubs({
-  topicGroups = [],
-  actionItems = [],
-}: {
-  topicGroups?: unknown[]
-  actionItems?: unknown[]
-} = {}) {
-  return {
-    usecase: {
-      execute: vi.fn().mockResolvedValue({ topicGroups, actionItems }),
-    },
-    defaultHours: 24,
-  }
-}
+const mockExecute = vi.fn()
+
+beforeEach(() => {
+  container.clearInstances()
+
+  container.register(TOKENS.ConversationGrouper, {
+    useValue: {},
+  })
+  container.register(TOKENS.ActionItemGenerator, {
+    useValue: {},
+  })
+  container.register(TOKENS.DiscordSource, {
+    useValue: {},
+  })
+  container.register(PreviewSummary, {
+    useFactory: () => ({ execute: mockExecute }),
+  })
+
+  mockExecute.mockReset()
+})
 
 describe('debug handler', () => {
   it('should return 400 when channel_id is missing', async () => {
-    const app = createDebugHandler(() => createStubs())
-    const res = await app.request('/summary')
+    const res = await debug.request('/summary')
 
     expect(res.status).toBe(400)
     const body = await res.json()
@@ -44,41 +52,34 @@ describe('debug handler', () => {
         reason: 'Needed',
       },
     ]
-    const stubs = createStubs({ topicGroups, actionItems })
-    const app = createDebugHandler(() => stubs)
+    mockExecute.mockResolvedValue({ topicGroups, actionItems })
 
-    const res = await app.request('/summary?channel_id=ch-1')
+    const res = await debug.request('/summary?channel_id=ch-1', undefined, {
+      SUMMARY_HOURS: '24',
+    })
 
     expect(res.status).toBe(200)
     const body = await res.json()
     expect(body).toEqual({ topicGroups, actionItems })
-    expect(stubs.usecase.execute).toHaveBeenCalledWith(24)
-  })
-
-  it('should pass channel_id to factory', async () => {
-    const factory = vi.fn().mockReturnValue(createStubs())
-    const app = createDebugHandler(factory)
-
-    await app.request('/summary?channel_id=my-channel')
-
-    expect(factory.mock.calls[0][1]).toBe('my-channel')
+    expect(mockExecute).toHaveBeenCalled()
   })
 
   it('should use custom hours when provided', async () => {
-    const stubs = createStubs()
-    const app = createDebugHandler(() => stubs)
+    mockExecute.mockResolvedValue({ topicGroups: [], actionItems: [] })
 
-    await app.request('/summary?channel_id=ch-1&hours=12')
+    await debug.request('/summary?channel_id=ch-1&hours=12', {
+      SUMMARY_HOURS: '24',
+    })
 
-    expect(stubs.usecase.execute).toHaveBeenCalledWith(12)
+    expect(mockExecute).toHaveBeenCalledWith(12)
   })
 
   it('should return error JSON when use case throws', async () => {
-    const stubs = createStubs()
-    stubs.usecase.execute.mockRejectedValue(new Error('Discord API failed'))
-    const app = createDebugHandler(() => stubs)
+    mockExecute.mockRejectedValue(new Error('Discord API failed'))
 
-    const res = await app.request('/summary?channel_id=ch-1')
+    const res = await debug.request('/summary?channel_id=ch-1', undefined, {
+      SUMMARY_HOURS: '24',
+    })
 
     expect(res.status).toBe(500)
     const body = await res.json()

@@ -1,5 +1,7 @@
+import { injectable, inject } from 'tsyringe'
 import type { DiscordSource } from '../usecases/generate-summary'
 import { type FetchFn, assertDiscordResponse } from './shared'
+import { TOKENS } from '../tokens'
 
 const DISCORD_EPOCH = 1420070400000n
 const MAX_MESSAGES_PER_REQUEST = 100
@@ -76,10 +78,11 @@ export function formatMessageToXml(msg: DiscordMessage): string {
   return parts.join('\n')
 }
 
+@injectable()
 export class DiscordSourceAdapter implements DiscordSource {
   constructor(
-    private botToken: string,
-    private channelId: string,
+    @inject(TOKENS.DiscordBotToken) private botToken: string,
+    @inject(TOKENS.DiscordChannelId) private channelId: string,
     private fetchFn: FetchFn = fetch,
   ) {}
 

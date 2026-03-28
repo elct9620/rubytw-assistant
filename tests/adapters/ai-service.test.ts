@@ -44,7 +44,12 @@ describe('AIServiceAdapter', () => {
           ],
         },
       })
-      const adapter = new AIServiceAdapter('test-token', 'openai/gpt-4.1-mini')
+      const adapter = new AIServiceAdapter(
+        'test-token',
+        'openai/gpt-4.1-mini',
+        createStubMemoryStore(),
+        32,
+      )
 
       await adapter.groupConversations(['msg-1', 'msg-2'])
 
@@ -70,7 +75,12 @@ describe('AIServiceAdapter', () => {
         },
       ]
       mockGenerateText.mockResolvedValue({ output: { groups } })
-      const adapter = new AIServiceAdapter('test-token', 'openai/gpt-4.1-mini')
+      const adapter = new AIServiceAdapter(
+        'test-token',
+        'openai/gpt-4.1-mini',
+        createStubMemoryStore(),
+        32,
+      )
 
       const result = await adapter.groupConversations(['msg'])
 
@@ -79,7 +89,12 @@ describe('AIServiceAdapter', () => {
 
     it('should throw when output is null', async () => {
       mockGenerateText.mockResolvedValue({ output: null })
-      const adapter = new AIServiceAdapter('test-token', 'openai/gpt-4.1-mini')
+      const adapter = new AIServiceAdapter(
+        'test-token',
+        'openai/gpt-4.1-mini',
+        createStubMemoryStore(),
+        32,
+      )
 
       await expect(adapter.groupConversations(['msg'])).rejects.toThrow(
         'AI service returned no structured output for Phase 1',
@@ -95,6 +110,7 @@ describe('AIServiceAdapter', () => {
         'test-token',
         'openai/gpt-4.1-mini',
         store,
+        32,
       )
 
       await adapter.groupConversations(['msg'])
@@ -119,19 +135,6 @@ describe('AIServiceAdapter', () => {
         }),
       )
     })
-
-    it('should not include tools when memoryStore is not provided', async () => {
-      mockGenerateText.mockResolvedValue({
-        output: { groups: [] },
-      })
-      const adapter = new AIServiceAdapter('test-token', 'openai/gpt-4.1-mini')
-
-      await adapter.groupConversations(['msg'])
-
-      const callArgs = mockGenerateText.mock.calls[0][0]
-      expect(callArgs.tools).toBeUndefined()
-      expect(callArgs.stopWhen).toBeUndefined()
-    })
   })
 
   describe('generateActionItems', () => {
@@ -148,7 +151,12 @@ describe('AIServiceAdapter', () => {
           ],
         },
       })
-      const adapter = new AIServiceAdapter('test-token', 'openai/gpt-4.1-mini')
+      const adapter = new AIServiceAdapter(
+        'test-token',
+        'openai/gpt-4.1-mini',
+        createStubMemoryStore(),
+        32,
+      )
       const groups = [
         {
           topic: '官網',
@@ -188,7 +196,12 @@ describe('AIServiceAdapter', () => {
         },
       ]
       mockGenerateText.mockResolvedValue({ output: { items } })
-      const adapter = new AIServiceAdapter('test-token', 'openai/gpt-4.1-mini')
+      const adapter = new AIServiceAdapter(
+        'test-token',
+        'openai/gpt-4.1-mini',
+        createStubMemoryStore(),
+        32,
+      )
 
       const result = await adapter.generateActionItems([
         {
@@ -205,7 +218,12 @@ describe('AIServiceAdapter', () => {
 
     it('should throw when output is null', async () => {
       mockGenerateText.mockResolvedValue({ output: null })
-      const adapter = new AIServiceAdapter('test-token', 'openai/gpt-4.1-mini')
+      const adapter = new AIServiceAdapter(
+        'test-token',
+        'openai/gpt-4.1-mini',
+        createStubMemoryStore(),
+        32,
+      )
 
       await expect(
         adapter.generateActionItems([
@@ -229,6 +247,7 @@ describe('AIServiceAdapter', () => {
         'test-token',
         'openai/gpt-4.1-mini',
         store,
+        32,
       )
 
       await adapter.generateActionItems([

@@ -1,19 +1,16 @@
-import type { GenerateSummary } from '../usecases/generate-summary'
+import { container } from '../container'
+import { GenerateSummary } from '../usecases/generate-summary'
+import { TOKENS } from '../tokens'
 
-export interface ScheduledHandlerConfig {
-  usecase: GenerateSummary
-  channelId: string
-  hours: number
-}
+export async function scheduledHandler(
+  controller: ScheduledController,
+): Promise<void> {
+  console.log(
+    `cron triggered: ${controller.cron} at ${controller.scheduledTime}`,
+  )
 
-export type ConfigFactory = (env: Env) => ScheduledHandlerConfig
-
-export function createScheduledHandler(factory: ConfigFactory) {
-  return async (controller: ScheduledController, env: Env): Promise<void> => {
-    console.log(
-      `cron triggered: ${controller.cron} at ${controller.scheduledTime}`,
-    )
-    const { usecase, channelId, hours } = factory(env)
-    await usecase.execute(channelId, hours)
-  }
+  const usecase = container.resolve(GenerateSummary)
+  const channelId = container.resolve<string>(TOKENS.DiscordChannelId)
+  const hours = container.resolve<number>(TOKENS.SummaryHours)
+  await usecase.execute(channelId, hours)
 }

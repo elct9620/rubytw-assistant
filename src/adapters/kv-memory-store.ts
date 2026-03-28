@@ -1,12 +1,15 @@
+import { injectable, inject } from 'tsyringe'
 import type { MemoryStore } from '../usecases/memory-store'
 import type { MemoryEntry } from '../entities/memory-entry'
+import { TOKENS } from '../tokens'
 
 const KEY_PREFIX = 'memory:'
 
+@injectable()
 export class KVMemoryStoreAdapter implements MemoryStore {
   constructor(
-    private kv: KVNamespace,
-    private entryLimit: number,
+    @inject(TOKENS.MemoryKv) private kv: KVNamespace,
+    @inject(TOKENS.MemoryEntryLimit) private entryLimit: number,
   ) {}
 
   async list(): Promise<MemoryEntry[]> {

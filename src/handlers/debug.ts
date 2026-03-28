@@ -1,36 +1,29 @@
 import { Hono } from 'hono'
-import type { PreviewSummary } from '../usecases/preview-summary'
+import { container } from '../container'
+import { TOKENS } from '../tokens'
+import { PreviewSummary } from '../usecases/preview-summary'
 
-export interface DebugHandlerConfig {
-  usecase: PreviewSummary
-  defaultHours: number
-}
+const debug = new Hono<{ Bindings: Env }>()
 
-export type DebugConfigFactory = (
-  env: Env,
-  channelId: string,
-) => DebugHandlerConfig
+debug.get('/summary', async (c) => {
+  const channelId = c.req.query('channel_id')
+  if (!channelId) {
+    return c.json({ error: 'channel_id is required' }, 400)
+  }
 
-export function createDebugHandler(factory: DebugConfigFactory) {
-  const app = new Hono<{ Bindings: Env }>()
+  const child = container.createChildContainer()
+  child.register(TOKENS.DiscordChannelId, { useValue: channelId })
+  const usecase = child.resolve(PreviewSummary)
 
-  app.get('/summary', async (c) => {
-    const channelId = c.req.query('channel_id')
-    if (!channelId) {
-      return c.json({ error: 'channel_id is required' }, 400)
-    }
+  const hours = Number(c.req.query('hours')) || Number(c.env.SUMMARY_HOURS)
 
-    const { usecase, defaultHours } = factory(c.env, channelId)
-    const hours = Number(c.req.query('hours')) || defaultHours
+  try {
+    const result = await usecase.execute(hours)
+    return c.json(result)
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error'
+    return c.json({ error: message }, 500)
+  }
+})
 
-    try {
-      const result = await usecase.execute(hours)
-      return c.json(result)
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Unknown error'
-      return c.json({ error: message }, 500)
-    }
-  })
-
-  return app
-}
+export default debug

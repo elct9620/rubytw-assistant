@@ -1,3 +1,4 @@
+import { injectable, inject } from 'tsyringe'
 import { generateText, Output, tool, stepCountIs } from 'ai'
 import type { ToolSet } from 'ai'
 import { createAiGateway } from 'ai-gateway-provider'
@@ -10,12 +11,12 @@ import type {
 import type { MemoryStore } from '../usecases/memory-store'
 import type { TopicGroup } from '../entities/topic-group'
 import type { ActionItem } from '../entities/action-item'
+import { TOKENS } from '../tokens'
 import PHASE1_SYSTEM_PROMPT from '../prompts/phase1-group-conversations.md'
 import PHASE2_SYSTEM_PROMPT from '../prompts/phase2-generate-action-items.md'
 
 const ACCOUNT_ID = '614fcd230e7a893b205fd36259d9aff3'
 const GATEWAY_ID = 'rubytw-assistant'
-const DEFAULT_MEMORY_ENTRY_LIMIT = 32
 const MAX_TOOL_STEPS = 5
 
 const TopicGroupSchema = z.object({
@@ -43,19 +44,16 @@ const Phase2OutputSchema = z.object({
   items: z.array(ActionItemSchema),
 })
 
+@injectable()
 export class AIServiceAdapter
   implements ConversationGrouper, ActionItemGenerator
 {
-  private memoryEntryLimit: number
-
   constructor(
-    private apiKey: string,
-    private modelId: string,
-    private memoryStore?: MemoryStore,
-    memoryEntryLimit?: number,
-  ) {
-    this.memoryEntryLimit = memoryEntryLimit ?? DEFAULT_MEMORY_ENTRY_LIMIT
-  }
+    @inject(TOKENS.CfAigToken) private apiKey: string,
+    @inject(TOKENS.AiModel) private modelId: string,
+    @inject(TOKENS.MemoryStore) private memoryStore: MemoryStore,
+    @inject(TOKENS.MemoryEntryLimit) private memoryEntryLimit: number,
+  ) {}
 
   async groupConversations(messages: string[]): Promise<TopicGroup[]> {
     const system = PHASE1_SYSTEM_PROMPT.replace(
@@ -71,7 +69,7 @@ export class AIServiceAdapter
       prompt: messages.join('\n'),
       temperature: 0.3,
       tools,
-      ...(tools ? { stopWhen: stepCountIs(MAX_TOOL_STEPS) } : {}),
+      stopWhen: stepCountIs(MAX_TOOL_STEPS),
     })
 
     if (!output) {
@@ -96,7 +94,7 @@ export class AIServiceAdapter
       prompt: JSON.stringify(groups),
       temperature: 0.3,
       tools,
-      ...(tools ? { stopWhen: stepCountIs(MAX_TOOL_STEPS) } : {}),
+      stopWhen: stepCountIs(MAX_TOOL_STEPS),
     })
 
     if (!output) {
@@ -106,9 +104,7 @@ export class AIServiceAdapter
     return output.items
   }
 
-  private createMemoryTools(): ToolSet | undefined {
-    if (!this.memoryStore) return undefined
-
+  private createMemoryTools(): ToolSet {
     const store = this.memoryStore
     const limit = this.memoryEntryLimit
 

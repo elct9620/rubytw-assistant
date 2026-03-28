@@ -1,33 +1,28 @@
-import { env } from 'cloudflare:test'
-import { describe, it, expect, vi } from 'vitest'
-import { createScheduledHandler } from '../../src/handlers/scheduled'
+import { container } from 'tsyringe'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { TOKENS } from '../../src/tokens'
+import { GenerateSummary } from '../../src/usecases/generate-summary'
+import { scheduledHandler } from '../../src/handlers/scheduled'
 
-describe('createScheduledHandler', () => {
-  it('should call use case execute with channelId and hours from factory', async () => {
-    const execute = vi.fn()
-    const handler = createScheduledHandler(() => ({
-      usecase: { execute },
-      channelId: 'test-channel',
-      hours: 12,
-    }))
+const mockExecute = vi.fn()
 
-    const controller = { cron: '0 16 * * *', scheduledTime: Date.now() }
-    await handler(controller as ScheduledController, env)
+beforeEach(() => {
+  container.clearInstances()
 
-    expect(execute).toHaveBeenCalledWith('test-channel', 12)
+  container.register(TOKENS.DiscordChannelId, { useValue: 'test-channel' })
+  container.register(TOKENS.SummaryHours, { useValue: 12 })
+  container.register(GenerateSummary, {
+    useFactory: () => ({ execute: mockExecute }),
   })
 
-  it('should pass env to factory', async () => {
-    const factory = vi.fn().mockReturnValue({
-      usecase: { execute: vi.fn() },
-      channelId: '',
-      hours: 24,
-    })
-    const handler = createScheduledHandler(factory)
+  mockExecute.mockReset()
+})
 
+describe('scheduledHandler', () => {
+  it('should call use case execute with channelId and hours from container', async () => {
     const controller = { cron: '0 16 * * *', scheduledTime: Date.now() }
-    await handler(controller as ScheduledController, env)
+    await scheduledHandler(controller as ScheduledController)
 
-    expect(factory).toHaveBeenCalledWith(env)
+    expect(mockExecute).toHaveBeenCalledWith('test-channel', 12)
   })
 })
