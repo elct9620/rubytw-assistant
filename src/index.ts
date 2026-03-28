@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import { GenerateSummary } from './usecases/generate-summary'
 import { createScheduledHandler } from './adapters/scheduled-handler'
 import { DiscordNotifierAdapter } from './adapters/discord-notifier'
+import { DiscordSourceAdapter } from './adapters/discord-source'
 
 const app = new Hono<{ Bindings: Env }>()
 
@@ -16,9 +17,10 @@ const scheduledHandler = createScheduledHandler((env) => ({
       getIssues: async () => [],
       getProjectActivities: async () => [],
     },
-    discord: {
-      getChannelMessages: async () => [],
-    },
+    discord: new DiscordSourceAdapter(
+      env.DISCORD_BOT_TOKEN,
+      env.DISCORD_CHANNEL_ID,
+    ),
     ai: {
       generateSummary: async () => '',
     },
