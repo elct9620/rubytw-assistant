@@ -210,4 +210,37 @@ describe('formatMessageToXml', () => {
     expect(xml).toContain('<user id="u2">Bob</user>')
     expect(xml).toContain('<user id="u3">charlie</user>')
   })
+
+  it('should escape XML special characters in content and author name', () => {
+    const msg = makeMessage('1', 'use <script> & "quotes"', {
+      author: {
+        id: 'u1',
+        global_name: 'Tom & "Jerry"',
+        username: 'tom',
+      },
+    })
+
+    const xml = formatMessageToXml(msg)
+
+    expect(xml).toContain(
+      '<content>use &lt;script&gt; &amp; &quot;quotes&quot;</content>',
+    )
+    expect(xml).toContain('>Tom &amp; &quot;Jerry&quot;</user>')
+  })
+
+  it('should omit attachments section when empty', () => {
+    const msg = makeMessage('1', 'hello', { attachments: [] })
+
+    const xml = formatMessageToXml(msg)
+
+    expect(xml).not.toContain('<attachments')
+  })
+
+  it('should omit mentions section when empty', () => {
+    const msg = makeMessage('1', 'hello', { mentions: [] })
+
+    const xml = formatMessageToXml(msg)
+
+    expect(xml).not.toContain('<mentions')
+  })
 })

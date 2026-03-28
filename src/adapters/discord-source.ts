@@ -31,27 +31,48 @@ interface DiscordMessage {
   mentions: DiscordMention[]
 }
 
-export function formatMessageToXml(msg: DiscordMessage): string {
-  const authorName = msg.author.global_name ?? msg.author.username
-  const isBot = msg.author.bot ?? false
-  const attachmentLines = msg.attachments
-    .map((a) => `${a.filename} - ${a.url}`)
-    .join('\n')
-  const mentionLines = msg.mentions
-    .map((m) => `<user id="${m.id}">${m.global_name ?? m.username}</user>`)
-    .join('\n')
+function escapeXml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+}
 
-  return `<item id="${msg.id}">
-<user bot="${isBot}">${authorName}</user>
-<timestamp>${msg.timestamp}</timestamp>
-<content>${msg.content}</content>
-<attachments size="${msg.attachments.length}">
-${attachmentLines}
-</attachments>
-<mentions>
-${mentionLines}
-</mentions>
-</item>`
+export function formatMessageToXml(msg: DiscordMessage): string {
+  const authorName = escapeXml(msg.author.global_name ?? msg.author.username)
+  const isBot = msg.author.bot ?? false
+
+  const parts = [
+    `<item id="${msg.id}">`,
+    `<user bot="${isBot}">${authorName}</user>`,
+    `<timestamp>${msg.timestamp}</timestamp>`,
+    `<content>${escapeXml(msg.content)}</content>`,
+  ]
+
+  if (msg.attachments.length > 0) {
+    const attachmentLines = msg.attachments
+      .map((a) => `${escapeXml(a.filename)} - ${a.url}`)
+      .join('\n')
+    parts.push(`<attachments size="${msg.attachments.length}">`)
+    parts.push(attachmentLines)
+    parts.push('</attachments>')
+  }
+
+  if (msg.mentions.length > 0) {
+    const mentionLines = msg.mentions
+      .map(
+        (m) =>
+          `<user id="${m.id}">${escapeXml(m.global_name ?? m.username)}</user>`,
+      )
+      .join('\n')
+    parts.push('<mentions>')
+    parts.push(mentionLines)
+    parts.push('</mentions>')
+  }
+
+  parts.push('</item>')
+  return parts.join('\n')
 }
 
 export class DiscordSourceAdapter implements DiscordSource {
