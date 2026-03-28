@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "ai": "^6.0.140",
+    "ai-gateway-provider": "^3.1.2",
     "discord-api-types": "^0.38.42",
     "discord-interactions": "^4.4.0",
     "hono": "^4.12.9",

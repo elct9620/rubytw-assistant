@@ -21,7 +21,7 @@ const scheduledHandler = createScheduledHandler((env) => ({
       env.DISCORD_BOT_TOKEN,
       env.DISCORD_CHANNEL_ID,
     ),
-    ai: new AIServiceAdapter(env.AI),
+    ai: new AIServiceAdapter(env.CF_AIG_TOKEN, env.AI_MODEL),
     notifier: new DiscordNotifierAdapter(env.DISCORD_BOT_TOKEN),
   }),
   channelId: env.DISCORD_CHANNEL_ID,

@@ -8,9 +8,7 @@
   "vars": {
     "SUMMARY_HOURS": "24",
     "SUMMARY_ITEM_LIMIT": "30",
-  },
-  "ai": {
-    "binding": "AI",
+    "AI_MODEL": "openai/gpt-4.1-mini",
   },
   "observability": {
     "enabled": true,
@@ -26,4 +24,5 @@
   // - GITHUB_APP_ID
   // - GITHUB_PRIVATE_KEY
   // - GITHUB_INSTALLATION_ID
+  // - CF_AIG_TOKEN
 }
