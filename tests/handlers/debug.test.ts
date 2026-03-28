@@ -1,7 +1,7 @@
 import { container } from 'tsyringe'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { TOKENS } from '../../src/tokens'
-import { PreviewSummary } from '../../src/usecases/preview-summary'
+import { GenerateSummary } from '../../src/usecases/generate-summary'
 import debug from '../../src/handlers/debug'
 
 const mockExecute = vi.fn()
@@ -18,7 +18,7 @@ beforeEach(() => {
   container.register(TOKENS.DiscordSource, {
     useValue: {},
   })
-  container.register(PreviewSummary, {
+  container.register(GenerateSummary, {
     useFactory: () => ({ execute: mockExecute }),
   })
 

@@ -1,5 +1,8 @@
 import { container } from '../container'
-import { GenerateSummary } from '../usecases/generate-summary'
+import {
+  GenerateSummary,
+  type SummaryPresenter,
+} from '../usecases/generate-summary'
 import { TOKENS } from '../tokens'
 
 export async function scheduledHandler(
@@ -10,7 +13,9 @@ export async function scheduledHandler(
   )
 
   const usecase = container.resolve(GenerateSummary)
-  const channelId = container.resolve<string>(TOKENS.DiscordChannelId)
+  const presenter = container.resolve<SummaryPresenter>(TOKENS.SummaryPresenter)
   const hours = container.resolve<number>(TOKENS.SummaryHours)
-  await usecase.execute(channelId, hours)
+
+  const result = await usecase.execute(hours)
+  await presenter.present(result)
 }

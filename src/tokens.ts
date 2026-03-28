@@ -15,4 +15,5 @@ export const TOKENS = {
   ConversationGrouper: 'ConversationGrouper',
   ActionItemGenerator: 'ActionItemGenerator',
   DiscordNotifier: 'DiscordNotifier',
+  SummaryPresenter: 'SummaryPresenter',
 } as const

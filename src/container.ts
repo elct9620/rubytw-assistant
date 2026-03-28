@@ -6,8 +6,8 @@ import { KVMemoryStoreAdapter } from './adapters/kv-memory-store'
 import { AIServiceAdapter } from './adapters/ai-service'
 import { DiscordNotifierAdapter } from './adapters/discord-notifier'
 import { DiscordSourceAdapter } from './adapters/discord-source'
+import { DiscordSummaryPresenter } from './adapters/discord-summary-presenter'
 import { GenerateSummary } from './usecases/generate-summary'
-import { PreviewSummary } from './usecases/preview-summary'
 
 // Env bindings
 container.register(TOKENS.DiscordBotToken, { useValue: env.DISCORD_BOT_TOKEN })
@@ -30,6 +30,9 @@ container.register(TOKENS.ConversationGrouper, { useClass: AIServiceAdapter })
 container.register(TOKENS.ActionItemGenerator, { useClass: AIServiceAdapter })
 container.register(TOKENS.DiscordNotifier, { useClass: DiscordNotifierAdapter })
 container.register(TOKENS.DiscordSource, { useClass: DiscordSourceAdapter })
+container.register(TOKENS.SummaryPresenter, {
+  useClass: DiscordSummaryPresenter,
+})
 
 // Stub GitHub source (TODO: replace with real adapter)
 container.register(TOKENS.GitHubSource, {
@@ -44,16 +47,6 @@ container.register(GenerateSummary, {
   useFactory: (c) =>
     new GenerateSummary({
       github: c.resolve(TOKENS.GitHubSource),
-      discord: c.resolve(TOKENS.DiscordSource),
-      conversationGrouper: c.resolve(TOKENS.ConversationGrouper),
-      actionItemGenerator: c.resolve(TOKENS.ActionItemGenerator),
-      notifier: c.resolve(TOKENS.DiscordNotifier),
-    }),
-})
-
-container.register(PreviewSummary, {
-  useFactory: (c) =>
-    new PreviewSummary({
       discord: c.resolve(TOKENS.DiscordSource),
       conversationGrouper: c.resolve(TOKENS.ConversationGrouper),
       actionItemGenerator: c.resolve(TOKENS.ActionItemGenerator),

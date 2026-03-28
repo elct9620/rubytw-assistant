@@ -56,19 +56,16 @@ function createStubDeps(
     actionItemGenerator: {
       generateActionItems: vi.fn().mockResolvedValue([sampleActionItem]),
     },
-    notifier: {
-      sendMessage: vi.fn().mockResolvedValue(undefined),
-    },
     ...overrides,
   }
 }
 
 describe('GenerateSummary', () => {
-  it('should run two-phase pipeline and send formatted action items', async () => {
+  it('should run two-phase pipeline and return result', async () => {
     const deps = createStubDeps()
     const usecase = new GenerateSummary(deps)
 
-    await usecase.execute('channel-123', 24)
+    const result = await usecase.execute(24)
 
     expect(deps.discord.getChannelMessages).toHaveBeenCalledWith(24)
     expect(deps.conversationGrouper.groupConversations).toHaveBeenCalledWith([
@@ -78,10 +75,10 @@ describe('GenerateSummary', () => {
     expect(deps.actionItemGenerator.generateActionItems).toHaveBeenCalledWith([
       actionableGroup,
     ])
-    expect(deps.notifier.sendMessage).toHaveBeenCalledWith(
-      'channel-123',
-      '- [待辦] 更新官網 (Alice) — 官網資訊過舊',
-    )
+    expect(result).toEqual({
+      topicGroups: [actionableGroup, smallTalkGroup],
+      actionItems: [sampleActionItem],
+    })
   })
 
   it('should filter out non-community and small-talk groups', async () => {
@@ -98,14 +95,14 @@ describe('GenerateSummary', () => {
     })
     const usecase = new GenerateSummary(deps)
 
-    await usecase.execute('ch', 12)
+    await usecase.execute(12)
 
     expect(deps.actionItemGenerator.generateActionItems).toHaveBeenCalledWith([
       actionableGroup,
     ])
   })
 
-  it('should send no-action-items notice when no messages found', async () => {
+  it('should return empty result when no messages found', async () => {
     const deps = createStubDeps({
       discord: {
         getChannelMessages: vi.fn().mockResolvedValue([]),
@@ -113,16 +110,13 @@ describe('GenerateSummary', () => {
     })
     const usecase = new GenerateSummary(deps)
 
-    await usecase.execute('ch', 24)
+    const result = await usecase.execute(24)
 
+    expect(result).toEqual({ topicGroups: [], actionItems: [] })
     expect(deps.conversationGrouper.groupConversations).not.toHaveBeenCalled()
-    expect(deps.notifier.sendMessage).toHaveBeenCalledWith(
-      'ch',
-      '本次摘要期間內無待辦事項。',
-    )
   })
 
-  it('should send no-action-items notice when all groups are filtered out', async () => {
+  it('should return empty action items when all groups are filtered out', async () => {
     const deps = createStubDeps({
       conversationGrouper: {
         groupConversations: vi
@@ -132,34 +126,11 @@ describe('GenerateSummary', () => {
     })
     const usecase = new GenerateSummary(deps)
 
-    await usecase.execute('ch', 24)
+    const result = await usecase.execute(24)
 
+    expect(result.topicGroups).toEqual([smallTalkGroup, nonCommunityGroup])
+    expect(result.actionItems).toEqual([])
     expect(deps.actionItemGenerator.generateActionItems).not.toHaveBeenCalled()
-    expect(deps.notifier.sendMessage).toHaveBeenCalledWith(
-      'ch',
-      '本次摘要期間內無待辦事項。',
-    )
-  })
-
-  it('should cap action items at 30', async () => {
-    const manyItems: ActionItem[] = Array.from({ length: 35 }, (_, i) => ({
-      status: 'to-do' as const,
-      description: `任務 ${i + 1}`,
-      assignee: 'X',
-      reason: '原因',
-    }))
-    const deps = createStubDeps({
-      actionItemGenerator: {
-        generateActionItems: vi.fn().mockResolvedValue(manyItems),
-      },
-    })
-    const usecase = new GenerateSummary(deps)
-
-    await usecase.execute('ch', 24)
-
-    const sentMessage = vi.mocked(deps.notifier.sendMessage).mock.calls[0][1]
-    const lines = sentMessage.split('\n')
-    expect(lines).toHaveLength(30)
   })
 
   it('should collect GitHub and Discord data in parallel', async () => {
@@ -184,7 +155,7 @@ describe('GenerateSummary', () => {
     })
     const usecase = new GenerateSummary(deps)
 
-    await usecase.execute('ch', 12)
+    await usecase.execute(12)
 
     expect(order).toContain('issues')
     expect(order).toContain('activities')

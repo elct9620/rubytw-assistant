@@ -5,24 +5,33 @@ import { GenerateSummary } from '../../src/usecases/generate-summary'
 import { scheduledHandler } from '../../src/handlers/scheduled'
 
 const mockExecute = vi.fn()
+const mockPresent = vi.fn()
 
 beforeEach(() => {
   container.clearInstances()
 
-  container.register(TOKENS.DiscordChannelId, { useValue: 'test-channel' })
   container.register(TOKENS.SummaryHours, { useValue: 12 })
+  container.register(TOKENS.SummaryPresenter, {
+    useValue: { present: mockPresent },
+  })
   container.register(GenerateSummary, {
     useFactory: () => ({ execute: mockExecute }),
   })
 
   mockExecute.mockReset()
+  mockPresent.mockReset()
 })
 
 describe('scheduledHandler', () => {
-  it('should call use case execute with channelId and hours from container', async () => {
+  it('should call use case execute and pass result to presenter', async () => {
+    const result = { topicGroups: [], actionItems: [] }
+    mockExecute.mockResolvedValue(result)
+    mockPresent.mockResolvedValue(undefined)
+
     const controller = { cron: '0 16 * * *', scheduledTime: Date.now() }
     await scheduledHandler(controller as ScheduledController)
 
-    expect(mockExecute).toHaveBeenCalledWith('test-channel', 12)
+    expect(mockExecute).toHaveBeenCalledWith(12)
+    expect(mockPresent).toHaveBeenCalledWith(result)
   })
 })

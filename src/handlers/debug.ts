@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
 import { container } from '../container'
 import { TOKENS } from '../tokens'
-import { PreviewSummary } from '../usecases/preview-summary'
+import { GenerateSummary } from '../usecases/generate-summary'
 
 const debug = new Hono<{ Bindings: Env }>()
 
@@ -13,7 +13,7 @@ debug.get('/summary', async (c) => {
 
   const child = container.createChildContainer()
   child.register(TOKENS.DiscordChannelId, { useValue: channelId })
-  const usecase = child.resolve(PreviewSummary)
+  const usecase = child.resolve(GenerateSummary)
 
   const hours = Number(c.req.query('hours')) || Number(c.env.SUMMARY_HOURS)
 
