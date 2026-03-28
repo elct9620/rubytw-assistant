@@ -1,6 +1,6 @@
 import { env } from 'cloudflare:test'
 import { describe, it, expect, vi } from 'vitest'
-import { createScheduledHandler } from '../../src/adapters/scheduled-handler'
+import { createScheduledHandler } from '../../src/handlers/scheduled'
 
 describe('createScheduledHandler', () => {
   it('should call use case execute with channelId and hours from factory', async () => {

@@ -1,14 +1,13 @@
 import { Hono } from 'hono'
 import { GenerateSummary } from './usecases/generate-summary'
-import { createScheduledHandler } from './adapters/scheduled-handler'
+import { createScheduledHandler } from './handlers/scheduled'
 import { DiscordNotifierAdapter } from './adapters/discord-notifier'
 import { DiscordSourceAdapter } from './adapters/discord-source'
+import health from './handlers/health'
 
 const app = new Hono<{ Bindings: Env }>()
 
-app.get('/', (c) => {
-  return c.text('Hello Hono!')
-})
+app.route('/', health)
 
 // TODO: replace remaining stubs with real adapter implementations
 const scheduledHandler = createScheduledHandler((env) => ({

@@ -39,11 +39,10 @@ pnpm vitest run tests/index.test.ts
 
 - `src/index.ts` — **Composition root**: wires dependencies and exports `ExportedHandler<Env>` with `fetch` (Hono) and `scheduled` (cron) handlers
 - `src/usecases/` — **Use Cases**: application logic + port interfaces (e.g., `GenerateSummary` defines `GitHubSource`, `DiscordSource`, `AIService`, `DiscordNotifier` interfaces)
-- `src/adapters/` — **Interface Adapters**: two kinds live here:
-  - **Controllers** bridge framework calls to use cases (e.g., `scheduled-handler.ts`)
-  - **Gateways** implement use case port interfaces for external services (e.g., `discord-notifier.ts` implements `DiscordNotifier`). Gateways accept a `fetchFn` parameter (defaults to global `fetch`) for testability.
+- `src/handlers/` — **Inbound Handlers**: entry points that bridge framework/runtime calls to use cases (e.g., `scheduled.ts` for cron triggers, `health.ts` for HTTP health check). Hono HTTP handlers use the sub-app pattern (`app.route()`).
+- `src/adapters/` — **Outbound Gateways**: implement use case port interfaces for external services (e.g., `discord-notifier.ts` implements `DiscordNotifier`). Gateways accept a `fetchFn` parameter (defaults to global `fetch`) for testability.
 
-Dependencies point inward: adapters → usecases. Port interfaces are defined in the use case layer, not in adapters.
+Dependencies point inward: handlers/adapters → usecases. Port interfaces are defined in the use case layer, not in handlers or adapters.
 
 ### Composition Pattern
 
