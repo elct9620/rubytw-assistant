@@ -3,13 +3,14 @@ import { GenerateSummary } from './usecases/generate-summary'
 import { createScheduledHandler } from './handlers/scheduled'
 import { DiscordNotifierAdapter } from './adapters/discord-notifier'
 import { DiscordSourceAdapter } from './adapters/discord-source'
+import { AIServiceAdapter } from './adapters/ai-service'
 import health from './handlers/health'
 
 const app = new Hono<{ Bindings: Env }>()
 
 app.route('/', health)
 
-// TODO: replace remaining stubs with real adapter implementations
+// TODO: replace GitHub stub with real adapter implementation
 const scheduledHandler = createScheduledHandler((env) => ({
   usecase: new GenerateSummary({
     github: {
@@ -20,9 +21,7 @@ const scheduledHandler = createScheduledHandler((env) => ({
       env.DISCORD_BOT_TOKEN,
       env.DISCORD_CHANNEL_ID,
     ),
-    ai: {
-      generateSummary: async () => '',
-    },
+    ai: new AIServiceAdapter(env.AI),
     notifier: new DiscordNotifierAdapter(env.DISCORD_BOT_TOKEN),
   }),
   channelId: env.DISCORD_CHANNEL_ID,
