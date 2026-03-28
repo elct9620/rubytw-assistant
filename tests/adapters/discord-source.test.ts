@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { DiscordSourceAdapter } from '../../src/adapters/discord-source'
 
 const DISCORD_EPOCH = 1420070400000n
@@ -12,6 +12,10 @@ describe('DiscordSourceAdapter', () => {
 
   beforeEach(() => {
     fetchMock = vi.fn()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
   })
 
   it('should request messages from correct API endpoint with after snowflake', async () => {
@@ -41,8 +45,6 @@ describe('DiscordSourceAdapter', () => {
         },
       },
     )
-
-    vi.useRealTimers()
   })
 
   it('should return message content and filter out empty content', async () => {
