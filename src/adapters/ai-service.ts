@@ -8,28 +8,11 @@ import type {
 } from '../usecases/generate-summary'
 import type { TopicGroup } from '../entities/topic-group'
 import type { ActionItem } from '../entities/action-item'
+import PHASE1_SYSTEM_PROMPT from '../prompts/phase1-group-conversations.md'
+import PHASE2_SYSTEM_PROMPT from '../prompts/phase2-generate-action-items.md'
 
 const ACCOUNT_ID = '614fcd230e7a893b205fd36259d9aff3'
 const GATEWAY_ID = 'rubytw-assistant'
-
-const PHASE1_SYSTEM_PROMPT = `你是 Ruby Taiwan 社群的營運助手。分析以下 Discord 訊息，將它們按主題分組。
-
-規則：
-- 根據對話脈絡將訊息分組為不同主題
-- 每個主題提供摘要
-- 標記每個主題的屬性：
-  - communityRelated: 是否與 Ruby Taiwan 社群活動相關
-  - smallTalk: 是否為閒聊（無可行動內容）
-  - lostContext: 是否缺乏足夠上下文判斷意圖`
-
-const PHASE2_SYSTEM_PROMPT = `你是 Ruby Taiwan 社群的營運助手。根據主題分組產生待辦事項清單。
-
-規則：
-- 每個主題群組最多產生一個待辦事項
-- status 必須是：to-do、in-progress、done、stalled、discussion 之一
-- assignee 填入負責人（若無法判斷則填「未指定」）
-- reason 說明為何需要此待辦事項
-- description 簡潔描述任務內容`
 
 const TopicGroupSchema = z.object({
   topic: z.string().describe('主題名稱'),
