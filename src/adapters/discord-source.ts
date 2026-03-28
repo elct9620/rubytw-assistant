@@ -3,6 +3,7 @@ import { type FetchFn, assertDiscordResponse } from './shared'
 
 const DISCORD_EPOCH = 1420070400000n
 const MAX_MESSAGES_PER_REQUEST = 100
+const MAX_PAGES = 5
 
 interface DiscordAuthor {
   id: string
@@ -87,7 +88,7 @@ export class DiscordSourceAdapter implements DiscordSource {
     let afterSnowflake = String((sinceMs - DISCORD_EPOCH) << 22n)
     const collected: DiscordMessage[] = []
 
-    for (;;) {
+    for (let page = 0; page < MAX_PAGES; page++) {
       const batch = await this.fetchMessages(afterSnowflake)
       for (const msg of batch) {
         if (msg.content) {

@@ -144,6 +144,24 @@ describe('DiscordSourceAdapter', () => {
     const secondCallUrl = fetchMock.mock.calls[1][0] as string
     expect(secondCallUrl).toContain('after=100')
   })
+
+  it('should stop paginating after reaching max pages', async () => {
+    const fullPage = Array.from({ length: 100 }, (_, i) =>
+      makeMessage(String(i + 1), `msg-${i + 1}`),
+    )
+
+    fetchMock.mockResolvedValue({ ok: true, json: async () => fullPage })
+
+    const adapter = new DiscordSourceAdapter(
+      'bot-token',
+      'channel-123',
+      fetchMock,
+    )
+    const result = await adapter.getChannelMessages(24)
+
+    expect(fetchMock).toHaveBeenCalledTimes(5)
+    expect(result).toHaveLength(500)
+  })
 })
 
 describe('formatMessageToXml', () => {
