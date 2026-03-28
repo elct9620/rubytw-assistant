@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { AIServiceAdapter } from '../../src/adapters/ai-service'
+import type { MemoryStore } from '../../src/usecases/memory-store'
 import PHASE1_SYSTEM_PROMPT from '../../src/prompts/phase1-group-conversations.md'
 import PHASE2_SYSTEM_PROMPT from '../../src/prompts/phase2-generate-action-items.md'
 
@@ -9,7 +10,19 @@ vi.mock('ai', () => ({
   Output: {
     object: (opts: unknown) => ({ type: 'object', ...opts }),
   },
+  tool: (def: unknown) => def,
+  stepCountIs: (n: number) => ({ type: 'stepCount', count: n }),
 }))
+
+function createStubMemoryStore(overrides?: Partial<MemoryStore>): MemoryStore {
+  return {
+    list: vi.fn().mockResolvedValue([]),
+    put: vi.fn().mockResolvedValue(undefined),
+    delete: vi.fn().mockResolvedValue(undefined),
+    count: vi.fn().mockResolvedValue(0),
+    ...overrides,
+  }
+}
 
 describe('AIServiceAdapter', () => {
   beforeEach(() => {
@@ -39,7 +52,7 @@ describe('AIServiceAdapter', () => {
         expect.objectContaining({
           model: expect.anything(),
           output: expect.objectContaining({ type: 'object' }),
-          system: PHASE1_SYSTEM_PROMPT,
+          system: PHASE1_SYSTEM_PROMPT.replace('{{memoryEntryLimit}}', '32'),
           prompt: 'msg-1\nmsg-2',
           temperature: 0.3,
         }),
@@ -72,6 +85,53 @@ describe('AIServiceAdapter', () => {
         'AI service returned no structured output for Phase 1',
       )
     })
+
+    it('should include memory tools when memoryStore is provided', async () => {
+      mockGenerateText.mockResolvedValue({
+        output: { groups: [] },
+      })
+      const store = createStubMemoryStore()
+      const adapter = new AIServiceAdapter(
+        'test-token',
+        'openai/gpt-4.1-mini',
+        store,
+      )
+
+      await adapter.groupConversations(['msg'])
+
+      expect(mockGenerateText).toHaveBeenCalledWith(
+        expect.objectContaining({
+          tools: expect.objectContaining({
+            memory_read: expect.objectContaining({
+              description: expect.stringContaining('Read all memory entries'),
+            }),
+            memory_write: expect.objectContaining({
+              description: expect.stringContaining('Write a memory entry'),
+            }),
+            memory_delete: expect.objectContaining({
+              description: expect.stringContaining('Delete a memory entry'),
+            }),
+          }),
+          stopWhen: expect.objectContaining({
+            type: 'stepCount',
+            count: 5,
+          }),
+        }),
+      )
+    })
+
+    it('should not include tools when memoryStore is not provided', async () => {
+      mockGenerateText.mockResolvedValue({
+        output: { groups: [] },
+      })
+      const adapter = new AIServiceAdapter('test-token', 'openai/gpt-4.1-mini')
+
+      await adapter.groupConversations(['msg'])
+
+      const callArgs = mockGenerateText.mock.calls[0][0]
+      expect(callArgs.tools).toBeUndefined()
+      expect(callArgs.stopWhen).toBeUndefined()
+    })
   })
 
   describe('generateActionItems', () => {
@@ -102,7 +162,10 @@ describe('AIServiceAdapter', () => {
       await adapter.generateActionItems(groups)
 
       const today = new Date().toISOString().slice(0, 10)
-      const expectedSystem = PHASE2_SYSTEM_PROMPT.replace('{{today}}', today)
+      const expectedSystem = PHASE2_SYSTEM_PROMPT.replace(
+        '{{today}}',
+        today,
+      ).replace('{{memoryEntryLimit}}', '32')
 
       expect(mockGenerateText).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -155,6 +218,153 @@ describe('AIServiceAdapter', () => {
           },
         ]),
       ).rejects.toThrow('AI service returned no structured output for Phase 2')
+    })
+
+    it('should include memory tools when memoryStore is provided', async () => {
+      mockGenerateText.mockResolvedValue({
+        output: { items: [] },
+      })
+      const store = createStubMemoryStore()
+      const adapter = new AIServiceAdapter(
+        'test-token',
+        'openai/gpt-4.1-mini',
+        store,
+      )
+
+      await adapter.generateActionItems([
+        {
+          topic: 't',
+          summary: 's',
+          communityRelated: 'yes',
+          smallTalk: 'no',
+          lostContext: 'no',
+        },
+      ])
+
+      expect(mockGenerateText).toHaveBeenCalledWith(
+        expect.objectContaining({
+          tools: expect.objectContaining({
+            memory_read: expect.anything(),
+            memory_write: expect.anything(),
+            memory_delete: expect.anything(),
+          }),
+          stopWhen: expect.objectContaining({ type: 'stepCount', count: 5 }),
+        }),
+      )
+    })
+  })
+
+  describe('memory tool execution', () => {
+    it('memory_read should return entries from store', async () => {
+      const entries = [
+        {
+          key: 'k1',
+          content: 'test',
+          updatedAt: '2026-03-28T00:00:00.000Z',
+        },
+      ]
+      const store = createStubMemoryStore({
+        list: vi.fn().mockResolvedValue(entries),
+      })
+      mockGenerateText.mockResolvedValue({ output: { groups: [] } })
+      const adapter = new AIServiceAdapter(
+        'test-token',
+        'openai/gpt-4.1-mini',
+        store,
+        32,
+      )
+
+      await adapter.groupConversations(['msg'])
+
+      const tools = mockGenerateText.mock.calls[0][0].tools
+      const result = await tools.memory_read.execute({})
+      expect(result).toEqual({ entries, count: 1, limit: 32 })
+    })
+
+    it('memory_read should return error object on failure', async () => {
+      const store = createStubMemoryStore({
+        list: vi.fn().mockRejectedValue(new Error('KV error')),
+      })
+      mockGenerateText.mockResolvedValue({ output: { groups: [] } })
+      const adapter = new AIServiceAdapter(
+        'test-token',
+        'openai/gpt-4.1-mini',
+        store,
+      )
+
+      await adapter.groupConversations(['msg'])
+
+      const tools = mockGenerateText.mock.calls[0][0].tools
+      const result = await tools.memory_read.execute({})
+      expect(result.error).toBe('read failed')
+      expect(result.entries).toEqual([])
+    })
+
+    it('memory_write should call store.put with entry', async () => {
+      const store = createStubMemoryStore()
+      mockGenerateText.mockResolvedValue({ output: { groups: [] } })
+      const adapter = new AIServiceAdapter(
+        'test-token',
+        'openai/gpt-4.1-mini',
+        store,
+      )
+
+      await adapter.groupConversations(['msg'])
+
+      const tools = mockGenerateText.mock.calls[0][0].tools
+      const result = await tools.memory_write.execute({
+        key: 'test-key',
+        content: 'test content',
+        tag: 'event',
+      })
+      expect(result).toEqual({ success: true })
+      expect(store.put).toHaveBeenCalledWith(
+        expect.objectContaining({
+          key: 'test-key',
+          content: 'test content',
+          tag: 'event',
+          updatedAt: expect.any(String),
+        }),
+      )
+    })
+
+    it('memory_write should return error on failure', async () => {
+      const store = createStubMemoryStore({
+        put: vi.fn().mockRejectedValue(new Error('limit reached')),
+      })
+      mockGenerateText.mockResolvedValue({ output: { groups: [] } })
+      const adapter = new AIServiceAdapter(
+        'test-token',
+        'openai/gpt-4.1-mini',
+        store,
+      )
+
+      await adapter.groupConversations(['msg'])
+
+      const tools = mockGenerateText.mock.calls[0][0].tools
+      const result = await tools.memory_write.execute({
+        key: 'k',
+        content: 'c',
+      })
+      expect(result.success).toBe(false)
+      expect(result.error).toBeDefined()
+    })
+
+    it('memory_delete should call store.delete', async () => {
+      const store = createStubMemoryStore()
+      mockGenerateText.mockResolvedValue({ output: { groups: [] } })
+      const adapter = new AIServiceAdapter(
+        'test-token',
+        'openai/gpt-4.1-mini',
+        store,
+      )
+
+      await adapter.groupConversations(['msg'])
+
+      const tools = mockGenerateText.mock.calls[0][0].tools
+      const result = await tools.memory_delete.execute({ key: 'old-key' })
+      expect(result).toEqual({ success: true })
+      expect(store.delete).toHaveBeenCalledWith('old-key')
     })
   })
 })

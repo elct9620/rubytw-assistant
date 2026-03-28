@@ -15,7 +15,14 @@
     "SUMMARY_HOURS": "24",
     "SUMMARY_ITEM_LIMIT": "30",
     "AI_MODEL": "openai/gpt-4.1-mini",
+    "MEMORY_ENTRY_LIMIT": "32",
   },
+  "kv_namespaces": [
+    {
+      "binding": "MEMORY_KV",
+      "id": "PLACEHOLDER_REPLACE_AFTER_KV_CREATE",
+    },
+  ],
   "observability": {
     "enabled": true,
     "head_sampling_rate": 1,

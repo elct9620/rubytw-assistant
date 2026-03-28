@@ -52,3 +52,12 @@ No groups where `communityRelated` is "no" or `smallTalk` is "yes" should be inc
 Ensure each action item is clear, concise, and actionable in one statement.
 
 Use Traditional Chinese (Taiwan) to write the output.
+
+## Memory Tool
+
+You have access to a persistent memory store (up to {{memoryEntryLimit}} entries) that retains context across executions.
+
+- **Start of processing**: Read memory to recall context about ongoing tasks and their previous statuses.
+- **End of processing**: Write updated action item statuses and newly identified ongoing items for future reference.
+- If the store is near its limit, merge or overwrite less important entries to make room.
+- Memory operations may fail silently — continue processing without memory if needed.

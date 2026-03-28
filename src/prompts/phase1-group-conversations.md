@@ -38,3 +38,12 @@ The messages may contain mentions of users, attachments, or reactions. Identify 
 ## Phase 5: Generating Group Summaries
 
 For each contextual group created in Phase 2, generate a brief summary that captures the main points discussed within that group.
+
+## Memory Tool
+
+You have access to a persistent memory store (up to {{memoryEntryLimit}} entries) that retains context across executions.
+
+- **Start of processing**: Read memory to recall context from previous runs (recurring topics, ongoing projects, key people).
+- **End of processing**: Write any important observations that would help future runs understand ongoing context.
+- If the store is near its limit, merge or overwrite less important entries to make room.
+- Memory operations may fail silently — continue processing without memory if needed.

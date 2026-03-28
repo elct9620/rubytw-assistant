@@ -4,6 +4,7 @@ import { createScheduledHandler } from './handlers/scheduled'
 import { DiscordNotifierAdapter } from './adapters/discord-notifier'
 import { DiscordSourceAdapter } from './adapters/discord-source'
 import { AIServiceAdapter } from './adapters/ai-service'
+import { KVMemoryStoreAdapter } from './adapters/kv-memory-store'
 import health from './handlers/health'
 
 const app = new Hono<{ Bindings: Env }>()
@@ -12,7 +13,16 @@ app.route('/', health)
 
 // TODO: replace GitHub stub with real adapter implementation
 const scheduledHandler = createScheduledHandler((env) => {
-  const aiAdapter = new AIServiceAdapter(env.CF_AIG_TOKEN, env.AI_MODEL)
+  const memoryStore = new KVMemoryStoreAdapter(
+    env.MEMORY_KV,
+    Number(env.MEMORY_ENTRY_LIMIT),
+  )
+  const aiAdapter = new AIServiceAdapter(
+    env.CF_AIG_TOKEN,
+    env.AI_MODEL,
+    memoryStore,
+    Number(env.MEMORY_ENTRY_LIMIT),
+  )
 
   return {
     usecase: new GenerateSummary({

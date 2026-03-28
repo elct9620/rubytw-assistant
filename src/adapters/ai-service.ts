@@ -1,4 +1,5 @@
-import { generateText, Output } from 'ai'
+import { generateText, Output, tool, stepCountIs } from 'ai'
+import type { ToolSet } from 'ai'
 import { createAiGateway } from 'ai-gateway-provider'
 import { createUnified } from 'ai-gateway-provider/providers/unified'
 import { z } from 'zod'
@@ -6,6 +7,7 @@ import type {
   ConversationGrouper,
   ActionItemGenerator,
 } from '../usecases/generate-summary'
+import type { MemoryStore } from '../usecases/memory-store'
 import type { TopicGroup } from '../entities/topic-group'
 import type { ActionItem } from '../entities/action-item'
 import PHASE1_SYSTEM_PROMPT from '../prompts/phase1-group-conversations.md'
@@ -13,6 +15,8 @@ import PHASE2_SYSTEM_PROMPT from '../prompts/phase2-generate-action-items.md'
 
 const ACCOUNT_ID = '614fcd230e7a893b205fd36259d9aff3'
 const GATEWAY_ID = 'rubytw-assistant'
+const DEFAULT_MEMORY_ENTRY_LIMIT = 32
+const MAX_TOOL_STEPS = 5
 
 const TopicGroupSchema = z.object({
   topic: z.string().describe('topic title'),
@@ -42,18 +46,32 @@ const Phase2OutputSchema = z.object({
 export class AIServiceAdapter
   implements ConversationGrouper, ActionItemGenerator
 {
+  private memoryEntryLimit: number
+
   constructor(
     private apiKey: string,
     private modelId: string,
-  ) {}
+    private memoryStore?: MemoryStore,
+    memoryEntryLimit?: number,
+  ) {
+    this.memoryEntryLimit = memoryEntryLimit ?? DEFAULT_MEMORY_ENTRY_LIMIT
+  }
 
   async groupConversations(messages: string[]): Promise<TopicGroup[]> {
+    const system = PHASE1_SYSTEM_PROMPT.replace(
+      '{{memoryEntryLimit}}',
+      String(this.memoryEntryLimit),
+    )
+    const tools = this.createMemoryTools()
+
     const { output } = await generateText({
       model: this.createModel(),
       output: Output.object({ schema: Phase1OutputSchema }),
-      system: PHASE1_SYSTEM_PROMPT,
+      system,
       prompt: messages.join('\n'),
       temperature: 0.3,
+      tools,
+      ...(tools ? { stopWhen: stepCountIs(MAX_TOOL_STEPS) } : {}),
     })
 
     if (!output) {
@@ -65,7 +83,11 @@ export class AIServiceAdapter
 
   async generateActionItems(groups: TopicGroup[]): Promise<ActionItem[]> {
     const today = new Date().toISOString().slice(0, 10)
-    const system = PHASE2_SYSTEM_PROMPT.replace('{{today}}', today)
+    const system = PHASE2_SYSTEM_PROMPT.replace('{{today}}', today).replace(
+      '{{memoryEntryLimit}}',
+      String(this.memoryEntryLimit),
+    )
+    const tools = this.createMemoryTools()
 
     const { output } = await generateText({
       model: this.createModel(),
@@ -73,6 +95,8 @@ export class AIServiceAdapter
       system,
       prompt: JSON.stringify(groups),
       temperature: 0.3,
+      tools,
+      ...(tools ? { stopWhen: stepCountIs(MAX_TOOL_STEPS) } : {}),
     })
 
     if (!output) {
@@ -80,6 +104,72 @@ export class AIServiceAdapter
     }
 
     return output.items
+  }
+
+  private createMemoryTools(): ToolSet | undefined {
+    if (!this.memoryStore) return undefined
+
+    const store = this.memoryStore
+    const limit = this.memoryEntryLimit
+
+    return {
+      memory_read: tool({
+        description:
+          'Read all memory entries from persistent store to recall context from previous executions',
+        inputSchema: z.object({}),
+        execute: async () => {
+          try {
+            const entries = await store.list()
+            return { entries, count: entries.length, limit }
+          } catch {
+            console.warn('Memory read failed')
+            return { entries: [], count: 0, limit, error: 'read failed' }
+          }
+        },
+      }),
+      memory_write: tool({
+        description:
+          'Write a memory entry to persistent store for future executions',
+        inputSchema: z.object({
+          key: z.string().describe('unique identifier for this memory entry'),
+          content: z.string().describe('the information to remember'),
+          tag: z.string().optional().describe('category tag for organization'),
+        }),
+        execute: async ({ key, content, tag }) => {
+          try {
+            await store.put({
+              key,
+              content,
+              tag,
+              updatedAt: new Date().toISOString(),
+            })
+            return { success: true }
+          } catch (e) {
+            console.warn('Memory write failed:', e)
+            return {
+              success: false,
+              error: 'write failed - entry limit may be reached',
+            }
+          }
+        },
+      }),
+      memory_delete: tool({
+        description:
+          'Delete a memory entry from persistent store to free space',
+        inputSchema: z.object({
+          key: z.string().describe('key of the entry to delete'),
+        }),
+        execute: async ({ key }) => {
+          try {
+            await store.delete(key)
+            return { success: true }
+          } catch {
+            console.warn('Memory delete failed')
+            return { success: false, error: 'delete failed' }
+          }
+        },
+      }),
+    }
   }
 
   private createModel() {
