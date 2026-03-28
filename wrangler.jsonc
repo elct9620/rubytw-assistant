@@ -16,6 +16,7 @@
     "SUMMARY_ITEM_LIMIT": "30",
     "AI_MODEL": "openai/gpt-4.1-mini",
     "MEMORY_ENTRY_LIMIT": "32",
+    "DEBUG": "false",
   },
   "kv_namespaces": [
     {
