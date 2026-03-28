@@ -1,6 +1,5 @@
 import type { DiscordSource } from '../usecases/generate-summary'
-
-type FetchFn = typeof fetch
+import { type FetchFn, assertDiscordResponse } from './shared'
 
 const DISCORD_EPOCH = 1420070400000n
 const MAX_MESSAGES_PER_REQUEST = 100
@@ -45,11 +44,7 @@ export class DiscordSourceAdapter implements DiscordSource {
       },
     })
 
-    if (!response.ok) {
-      throw new Error(
-        `Discord API error: ${response.status} ${response.statusText}`,
-      )
-    }
+    assertDiscordResponse(response)
 
     return (await response.json()) as DiscordMessage[]
   }

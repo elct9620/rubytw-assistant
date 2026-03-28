@@ -1,6 +1,5 @@
 import type { DiscordNotifier } from '../usecases/generate-summary'
-
-type FetchFn = typeof fetch
+import { type FetchFn, assertDiscordResponse } from './shared'
 
 export class DiscordNotifierAdapter implements DiscordNotifier {
   constructor(
@@ -21,10 +20,6 @@ export class DiscordNotifierAdapter implements DiscordNotifier {
       },
     )
 
-    if (!response.ok) {
-      throw new Error(
-        `Discord API error: ${response.status} ${response.statusText}`,
-      )
-    }
+    assertDiscordResponse(response)
   }
 }
