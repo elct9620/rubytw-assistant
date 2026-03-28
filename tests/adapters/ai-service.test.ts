@@ -37,7 +37,7 @@ describe('AIServiceAdapter', () => {
         expect.objectContaining({
           model: expect.anything(),
           output: expect.objectContaining({ type: 'object' }),
-          system: expect.stringContaining('主題分組'),
+          system: expect.stringContaining('Contextual Groups'),
           prompt: 'msg-1\nmsg-2',
           temperature: 0.3,
         }),
@@ -103,7 +103,7 @@ describe('AIServiceAdapter', () => {
         expect.objectContaining({
           model: expect.anything(),
           output: expect.objectContaining({ type: 'object' }),
-          system: expect.stringContaining('待辦事項'),
+          system: expect.stringContaining('action items'),
           prompt: JSON.stringify(groups),
           temperature: 0.3,
         }),
