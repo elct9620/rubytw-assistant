@@ -12,11 +12,19 @@ export interface ActionItem {
   reason: string
 }
 
+const STATUS_LABELS: Record<ActionItemStatus, string> = {
+  'to-do': '待辦',
+  'in-progress': '進度',
+  done: '完成',
+  stalled: '停滯',
+  discussion: '討論',
+}
+
 export function formatActionItems(items: ActionItem[]): string {
   return items
     .map(
       (item) =>
-        `- [${item.status}] ${item.description} (${item.assignee}) — ${item.reason}`,
+        `- [${STATUS_LABELS[item.status]}] ${item.description} (${item.assignee}) — ${item.reason}`,
     )
     .join('\n')
 }

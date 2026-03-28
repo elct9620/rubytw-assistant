@@ -80,7 +80,7 @@ describe('GenerateSummary', () => {
     ])
     expect(deps.notifier.sendMessage).toHaveBeenCalledWith(
       'channel-123',
-      '- [to-do] 更新官網 (Alice) — 官網資訊過舊',
+      '- [待辦] 更新官網 (Alice) — 官網資訊過舊',
     )
   })
 

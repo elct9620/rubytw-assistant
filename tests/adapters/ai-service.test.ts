@@ -101,11 +101,14 @@ describe('AIServiceAdapter', () => {
 
       await adapter.generateActionItems(groups)
 
+      const today = new Date().toISOString().slice(0, 10)
+      const expectedSystem = PHASE2_SYSTEM_PROMPT.replace('{{today}}', today)
+
       expect(mockGenerateText).toHaveBeenCalledWith(
         expect.objectContaining({
           model: expect.anything(),
           output: expect.objectContaining({ type: 'object' }),
-          system: PHASE2_SYSTEM_PROMPT,
+          system: expectedSystem,
           prompt: JSON.stringify(groups),
           temperature: 0.3,
         }),

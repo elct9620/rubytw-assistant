@@ -64,10 +64,13 @@ export class AIServiceAdapter
   }
 
   async generateActionItems(groups: TopicGroup[]): Promise<ActionItem[]> {
+    const today = new Date().toISOString().slice(0, 10)
+    const system = PHASE2_SYSTEM_PROMPT.replace('{{today}}', today)
+
     const { output } = await generateText({
       model: this.createModel(),
       output: Output.object({ schema: Phase2OutputSchema }),
-      system: PHASE2_SYSTEM_PROMPT,
+      system,
       prompt: JSON.stringify(groups),
       temperature: 0.3,
     })

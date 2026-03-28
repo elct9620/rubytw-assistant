@@ -22,7 +22,7 @@ describe('formatActionItems', () => {
     ]
 
     expect(formatActionItems(items)).toBe(
-      '- [to-do] 更新官網 (Alice) — 官網資訊過舊\n- [in-progress] 準備活動 (Bob) — 下週舉辦',
+      '- [待辦] 更新官網 (Alice) — 官網資訊過舊\n- [進度] 準備活動 (Bob) — 下週舉辦',
     )
   })
 
@@ -53,8 +53,8 @@ describe('formatActionItems', () => {
     ]
 
     const result = formatActionItems(items)
-    expect(result).toContain('- [done]')
-    expect(result).toContain('- [stalled]')
-    expect(result).toContain('- [discussion]')
+    expect(result).toContain('- [完成]')
+    expect(result).toContain('- [停滯]')
+    expect(result).toContain('- [討論]')
   })
 })
