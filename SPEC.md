@@ -20,7 +20,7 @@ Provide automated information aggregation and query tools for Ruby Taiwan commun
 ## Success Criteria
 
 - After each scheduled trigger, the designated Discord channel receives an AI-generated action item list
-- Operators can query Issue status and project progress in Discord and get immediate responses
+- _(Deferred — see Feature 2)_ Operators can query Issue status and project progress in Discord and get immediate responses
 
 ## Non-goals
 
@@ -52,10 +52,10 @@ The system collects discussion messages from a designated Discord channel over a
 
 **AI Available Tools:**
 
-| Tool        | Capability                                              | Purpose                                                                |
-| ----------- | ------------------------------------------------------- | ---------------------------------------------------------------------- |
-| Memory Tool | Read/write structured context memory (capped by config) | Retain important context across executions, avoid redundant processing |
-| GitHub Tool | Read-only access to GitHub Projects and Issues          | Verify task status, assist action item classification                  |
+| Tool        | Capability                                                                            | Purpose                                                                |
+| ----------- | ------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| Memory Tool | Read/write context memory with AI-determined structure (entry count capped by config) | Retain important context across executions, avoid redundant processing |
+| GitHub Tool | Read-only access to GitHub Projects and Issues                                        | Verify task status, assist action item classification                  |
 
 **User Journey:**
 
@@ -63,21 +63,9 @@ The system collects discussion messages from a designated Discord channel over a
 | -------------------------------- | -------------------------------------------------- | ------------------------------------------------------------------- |
 | Operator starts their daily work | System has already sent summary to Discord channel | Operator reads action item list to grasp recent activity and to-dos |
 
-### 2. Discord Interaction Commands
+### 2. Discord Interaction Commands (Deferred)
 
-Operators issue query commands via Slash Commands in Discord. The system retrieves data through the GitHub App and responds.
-
-**User Journey:**
-
-| Context                                                    | Action                         | Outcome                            |
-| ---------------------------------------------------------- | ------------------------------ | ---------------------------------- |
-| Operator needs to check a specific Issue or project status | Enter Slash Command in Discord | System responds with query results |
-
-**To be decided:**
-
-- Supported command list and parameter formats
-- Query result display format
-- Access control mechanism (how to restrict to operators only)
+Operators issue query commands via Slash Commands in Discord. The system retrieves data through the GitHub App and responds. This feature is outside the current target scope; only the Discord Interaction Webhook verification (required for the platform integration) is implemented now. Command behaviors will be defined in a future specification iteration.
 
 ### 3. GitHub App Integration
 
@@ -156,7 +144,7 @@ A development-only HTTP endpoint that triggers the same AI summary pipeline as F
 
 | State                      | Action                                                                                                      | Result                                                                         |
 | -------------------------- | ----------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
-| Topic group list received  | AI filters out groups with `community-related=no` or `small-talk=yes`                                       | Only community-relevant groups retained                                        |
+| Topic group list received  | AI filters out groups with `community-related=no`, `small-talk=yes`, or `lost-context=yes`                  | Only community-relevant, actionable groups retained                            |
 | Relevant groups filtered   | AI generates an action item for each group, classified as to-do, in-progress, done, stalled, or discussion  | At most one action item per group, with assignee, task description, and reason |
 | Action items generated     | AI may update memory via Memory Tool; may verify task status via GitHub Tool                                | Memory and GitHub data assist action item status classification                |
 | All action items generated | Compile into action item list (capped by config), formatted as `- [Status] Description (Assignee) — Reason` | List sent to designated Discord channel for operators to read                  |
@@ -172,13 +160,13 @@ A development-only HTTP endpoint that triggers the same AI summary pipeline as F
 | Source channel ID is invalid or inaccessible           | Discord API returns error                                                 | Return error indicating the channel could not be accessed                                        |
 | Discord message collection fails                       | Transient or permanent API failure                                        | Return error indicating collection failure with the failure reason; do not retry (debug context) |
 
-### Discord Interaction Commands
+### Discord Interaction Commands (Deferred)
 
 | State                                | Action                   | Result                                              |
 | ------------------------------------ | ------------------------ | --------------------------------------------------- |
 | Discord Interaction Webhook received | Verify request signature | Process command if valid; reject request if invalid |
 
-**To be decided:** Command behavior definitions (to be updated after Feature 2 decisions are finalized).
+Command behavior definitions are deferred until Feature 2 is specified. Only webhook signature verification is in the current scope.
 
 ### GitHub App Integration
 
