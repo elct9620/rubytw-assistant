@@ -1,5 +1,5 @@
 import { injectable, inject } from 'tsyringe'
-import type { MemoryStore } from '../usecases/memory-store'
+import type { MemoryStore } from '../usecases/ports'
 import type { MemoryEntry } from '../entities/memory-entry'
 import { TOKENS } from '../tokens'
 

@@ -3,7 +3,7 @@ import type {
   SummaryPresenter,
   SummaryResult,
   DiscordNotifier,
-} from '../usecases/generate-summary'
+} from '../usecases/ports'
 import { formatActionItems } from '../entities/action-item'
 import { TOKENS } from '../tokens'
 

@@ -1,5 +1,5 @@
 import { injectable, inject } from 'tsyringe'
-import type { DiscordSource } from '../usecases/generate-summary'
+import type { DiscordSource } from '../usecases/ports'
 import { type FetchFn, assertDiscordResponse } from './shared'
 import { TOKENS } from '../tokens'
 

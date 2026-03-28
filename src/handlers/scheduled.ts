@@ -1,8 +1,6 @@
 import { container } from '../container'
-import {
-  GenerateSummary,
-  type SummaryPresenter,
-} from '../usecases/generate-summary'
+import { GenerateSummary } from '../usecases/generate-summary'
+import type { SummaryPresenter } from '../usecases/ports'
 import { TOKENS } from '../tokens'
 
 export async function scheduledHandler(

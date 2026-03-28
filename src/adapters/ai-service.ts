@@ -7,8 +7,8 @@ import { z } from 'zod'
 import type {
   ConversationGrouper,
   ActionItemGenerator,
-} from '../usecases/generate-summary'
-import type { MemoryStore } from '../usecases/memory-store'
+  MemoryStore,
+} from '../usecases/ports'
 import type { TopicGroup } from '../entities/topic-group'
 import type { ActionItem } from '../entities/action-item'
 import { TOKENS } from '../tokens'
