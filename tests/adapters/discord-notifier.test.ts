@@ -40,7 +40,7 @@ describe('DiscordNotifierAdapter', () => {
 
     const notifier = new DiscordNotifierAdapter('test-bot-token')
 
-    await expect(notifier.sendMessage('123456', 'Hello')).rejects.toThrowError(
+    await expect(notifier.sendMessage('123456', 'Hello')).rejects.toThrow(
       'Discord API error: 403 Forbidden',
     )
   })

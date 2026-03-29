@@ -1,4 +1,4 @@
-import { env } from 'cloudflare:test'
+import { env } from 'cloudflare:workers'
 import { describe, it, expect, beforeEach } from 'vitest'
 import { KVMemoryStoreAdapter } from '../../src/adapters/kv-memory-store'
 import type { MemoryEntry } from '../../src/entities/memory-entry'
@@ -23,6 +23,10 @@ describe('KVMemoryStoreAdapter', () => {
       const entries = await adapter.list()
       expect(entries).toEqual([])
     })
+
+    it.todo(
+      'should filter out null entries from stale keys (KV eventual consistency, not reproducible in miniflare)',
+    )
 
     it('should return all stored entries', async () => {
       const entry: MemoryEntry = {
