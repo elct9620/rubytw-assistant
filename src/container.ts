@@ -5,7 +5,8 @@ import { Octokit } from '@octokit/core'
 import { createAppAuth } from '@octokit/auth-app'
 import { TOKENS } from './tokens'
 import { KVMemoryStoreAdapter } from './adapters/kv-memory-store'
-import { AIServiceAdapter } from './adapters/ai-service'
+import { ConversationGrouperService } from './services/conversation-grouper'
+import { ActionItemGeneratorService } from './services/action-item-generator'
 import { DiscordNotifierAdapter } from './adapters/discord-notifier'
 import { DiscordSourceAdapter } from './adapters/discord-source'
 import { DiscordSummaryPresenter } from './adapters/discord-summary-presenter'
@@ -42,8 +43,12 @@ container.register(TOKENS.GitHubInstallationId, {
 
 // Port → Adapter mappings
 container.register(TOKENS.MemoryStore, { useClass: KVMemoryStoreAdapter })
-container.register(TOKENS.ConversationGrouper, { useClass: AIServiceAdapter })
-container.register(TOKENS.ActionItemGenerator, { useClass: AIServiceAdapter })
+container.register(TOKENS.ConversationGrouper, {
+  useClass: ConversationGrouperService,
+})
+container.register(TOKENS.ActionItemGenerator, {
+  useClass: ActionItemGeneratorService,
+})
 container.register(TOKENS.DiscordNotifier, { useClass: DiscordNotifierAdapter })
 container.register(TOKENS.DiscordSource, { useClass: DiscordSourceAdapter })
 container.register(TOKENS.SummaryPresenter, {
