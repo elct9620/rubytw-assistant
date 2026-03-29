@@ -41,16 +41,18 @@ container.register(TOKENS.GitHubInstallationId, {
   useValue: env.GITHUB_INSTALLATION_ID,
 })
 
-// Port → Adapter mappings
+// Port → Adapter mappings (infrastructure)
 container.register(TOKENS.MemoryStore, { useClass: KVMemoryStoreAdapter })
+container.register(TOKENS.DiscordNotifier, { useClass: DiscordNotifierAdapter })
+container.register(TOKENS.DiscordSource, { useClass: DiscordSourceAdapter })
+
+// Port → Service mappings (orchestration)
 container.register(TOKENS.ConversationGrouper, {
   useClass: ConversationGrouperService,
 })
 container.register(TOKENS.ActionItemGenerator, {
   useClass: ActionItemGeneratorService,
 })
-container.register(TOKENS.DiscordNotifier, { useClass: DiscordNotifierAdapter })
-container.register(TOKENS.DiscordSource, { useClass: DiscordSourceAdapter })
 container.register(TOKENS.SummaryPresenter, {
   useClass: DiscordSummaryPresenter,
 })

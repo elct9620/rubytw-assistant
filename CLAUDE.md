@@ -43,10 +43,11 @@ pnpm vitest run tests/index.test.ts
 - `src/usecases/` — **Use Cases**: application logic. Port interfaces live in `ports.ts`. Use cases accept deps via constructor (plain object), not DI decorators.
 - `src/entities/` — **Domain Entities**: value objects and domain logic (e.g., `TopicGroup`, `ActionItem`, `MemoryEntry`)
 - `src/handlers/` — **Inbound Handlers**: bridge framework/runtime calls to use cases (e.g., `scheduled.ts` for cron, `health.ts` for HTTP). Hono HTTP handlers use the sub-app pattern (`app.route()`).
-- `src/adapters/` — **Outbound Gateways**: implement port interfaces for external services (Discord API, AI Gateway, KV). Adapters use `@inject()` decorators for DI.
+- `src/services/` — **Application Services**: orchestrate multiple ports and libraries to implement use case port interfaces (e.g., `ConversationGrouperService` coordinates AI SDK + tools to implement `ConversationGrouper` port). Services use `@inject()` decorators for DI, same as adapters.
+- `src/adapters/` — **Outbound Gateways**: thin wrappers for external API communication (Discord API, GitHub API, KV). Adapters use `@inject()` decorators for DI. Unlike services, adapters only handle data format conversion — no orchestration logic.
 - `src/prompts/` — **Prompt Templates**: markdown files used as AI prompt templates (e.g., `generate-action-items.md`, `group-conversations.md`)
 
-Dependencies point inward: handlers/adapters → usecases. Port interfaces are defined in the use case layer (`usecases/ports.ts`), not in handlers or adapters.
+Dependencies point inward: handlers/services/adapters → usecases. Port interfaces are defined in the use case layer (`usecases/ports.ts`), not in handlers, services, or adapters.
 
 ### DI Container (tsyringe)
 
