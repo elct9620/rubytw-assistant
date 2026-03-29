@@ -1,12 +1,14 @@
 import 'reflect-metadata'
 import { container } from 'tsyringe'
 import { env } from 'cloudflare:workers'
+import { App } from 'octokit'
 import { TOKENS } from './tokens'
 import { KVMemoryStoreAdapter } from './adapters/kv-memory-store'
 import { AIServiceAdapter } from './adapters/ai-service'
 import { DiscordNotifierAdapter } from './adapters/discord-notifier'
 import { DiscordSourceAdapter } from './adapters/discord-source'
 import { DiscordSummaryPresenter } from './adapters/discord-summary-presenter'
+import { GitHubSourceAdapter } from './adapters/github-source'
 import { GenerateSummary } from './usecases/generate-summary'
 
 // Env bindings
@@ -36,11 +38,36 @@ container.register(TOKENS.SummaryPresenter, {
   useClass: DiscordSummaryPresenter,
 })
 
-// Stub GitHub source (TODO: replace with real adapter)
+// GitHub source — App auth + GraphQL, lazy-init installation Octokit
+container.register(TOKENS.GitHubOrg, { useValue: env.GITHUB_ORG })
+container.register(TOKENS.GitHubProjectNumber, {
+  useValue: Number(env.GITHUB_PROJECT_NUMBER),
+})
 container.register(TOKENS.GitHubSource, {
-  useValue: {
-    getIssues: async () => [],
-    getProjectActivities: async () => [],
+  useFactory: (c) => {
+    const app = new App({
+      appId: env.GITHUB_APP_ID,
+      privateKey: env.GITHUB_PRIVATE_KEY,
+    })
+    let octokitPromise: ReturnType<typeof app.getInstallationOctokit> | null =
+      null
+    const graphql = async <T = unknown>(
+      query: string,
+      variables?: Record<string, unknown>,
+    ): Promise<T> => {
+      if (!octokitPromise) {
+        octokitPromise = app.getInstallationOctokit(
+          Number(env.GITHUB_INSTALLATION_ID),
+        )
+      }
+      const octokit = await octokitPromise
+      return octokit.graphql<T>(query, variables)
+    }
+    return new GitHubSourceAdapter(
+      graphql,
+      c.resolve(TOKENS.GitHubOrg),
+      c.resolve(TOKENS.GitHubProjectNumber),
+    )
   },
 })
 

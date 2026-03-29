@@ -10,3 +10,5 @@ DEBUG=true
 GITHUB_APP_ID=your_github_app_id
 GITHUB_PRIVATE_KEY=your_github_private_key
 GITHUB_INSTALLATION_ID=your_github_installation_id
+GITHUB_ORG=rubytw
+GITHUB_PROJECT_NUMBER=1

@@ -10,6 +10,12 @@ export const TOKENS = {
   MemoryEntryLimit: 'MemoryEntryLimit',
   SummaryHours: 'SummaryHours',
 
+  GitHubAppId: 'GitHubAppId',
+  GitHubPrivateKey: 'GitHubPrivateKey',
+  GitHubInstallationId: 'GitHubInstallationId',
+  GitHubOrg: 'GitHubOrg',
+  GitHubProjectNumber: 'GitHubProjectNumber',
+
   // Port interfaces
   MemoryStore: 'MemoryStore',
   GitHubSource: 'GitHubSource',
