@@ -15,8 +15,6 @@ import { TOKENS } from '../tokens'
 import GROUP_CONVERSATIONS_PROMPT from '../prompts/group-conversations.md'
 import GENERATE_ACTION_ITEMS_PROMPT from '../prompts/generate-action-items.md'
 
-const ACCOUNT_ID = '614fcd230e7a893b205fd36259d9aff3'
-const GATEWAY_ID = 'rubytw-assistant'
 const MAX_TOOL_STEPS = 5
 
 const TopicGroupSchema = z.object({
@@ -49,7 +47,9 @@ export class AIServiceAdapter
   implements ConversationGrouper, ActionItemGenerator
 {
   constructor(
+    @inject(TOKENS.CfAccountId) private accountId: string,
     @inject(TOKENS.CfAigToken) private apiKey: string,
+    @inject(TOKENS.AiGatewayId) private gatewayId: string,
     @inject(TOKENS.AiModel) private modelId: string,
     @inject(TOKENS.MemoryStore) private memoryStore: MemoryStore,
     @inject(TOKENS.MemoryEntryLimit) private memoryEntryLimit: number,
@@ -174,8 +174,8 @@ export class AIServiceAdapter
 
   private createModel() {
     const aigateway = createAiGateway({
-      accountId: ACCOUNT_ID,
-      gateway: GATEWAY_ID,
+      accountId: this.accountId,
+      gateway: this.gatewayId,
       apiKey: this.apiKey,
     })
     const unified = createUnified()

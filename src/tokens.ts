@@ -2,7 +2,9 @@ export const TOKENS = {
   // Env bindings
   DiscordBotToken: 'DiscordBotToken',
   DiscordChannelId: 'DiscordChannelId',
+  CfAccountId: 'CfAccountId',
   CfAigToken: 'CfAigToken',
+  AiGatewayId: 'AiGatewayId',
   AiModel: 'AiModel',
   MemoryKv: 'MemoryKv',
   MemoryEntryLimit: 'MemoryEntryLimit',

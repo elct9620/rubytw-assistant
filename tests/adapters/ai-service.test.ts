@@ -45,7 +45,9 @@ describe('AIServiceAdapter', () => {
         },
       })
       const adapter = new AIServiceAdapter(
+        'test-account-id',
         'test-token',
+        'test-gateway',
         'openai/gpt-4.1-mini',
         createStubMemoryStore(),
         32,
@@ -79,7 +81,9 @@ describe('AIServiceAdapter', () => {
       ]
       mockGenerateText.mockResolvedValue({ output: { groups } })
       const adapter = new AIServiceAdapter(
+        'test-account-id',
         'test-token',
+        'test-gateway',
         'openai/gpt-4.1-mini',
         createStubMemoryStore(),
         32,
@@ -93,7 +97,9 @@ describe('AIServiceAdapter', () => {
     it('should throw when output is null', async () => {
       mockGenerateText.mockResolvedValue({ output: null })
       const adapter = new AIServiceAdapter(
+        'test-account-id',
         'test-token',
+        'test-gateway',
         'openai/gpt-4.1-mini',
         createStubMemoryStore(),
         32,
@@ -110,7 +116,9 @@ describe('AIServiceAdapter', () => {
       })
       const store = createStubMemoryStore()
       const adapter = new AIServiceAdapter(
+        'test-account-id',
         'test-token',
+        'test-gateway',
         'openai/gpt-4.1-mini',
         store,
         32,
@@ -155,7 +163,9 @@ describe('AIServiceAdapter', () => {
         },
       })
       const adapter = new AIServiceAdapter(
+        'test-account-id',
         'test-token',
+        'test-gateway',
         'openai/gpt-4.1-mini',
         createStubMemoryStore(),
         32,
@@ -200,7 +210,9 @@ describe('AIServiceAdapter', () => {
       ]
       mockGenerateText.mockResolvedValue({ output: { items } })
       const adapter = new AIServiceAdapter(
+        'test-account-id',
         'test-token',
+        'test-gateway',
         'openai/gpt-4.1-mini',
         createStubMemoryStore(),
         32,
@@ -222,7 +234,9 @@ describe('AIServiceAdapter', () => {
     it('should throw when output is null', async () => {
       mockGenerateText.mockResolvedValue({ output: null })
       const adapter = new AIServiceAdapter(
+        'test-account-id',
         'test-token',
+        'test-gateway',
         'openai/gpt-4.1-mini',
         createStubMemoryStore(),
         32,
@@ -249,7 +263,9 @@ describe('AIServiceAdapter', () => {
       })
       const store = createStubMemoryStore()
       const adapter = new AIServiceAdapter(
+        'test-account-id',
         'test-token',
+        'test-gateway',
         'openai/gpt-4.1-mini',
         store,
         32,
@@ -283,7 +299,9 @@ describe('AIServiceAdapter', () => {
       const store = createStubMemoryStore(storeOverrides)
       mockGenerateText.mockResolvedValue({ output: { groups: [] } })
       const adapter = new AIServiceAdapter(
+        'test-account-id',
         'test-token',
+        'test-gateway',
         'openai/gpt-4.1-mini',
         store,
         32,
