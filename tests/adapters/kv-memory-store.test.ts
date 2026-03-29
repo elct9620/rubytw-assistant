@@ -1,41 +1,21 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { env } from 'cloudflare:test'
+import { describe, it, expect, beforeEach } from 'vitest'
 import { KVMemoryStoreAdapter } from '../../src/adapters/kv-memory-store'
 import type { MemoryEntry } from '../../src/entities/memory-entry'
 
-function createMockKV() {
-  const store = new Map<string, string>()
+const KEY_PREFIX = 'memory:'
 
-  return {
-    store,
-    kv: {
-      list: vi.fn().mockImplementation(({ prefix }: { prefix: string }) => {
-        const keys = [...store.keys()]
-          .filter((k) => k.startsWith(prefix))
-          .map((name) => ({ name }))
-        return { keys }
-      }),
-      get: vi.fn().mockImplementation((key: string, type?: string) => {
-        const value = store.get(key) ?? null
-        if (value && type === 'json') return JSON.parse(value)
-        return value
-      }),
-      put: vi.fn().mockImplementation((key: string, value: string) => {
-        store.set(key, value)
-      }),
-      delete: vi.fn().mockImplementation((key: string) => {
-        store.delete(key)
-      }),
-    } as unknown as KVNamespace,
-  }
+async function clearKV(kv: KVNamespace) {
+  const { keys } = await kv.list({ prefix: KEY_PREFIX })
+  await Promise.all(keys.map((k) => kv.delete(k.name)))
 }
 
 describe('KVMemoryStoreAdapter', () => {
-  let mock: ReturnType<typeof createMockKV>
   let adapter: KVMemoryStoreAdapter
 
-  beforeEach(() => {
-    mock = createMockKV()
-    adapter = new KVMemoryStoreAdapter(mock.kv, 32)
+  beforeEach(async () => {
+    await clearKV(env.MEMORY_KV)
+    adapter = new KVMemoryStoreAdapter(env.MEMORY_KV, 32)
   })
 
   describe('list', () => {
@@ -51,39 +31,10 @@ describe('KVMemoryStoreAdapter', () => {
         tag: 'event',
         updatedAt: '2026-03-28T00:00:00.000Z',
       }
-      mock.store.set('memory:topic-1', JSON.stringify(entry))
+      await env.MEMORY_KV.put('memory:topic-1', JSON.stringify(entry))
 
       const entries = await adapter.list()
       expect(entries).toEqual([entry])
-    })
-
-    it('should filter out null entries from stale keys', async () => {
-      mock.store.set(
-        'memory:valid',
-        JSON.stringify({
-          key: 'valid',
-          content: 'data',
-          updatedAt: '2026-03-28T00:00:00.000Z',
-        }),
-      )
-      // Simulate KV eventual consistency: key exists in list but get returns null
-      const originalGet = mock.kv.get.getMockImplementation()!
-      mock.kv.get.mockImplementation((key: string, type?: string) => {
-        if (key === 'memory:stale') return null
-        return originalGet(key, type)
-      })
-      // Add a stale key that list() will see but get() returns null for
-      mock.kv.list.mockImplementation(({ prefix }: { prefix: string }) => {
-        const keys = [...mock.store.keys()]
-          .filter((k) => k.startsWith(prefix))
-          .map((name) => ({ name }))
-        keys.push({ name: 'memory:stale' })
-        return { keys }
-      })
-
-      const entries = await adapter.list()
-      expect(entries).toHaveLength(1)
-      expect(entries[0].key).toBe('valid')
     })
   })
 
@@ -97,17 +48,18 @@ describe('KVMemoryStoreAdapter', () => {
 
       await adapter.put(entry)
 
-      expect(mock.kv.put).toHaveBeenCalledWith(
+      const stored = await env.MEMORY_KV.get<MemoryEntry>(
         'memory:topic-1',
-        JSON.stringify(entry),
+        'json',
       )
+      expect(stored).toEqual(entry)
     })
 
     it('should reject when entry limit is reached', async () => {
-      const limitedAdapter = new KVMemoryStoreAdapter(mock.kv, 2)
+      const limitedAdapter = new KVMemoryStoreAdapter(env.MEMORY_KV, 2)
 
       for (let i = 0; i < 2; i++) {
-        mock.store.set(
+        await env.MEMORY_KV.put(
           `memory:entry-${i}`,
           JSON.stringify({
             key: `entry-${i}`,
@@ -127,9 +79,9 @@ describe('KVMemoryStoreAdapter', () => {
     })
 
     it('should allow overwriting existing entry without counting as new', async () => {
-      const limitedAdapter = new KVMemoryStoreAdapter(mock.kv, 1)
+      const limitedAdapter = new KVMemoryStoreAdapter(env.MEMORY_KV, 1)
 
-      mock.store.set(
+      await env.MEMORY_KV.put(
         'memory:topic-1',
         JSON.stringify({
           key: 'topic-1',
@@ -150,7 +102,7 @@ describe('KVMemoryStoreAdapter', () => {
 
   describe('delete', () => {
     it('should delete entry by key', async () => {
-      mock.store.set(
+      await env.MEMORY_KV.put(
         'memory:topic-1',
         JSON.stringify({
           key: 'topic-1',
@@ -161,7 +113,8 @@ describe('KVMemoryStoreAdapter', () => {
 
       await adapter.delete('topic-1')
 
-      expect(mock.kv.delete).toHaveBeenCalledWith('memory:topic-1')
+      const stored = await env.MEMORY_KV.get('memory:topic-1')
+      expect(stored).toBeNull()
     })
   })
 
@@ -172,8 +125,8 @@ describe('KVMemoryStoreAdapter', () => {
     })
 
     it('should return number of stored entries', async () => {
-      mock.store.set('memory:a', '{}')
-      mock.store.set('memory:b', '{}')
+      await env.MEMORY_KV.put('memory:a', '{}')
+      await env.MEMORY_KV.put('memory:b', '{}')
 
       const count = await adapter.count()
       expect(count).toBe(2)

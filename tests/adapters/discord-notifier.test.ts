@@ -1,39 +1,44 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { http, HttpResponse } from 'msw'
+import { describe, it, expect } from 'vitest'
 import { DiscordNotifierAdapter } from '../../src/adapters/discord-notifier'
+import { server } from '../msw-server'
+
+const MESSAGES_URL = 'https://discord.com/api/v10/channels/123456/messages'
 
 describe('DiscordNotifierAdapter', () => {
-  let fetchMock: ReturnType<typeof vi.fn>
-
-  beforeEach(() => {
-    fetchMock = vi.fn()
-  })
-
   it('should send message to correct Discord API endpoint', async () => {
-    fetchMock.mockResolvedValue({ ok: true })
-    const notifier = new DiscordNotifierAdapter('test-bot-token', fetchMock)
+    let capturedAuth: string | undefined
+    let capturedBody: { content: string } | undefined
+    let capturedContentType: string | undefined
 
+    server.use(
+      http.post(MESSAGES_URL, async ({ request }) => {
+        capturedAuth = request.headers.get('Authorization') ?? undefined
+        capturedContentType = request.headers.get('Content-Type') ?? undefined
+        capturedBody = (await request.json()) as { content: string }
+        return HttpResponse.json({})
+      }),
+    )
+
+    const notifier = new DiscordNotifierAdapter('test-bot-token')
     await notifier.sendMessage('123456', 'Hello Discord')
 
-    expect(fetchMock).toHaveBeenCalledWith(
-      'https://discord.com/api/v10/channels/123456/messages',
-      {
-        method: 'POST',
-        headers: {
-          Authorization: 'Bot test-bot-token',
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ content: 'Hello Discord' }),
-      },
-    )
+    expect(capturedAuth).toBe('Bot test-bot-token')
+    expect(capturedContentType).toBe('application/json')
+    expect(capturedBody).toEqual({ content: 'Hello Discord' })
   })
 
   it('should throw error when API returns non-ok response', async () => {
-    fetchMock.mockResolvedValue({
-      ok: false,
-      status: 403,
-      statusText: 'Forbidden',
-    })
-    const notifier = new DiscordNotifierAdapter('test-bot-token', fetchMock)
+    server.use(
+      http.post(MESSAGES_URL, () => {
+        return new HttpResponse(null, {
+          status: 403,
+          statusText: 'Forbidden',
+        })
+      }),
+    )
+
+    const notifier = new DiscordNotifierAdapter('test-bot-token')
 
     await expect(notifier.sendMessage('123456', 'Hello')).rejects.toThrowError(
       'Discord API error: 403 Forbidden',

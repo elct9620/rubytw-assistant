@@ -1,10 +1,13 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { http, HttpResponse } from 'msw'
+import { describe, it, expect, vi, afterEach } from 'vitest'
 import {
   DiscordSourceAdapter,
   formatMessageToXml,
 } from '../../src/adapters/discord-source'
+import { server } from '../msw-server'
 
 const DISCORD_EPOCH = 1420070400000n
+const MESSAGES_URL = 'https://discord.com/api/v10/channels/channel-123/messages'
 
 function makeMessage(
   id: string,
@@ -38,61 +41,49 @@ function makeMessage(
 }
 
 describe('DiscordSourceAdapter', () => {
-  let fetchMock: ReturnType<typeof vi.fn>
-
-  beforeEach(() => {
-    fetchMock = vi.fn()
-  })
-
   afterEach(() => {
     vi.useRealTimers()
-    vi.restoreAllMocks()
   })
 
   it('should request messages from correct API endpoint with after snowflake', async () => {
-    fetchMock.mockResolvedValue({
-      ok: true,
-      json: async () => [],
-    })
     const now = Date.now()
     vi.setSystemTime(now)
-
-    const adapter = new DiscordSourceAdapter(
-      'bot-token',
-      'channel-123',
-      fetchMock,
-    )
-    await adapter.getChannelMessages(24)
 
     const expectedSnowflake = String(
       (BigInt(now - 24 * 3600 * 1000) - DISCORD_EPOCH) << 22n,
     )
 
-    expect(fetchMock).toHaveBeenCalledWith(
-      `https://discord.com/api/v10/channels/channel-123/messages?after=${expectedSnowflake}&limit=100`,
-      {
-        headers: {
-          Authorization: 'Bot bot-token',
-        },
-      },
+    let capturedUrl: URL | undefined
+    let capturedAuth: string | undefined
+
+    server.use(
+      http.get(MESSAGES_URL, ({ request }) => {
+        capturedUrl = new URL(request.url)
+        capturedAuth = request.headers.get('Authorization') ?? undefined
+        return HttpResponse.json([])
+      }),
     )
+
+    const adapter = new DiscordSourceAdapter('bot-token', 'channel-123')
+    await adapter.getChannelMessages(24)
+
+    expect(capturedUrl?.searchParams.get('after')).toBe(expectedSnowflake)
+    expect(capturedUrl?.searchParams.get('limit')).toBe('100')
+    expect(capturedAuth).toBe('Bot bot-token')
   })
 
   it('should return formatted XML messages and filter out empty content', async () => {
-    fetchMock.mockResolvedValue({
-      ok: true,
-      json: async () => [
-        makeMessage('1', 'hello'),
-        makeMessage('2', ''),
-        makeMessage('3', 'world'),
-      ],
-    })
-
-    const adapter = new DiscordSourceAdapter(
-      'bot-token',
-      'channel-123',
-      fetchMock,
+    server.use(
+      http.get(MESSAGES_URL, () => {
+        return HttpResponse.json([
+          makeMessage('1', 'hello'),
+          makeMessage('2', ''),
+          makeMessage('3', 'world'),
+        ])
+      }),
     )
+
+    const adapter = new DiscordSourceAdapter('bot-token', 'channel-123')
     const result = await adapter.getChannelMessages(24)
 
     expect(result).toHaveLength(2)
@@ -103,17 +94,16 @@ describe('DiscordSourceAdapter', () => {
   })
 
   it('should throw error when API returns non-ok response', async () => {
-    fetchMock.mockResolvedValue({
-      ok: false,
-      status: 403,
-      statusText: 'Forbidden',
-    })
-
-    const adapter = new DiscordSourceAdapter(
-      'bot-token',
-      'channel-123',
-      fetchMock,
+    server.use(
+      http.get(MESSAGES_URL, () => {
+        return new HttpResponse(null, {
+          status: 403,
+          statusText: 'Forbidden',
+        })
+      }),
     )
+
+    const adapter = new DiscordSourceAdapter('bot-token', 'channel-123')
 
     await expect(adapter.getChannelMessages(24)).rejects.toThrow(
       'Discord API error: 403 Forbidden',
@@ -126,23 +116,28 @@ describe('DiscordSourceAdapter', () => {
     )
     const page2 = [makeMessage('200', 'last-msg')]
 
-    fetchMock
-      .mockResolvedValueOnce({ ok: true, json: async () => page1 })
-      .mockResolvedValueOnce({ ok: true, json: async () => page2 })
+    let requestCount = 0
+    let secondRequestAfter: string | null = null
 
-    const adapter = new DiscordSourceAdapter(
-      'bot-token',
-      'channel-123',
-      fetchMock,
+    server.use(
+      http.get(MESSAGES_URL, ({ request }) => {
+        requestCount++
+        const url = new URL(request.url)
+        if (requestCount === 1) {
+          return HttpResponse.json(page1)
+        }
+        secondRequestAfter = url.searchParams.get('after')
+        return HttpResponse.json(page2)
+      }),
     )
+
+    const adapter = new DiscordSourceAdapter('bot-token', 'channel-123')
     const result = await adapter.getChannelMessages(24)
 
-    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(requestCount).toBe(2)
     expect(result).toHaveLength(101)
     expect(result[result.length - 1]).toContain('<content>last-msg</content>')
-
-    const secondCallUrl = fetchMock.mock.calls[1][0] as string
-    expect(secondCallUrl).toContain('after=100')
+    expect(secondRequestAfter).toBe('100')
   })
 
   it('should stop paginating after reaching max pages', async () => {
@@ -150,16 +145,19 @@ describe('DiscordSourceAdapter', () => {
       makeMessage(String(i + 1), `msg-${i + 1}`),
     )
 
-    fetchMock.mockResolvedValue({ ok: true, json: async () => fullPage })
+    let requestCount = 0
 
-    const adapter = new DiscordSourceAdapter(
-      'bot-token',
-      'channel-123',
-      fetchMock,
+    server.use(
+      http.get(MESSAGES_URL, () => {
+        requestCount++
+        return HttpResponse.json(fullPage)
+      }),
     )
+
+    const adapter = new DiscordSourceAdapter('bot-token', 'channel-123')
     const result = await adapter.getChannelMessages(24)
 
-    expect(fetchMock).toHaveBeenCalledTimes(5)
+    expect(requestCount).toBe(5)
     expect(result).toHaveLength(500)
   })
 })
