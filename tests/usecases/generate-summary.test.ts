@@ -41,10 +41,6 @@ function createStubDeps(
   overrides?: Partial<GenerateSummaryDeps>,
 ): GenerateSummaryDeps {
   return {
-    github: {
-      getIssues: vi.fn().mockResolvedValue([]),
-      getProjectActivities: vi.fn().mockResolvedValue([]),
-    },
     discord: {
       getChannelMessages: vi.fn().mockResolvedValue(['msg-1', 'msg-2']),
     },
@@ -131,34 +127,5 @@ describe('GenerateSummary', () => {
     expect(result.topicGroups).toEqual([smallTalkGroup, nonCommunityGroup])
     expect(result.actionItems).toEqual([])
     expect(deps.actionItemGenerator.generateActionItems).not.toHaveBeenCalled()
-  })
-
-  it('should collect GitHub and Discord data in parallel', async () => {
-    const order: string[] = []
-    const deps = createStubDeps({
-      github: {
-        getIssues: vi.fn().mockImplementation(async () => {
-          order.push('issues')
-          return []
-        }),
-        getProjectActivities: vi.fn().mockImplementation(async () => {
-          order.push('activities')
-          return []
-        }),
-      },
-      discord: {
-        getChannelMessages: vi.fn().mockImplementation(async () => {
-          order.push('messages')
-          return ['msg']
-        }),
-      },
-    })
-    const usecase = new GenerateSummary(deps)
-
-    await usecase.execute(12)
-
-    expect(order).toContain('issues')
-    expect(order).toContain('activities')
-    expect(order).toContain('messages')
   })
 })

@@ -1,6 +1,5 @@
 import { isActionable } from '../entities/topic-group'
 import type {
-  GitHubSource,
   DiscordSource,
   ConversationGrouper,
   ActionItemGenerator,
@@ -8,7 +7,6 @@ import type {
 } from './ports'
 
 export interface GenerateSummaryDeps {
-  github: GitHubSource
   discord: DiscordSource
   conversationGrouper: ConversationGrouper
   actionItemGenerator: ActionItemGenerator
@@ -18,11 +16,7 @@ export class GenerateSummary {
   constructor(private deps: GenerateSummaryDeps) {}
 
   async execute(hours: number): Promise<SummaryResult> {
-    const [, , messages] = await Promise.all([
-      this.deps.github.getIssues(),
-      this.deps.github.getProjectActivities(),
-      this.deps.discord.getChannelMessages(hours),
-    ])
+    const messages = await this.deps.discord.getChannelMessages(hours)
 
     if (messages.length === 0) {
       return { topicGroups: [], actionItems: [] }

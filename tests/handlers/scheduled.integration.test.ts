@@ -11,13 +11,6 @@ const presentedResults: SummaryResult[] = []
 function registerStubPorts() {
   container.register(TOKENS.SummaryHours, { useValue: 24 })
 
-  container.register(TOKENS.GitHubSource, {
-    useValue: {
-      getIssues: vi.fn().mockResolvedValue([]),
-      getProjectActivities: vi.fn().mockResolvedValue([]),
-    },
-  })
-
   container.register(TOKENS.DiscordSource, {
     useValue: {
       getChannelMessages: vi
@@ -67,7 +60,6 @@ function registerStubPorts() {
   container.register(GenerateSummary, {
     useFactory: (c) =>
       new GenerateSummary({
-        github: c.resolve(TOKENS.GitHubSource),
         discord: c.resolve(TOKENS.DiscordSource),
         conversationGrouper: c.resolve(TOKENS.ConversationGrouper),
         actionItemGenerator: c.resolve(TOKENS.ActionItemGenerator),

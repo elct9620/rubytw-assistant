@@ -7,6 +7,7 @@ import { z } from 'zod'
 import type {
   ConversationGrouper,
   ActionItemGenerator,
+  GitHubSource,
   MemoryStore,
 } from '../usecases/ports'
 import type { TopicGroup } from '../entities/topic-group'
@@ -53,6 +54,7 @@ export class AIServiceAdapter
     @inject(TOKENS.AiModel) private modelId: string,
     @inject(TOKENS.MemoryStore) private memoryStore: MemoryStore,
     @inject(TOKENS.MemoryEntryLimit) private memoryEntryLimit: number,
+    @inject(TOKENS.GitHubSource) private githubSource: GitHubSource,
   ) {}
 
   async groupConversations(messages: string[]): Promise<TopicGroup[]> {
@@ -60,7 +62,7 @@ export class AIServiceAdapter
       '{{memoryEntryLimit}}',
       String(this.memoryEntryLimit),
     )
-    const tools = this.createMemoryTools()
+    const tools = { ...this.createMemoryTools(), ...this.createGitHubTools() }
 
     const { output } = await generateText({
       model: this.createModel(),
@@ -87,7 +89,7 @@ export class AIServiceAdapter
       '{{today}}',
       today,
     ).replace('{{memoryEntryLimit}}', String(this.memoryEntryLimit))
-    const tools = this.createMemoryTools()
+    const tools = { ...this.createMemoryTools(), ...this.createGitHubTools() }
 
     const { output } = await generateText({
       model: this.createModel(),
@@ -106,6 +108,41 @@ export class AIServiceAdapter
     }
 
     return output.items
+  }
+
+  private createGitHubTools(): ToolSet {
+    const source = this.githubSource
+
+    return {
+      github_get_issues: tool({
+        description:
+          'Query GitHub Projects V2 issues to check task status and relate conversations to existing issues',
+        inputSchema: z.object({}),
+        execute: async () => {
+          try {
+            const issues = await source.getIssues()
+            return { issues, count: issues.length }
+          } catch {
+            console.warn('GitHub get issues failed')
+            return { issues: [], count: 0, error: 'query failed' }
+          }
+        },
+      }),
+      github_get_project_activities: tool({
+        description:
+          'Query GitHub Projects V2 recent activities to understand project progress',
+        inputSchema: z.object({}),
+        execute: async () => {
+          try {
+            const activities = await source.getProjectActivities()
+            return { activities, count: activities.length }
+          } catch {
+            console.warn('GitHub get project activities failed')
+            return { activities: [], count: 0, error: 'query failed' }
+          }
+        },
+      }),
+    }
   }
 
   private createMemoryTools(): ToolSet {

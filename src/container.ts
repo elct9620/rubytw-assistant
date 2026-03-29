@@ -73,7 +73,6 @@ container.register(TOKENS.GitHubSource, {
 container.register(GenerateSummary, {
   useFactory: (c) =>
     new GenerateSummary({
-      github: c.resolve(TOKENS.GitHubSource),
       discord: c.resolve(TOKENS.DiscordSource),
       conversationGrouper: c.resolve(TOKENS.ConversationGrouper),
       actionItemGenerator: c.resolve(TOKENS.ActionItemGenerator),

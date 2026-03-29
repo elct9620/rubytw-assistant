@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { AIServiceAdapter } from '../../src/adapters/ai-service'
-import type { MemoryStore } from '../../src/usecases/ports'
+import type { GitHubSource, MemoryStore } from '../../src/usecases/ports'
 import GROUP_CONVERSATIONS_PROMPT from '../../src/prompts/group-conversations.md'
 import GENERATE_ACTION_ITEMS_PROMPT from '../../src/prompts/generate-action-items.md'
 
@@ -24,8 +24,19 @@ function createStubMemoryStore(overrides?: Partial<MemoryStore>): MemoryStore {
   }
 }
 
+function createStubGitHubSource(
+  overrides?: Partial<GitHubSource>,
+): GitHubSource {
+  return {
+    getIssues: vi.fn().mockResolvedValue([]),
+    getProjectActivities: vi.fn().mockResolvedValue([]),
+    ...overrides,
+  }
+}
+
 function createAdapter(overrides?: {
   memoryStore?: MemoryStore
+  githubSource?: GitHubSource
 }): AIServiceAdapter {
   return new AIServiceAdapter(
     'test-account-id',
@@ -34,6 +45,7 @@ function createAdapter(overrides?: {
     'openai/gpt-4.1-mini',
     overrides?.memoryStore ?? createStubMemoryStore(),
     32,
+    overrides?.githubSource ?? createStubGitHubSource(),
   )
 }
 
@@ -102,12 +114,11 @@ describe('AIServiceAdapter', () => {
       )
     })
 
-    it('should include memory tools when memoryStore is provided', async () => {
+    it('should include memory and github tools', async () => {
       mockGenerateText.mockResolvedValue({
         output: { groups: [] },
       })
-      const store = createStubMemoryStore()
-      const adapter = createAdapter({ memoryStore: store })
+      const adapter = createAdapter()
 
       await adapter.groupConversations(['msg'])
 
@@ -122,6 +133,12 @@ describe('AIServiceAdapter', () => {
             }),
             memory_delete: expect.objectContaining({
               description: expect.stringContaining('Delete a memory entry'),
+            }),
+            github_get_issues: expect.objectContaining({
+              description: expect.stringContaining('GitHub Projects V2 issues'),
+            }),
+            github_get_project_activities: expect.objectContaining({
+              description: expect.stringContaining('project progress'),
             }),
           }),
           stopWhen: expect.objectContaining({
@@ -221,12 +238,11 @@ describe('AIServiceAdapter', () => {
       )
     })
 
-    it('should include memory tools when memoryStore is provided', async () => {
+    it('should include memory and github tools', async () => {
       mockGenerateText.mockResolvedValue({
         output: { items: [] },
       })
-      const store = createStubMemoryStore()
-      const adapter = createAdapter({ memoryStore: store })
+      const adapter = createAdapter()
 
       await adapter.generateActionItems([
         {
@@ -244,10 +260,64 @@ describe('AIServiceAdapter', () => {
             memory_read: expect.anything(),
             memory_write: expect.anything(),
             memory_delete: expect.anything(),
+            github_get_issues: expect.anything(),
+            github_get_project_activities: expect.anything(),
           }),
           stopWhen: expect.objectContaining({ type: 'stepCount', count: 5 }),
         }),
       )
+    })
+  })
+
+  describe('github tool execution', () => {
+    async function getGitHubTools(sourceOverrides?: Partial<GitHubSource>) {
+      const source = createStubGitHubSource(sourceOverrides)
+      mockGenerateText.mockResolvedValue({ output: { groups: [] } })
+      const adapter = createAdapter({ githubSource: source })
+      await adapter.groupConversations(['msg'])
+      return { tools: mockGenerateText.mock.calls[0][0].tools, source }
+    }
+
+    it('github_get_issues should return issues from source', async () => {
+      const issues = ['<issue number="1">Test</issue>']
+      const { tools } = await getGitHubTools({
+        getIssues: vi.fn().mockResolvedValue(issues),
+      })
+
+      const result = await tools.github_get_issues.execute({})
+      expect(result).toEqual({ issues, count: 1 })
+    })
+
+    it('github_get_issues should return error object on failure', async () => {
+      const { tools } = await getGitHubTools({
+        getIssues: vi.fn().mockRejectedValue(new Error('auth failed')),
+      })
+
+      const result = await tools.github_get_issues.execute({})
+      expect(result.error).toBe('query failed')
+      expect(result.issues).toEqual([])
+    })
+
+    it('github_get_project_activities should return activities from source', async () => {
+      const activities = ['activity-1']
+      const { tools } = await getGitHubTools({
+        getProjectActivities: vi.fn().mockResolvedValue(activities),
+      })
+
+      const result = await tools.github_get_project_activities.execute({})
+      expect(result).toEqual({ activities, count: 1 })
+    })
+
+    it('github_get_project_activities should return error object on failure', async () => {
+      const { tools } = await getGitHubTools({
+        getProjectActivities: vi
+          .fn()
+          .mockRejectedValue(new Error('rate limit')),
+      })
+
+      const result = await tools.github_get_project_activities.execute({})
+      expect(result.error).toBe('query failed')
+      expect(result.activities).toEqual([])
     })
   })
 
