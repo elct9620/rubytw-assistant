@@ -1,6 +1,6 @@
 import { injectable, inject } from 'tsyringe'
 import type { DiscordSource } from '../usecases/ports'
-import { type FetchFn, assertDiscordResponse } from './shared'
+import { type FetchFn, assertDiscordResponse, escapeXml } from './shared'
 import { TOKENS } from '../tokens'
 
 const DISCORD_EPOCH = 1420070400000n
@@ -32,14 +32,6 @@ interface DiscordMessage {
   timestamp: string
   attachments: DiscordAttachment[]
   mentions: DiscordMention[]
-}
-
-function escapeXml(text: string): string {
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
 }
 
 export function formatMessageToXml(msg: DiscordMessage): string {

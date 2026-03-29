@@ -1,4 +1,5 @@
 import type { GitHubSource } from '../usecases/ports'
+import { escapeXml } from './shared'
 
 export type GitHubGraphQLFn = <T = unknown>(
   query: string,
@@ -78,14 +79,6 @@ const PROJECT_ITEMS_QUERY = `
     }
   }
 `
-
-function escapeXml(text: string): string {
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-}
 
 function extractStatus(fieldValues: FieldValueNode[]): string | null {
   const statusField = fieldValues.find(

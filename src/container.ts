@@ -27,6 +27,13 @@ container.register(TOKENS.MemoryEntryLimit, {
 container.register(TOKENS.SummaryHours, {
   useValue: Number(env.SUMMARY_HOURS),
 })
+container.register(TOKENS.GitHubAppId, { useValue: env.GITHUB_APP_ID })
+container.register(TOKENS.GitHubPrivateKey, {
+  useValue: env.GITHUB_PRIVATE_KEY,
+})
+container.register(TOKENS.GitHubInstallationId, {
+  useValue: env.GITHUB_INSTALLATION_ID,
+})
 
 // Port → Adapter mappings
 container.register(TOKENS.MemoryStore, { useClass: KVMemoryStoreAdapter })
@@ -46,9 +53,12 @@ container.register(TOKENS.GitHubProjectNumber, {
 container.register(TOKENS.GitHubSource, {
   useFactory: (c) => {
     const app = new App({
-      appId: env.GITHUB_APP_ID,
-      privateKey: env.GITHUB_PRIVATE_KEY,
+      appId: c.resolve<string>(TOKENS.GitHubAppId),
+      privateKey: c.resolve<string>(TOKENS.GitHubPrivateKey),
     })
+    const installationId = Number(
+      c.resolve<string>(TOKENS.GitHubInstallationId),
+    )
     let octokitPromise: ReturnType<typeof app.getInstallationOctokit> | null =
       null
     const graphql = async <T = unknown>(
@@ -56,9 +66,7 @@ container.register(TOKENS.GitHubSource, {
       variables?: Record<string, unknown>,
     ): Promise<T> => {
       if (!octokitPromise) {
-        octokitPromise = app.getInstallationOctokit(
-          Number(env.GITHUB_INSTALLATION_ID),
-        )
+        octokitPromise = app.getInstallationOctokit(installationId)
       }
       const octokit = await octokitPromise
       return octokit.graphql<T>(query, variables)
