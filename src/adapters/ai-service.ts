@@ -12,8 +12,8 @@ import type {
 import type { TopicGroup } from '../entities/topic-group'
 import type { ActionItem } from '../entities/action-item'
 import { TOKENS } from '../tokens'
-import PHASE1_SYSTEM_PROMPT from '../prompts/phase1-group-conversations.md'
-import PHASE2_SYSTEM_PROMPT from '../prompts/phase2-generate-action-items.md'
+import GROUP_CONVERSATIONS_PROMPT from '../prompts/group-conversations.md'
+import GENERATE_ACTION_ITEMS_PROMPT from '../prompts/generate-action-items.md'
 
 const ACCOUNT_ID = '614fcd230e7a893b205fd36259d9aff3'
 const GATEWAY_ID = 'rubytw-assistant'
@@ -27,7 +27,7 @@ const TopicGroupSchema = z.object({
   lostContext: z.enum(['yes', 'no']).describe('whether context is lost'),
 })
 
-const Phase1OutputSchema = z.object({
+const GroupConversationsOutputSchema = z.object({
   groups: z.array(TopicGroupSchema),
 })
 
@@ -40,7 +40,7 @@ const ActionItemSchema = z.object({
   reason: z.string().describe('reason'),
 })
 
-const Phase2OutputSchema = z.object({
+const GenerateActionItemsOutputSchema = z.object({
   items: z.array(ActionItemSchema),
 })
 
@@ -56,7 +56,7 @@ export class AIServiceAdapter
   ) {}
 
   async groupConversations(messages: string[]): Promise<TopicGroup[]> {
-    const system = PHASE1_SYSTEM_PROMPT.replace(
+    const system = GROUP_CONVERSATIONS_PROMPT.replace(
       '{{memoryEntryLimit}}',
       String(this.memoryEntryLimit),
     )
@@ -64,7 +64,7 @@ export class AIServiceAdapter
 
     const { output } = await generateText({
       model: this.createModel(),
-      output: Output.object({ schema: Phase1OutputSchema }),
+      output: Output.object({ schema: GroupConversationsOutputSchema }),
       system,
       prompt: messages.join('\n'),
       temperature: 0.3,
@@ -73,7 +73,9 @@ export class AIServiceAdapter
     })
 
     if (!output) {
-      throw new Error('AI service returned no structured output for Phase 1')
+      throw new Error(
+        'AI service returned no structured output for groupConversations',
+      )
     }
 
     return output.groups
@@ -81,15 +83,15 @@ export class AIServiceAdapter
 
   async generateActionItems(groups: TopicGroup[]): Promise<ActionItem[]> {
     const today = new Date().toISOString().slice(0, 10)
-    const system = PHASE2_SYSTEM_PROMPT.replace('{{today}}', today).replace(
-      '{{memoryEntryLimit}}',
-      String(this.memoryEntryLimit),
-    )
+    const system = GENERATE_ACTION_ITEMS_PROMPT.replace(
+      '{{today}}',
+      today,
+    ).replace('{{memoryEntryLimit}}', String(this.memoryEntryLimit))
     const tools = this.createMemoryTools()
 
     const { output } = await generateText({
       model: this.createModel(),
-      output: Output.object({ schema: Phase2OutputSchema }),
+      output: Output.object({ schema: GenerateActionItemsOutputSchema }),
       system,
       prompt: JSON.stringify(groups),
       temperature: 0.3,
@@ -98,7 +100,9 @@ export class AIServiceAdapter
     })
 
     if (!output) {
-      throw new Error('AI service returned no structured output for Phase 2')
+      throw new Error(
+        'AI service returned no structured output for generateActionItems',
+      )
     }
 
     return output.items

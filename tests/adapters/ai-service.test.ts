@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { AIServiceAdapter } from '../../src/adapters/ai-service'
 import type { MemoryStore } from '../../src/usecases/ports'
-import PHASE1_SYSTEM_PROMPT from '../../src/prompts/phase1-group-conversations.md'
-import PHASE2_SYSTEM_PROMPT from '../../src/prompts/phase2-generate-action-items.md'
+import GROUP_CONVERSATIONS_PROMPT from '../../src/prompts/group-conversations.md'
+import GENERATE_ACTION_ITEMS_PROMPT from '../../src/prompts/generate-action-items.md'
 
 const mockGenerateText = vi.fn()
 vi.mock('ai', () => ({
@@ -30,7 +30,7 @@ describe('AIServiceAdapter', () => {
   })
 
   describe('groupConversations', () => {
-    it('should call generateText with Phase 1 output schema and system prompt', async () => {
+    it('should call generateText with groupConversations output schema and system prompt', async () => {
       mockGenerateText.mockResolvedValue({
         output: {
           groups: [
@@ -57,7 +57,10 @@ describe('AIServiceAdapter', () => {
         expect.objectContaining({
           model: expect.anything(),
           output: expect.objectContaining({ type: 'object' }),
-          system: PHASE1_SYSTEM_PROMPT.replace('{{memoryEntryLimit}}', '32'),
+          system: GROUP_CONVERSATIONS_PROMPT.replace(
+            '{{memoryEntryLimit}}',
+            '32',
+          ),
           prompt: 'msg-1\nmsg-2',
           temperature: 0.3,
         }),
@@ -97,7 +100,7 @@ describe('AIServiceAdapter', () => {
       )
 
       await expect(adapter.groupConversations(['msg'])).rejects.toThrow(
-        'AI service returned no structured output for Phase 1',
+        'AI service returned no structured output for groupConversations',
       )
     })
 
@@ -138,7 +141,7 @@ describe('AIServiceAdapter', () => {
   })
 
   describe('generateActionItems', () => {
-    it('should call generateText with Phase 2 output schema and system prompt', async () => {
+    it('should call generateText with generateActionItems output schema and system prompt', async () => {
       mockGenerateText.mockResolvedValue({
         output: {
           items: [
@@ -170,7 +173,7 @@ describe('AIServiceAdapter', () => {
       await adapter.generateActionItems(groups)
 
       const today = new Date().toISOString().slice(0, 10)
-      const expectedSystem = PHASE2_SYSTEM_PROMPT.replace(
+      const expectedSystem = GENERATE_ACTION_ITEMS_PROMPT.replace(
         '{{today}}',
         today,
       ).replace('{{memoryEntryLimit}}', '32')
@@ -235,7 +238,9 @@ describe('AIServiceAdapter', () => {
             lostContext: 'no',
           },
         ]),
-      ).rejects.toThrow('AI service returned no structured output for Phase 2')
+      ).rejects.toThrow(
+        'AI service returned no structured output for generateActionItems',
+      )
     })
 
     it('should include memory tools when memoryStore is provided', async () => {
