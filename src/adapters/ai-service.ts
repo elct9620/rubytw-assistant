@@ -48,8 +48,8 @@ export class AIServiceAdapter
 {
   constructor(
     @inject(TOKENS.CfAccountId) private accountId: string,
-    @inject(TOKENS.CfAigToken) private apiKey: string,
     @inject(TOKENS.AiGatewayId) private gatewayId: string,
+    @inject(TOKENS.CfAigToken) private apiKey: string,
     @inject(TOKENS.AiModel) private modelId: string,
     @inject(TOKENS.MemoryStore) private memoryStore: MemoryStore,
     @inject(TOKENS.MemoryEntryLimit) private memoryEntryLimit: number,

@@ -1,7 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "rubytw-assistant",
-  "account_id": "614fcd230e7a893b205fd36259d9aff3",
   "main": "src/index.ts",
   "compatibility_date": "2026-03-27",
   "compatibility_flags": ["nodejs_compat"],

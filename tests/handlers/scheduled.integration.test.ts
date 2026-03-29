@@ -8,14 +8,9 @@ import { scheduledHandler } from '../../src/handlers/scheduled'
 
 const presentedResults: SummaryResult[] = []
 
-beforeEach(() => {
-  container.clearInstances()
-  presentedResults.length = 0
-
-  // Env tokens
+function registerStubPorts() {
   container.register(TOKENS.SummaryHours, { useValue: 24 })
 
-  // Stub port adapters — override the real adapters registered by container.ts
   container.register(TOKENS.GitHubSource, {
     useValue: {
       getIssues: vi.fn().mockResolvedValue([]),
@@ -69,7 +64,6 @@ beforeEach(() => {
     },
   })
 
-  // Real use case wired through factory
   container.register(GenerateSummary, {
     useFactory: (c) =>
       new GenerateSummary({
@@ -79,6 +73,12 @@ beforeEach(() => {
         actionItemGenerator: c.resolve(TOKENS.ActionItemGenerator),
       }),
   })
+}
+
+beforeEach(() => {
+  container.clearInstances()
+  presentedResults.length = 0
+  registerStubPorts()
 })
 
 describe('scheduled pipeline integration', () => {
