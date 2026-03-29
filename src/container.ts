@@ -17,10 +17,14 @@ container.register(TOKENS.DiscordBotToken, { useValue: env.DISCORD_BOT_TOKEN })
 container.register(TOKENS.DiscordChannelId, {
   useValue: env.DISCORD_CHANNEL_ID,
 })
-container.register(TOKENS.CfAccountId, { useValue: env.CF_ACCOUNT_ID })
-container.register(TOKENS.CfAigToken, { useValue: env.CF_AIG_TOKEN })
-container.register(TOKENS.AiGatewayId, { useValue: env.AI_GATEWAY_ID })
-container.register(TOKENS.AiModel, { useValue: env.AI_MODEL })
+container.register(TOKENS.AiGatewayConfig, {
+  useValue: {
+    accountId: env.CF_ACCOUNT_ID,
+    gatewayId: env.AI_GATEWAY_ID,
+    apiKey: env.CF_AIG_TOKEN,
+    modelId: env.AI_MODEL,
+  },
+})
 container.register(TOKENS.MemoryKv, { useValue: env.MEMORY_KV })
 container.register(TOKENS.MemoryEntryLimit, {
   useValue: Number(env.MEMORY_ENTRY_LIMIT),

@@ -1,11 +1,15 @@
+export interface AiGatewayConfig {
+  accountId: string
+  gatewayId: string
+  apiKey: string
+  modelId: string
+}
+
 export const TOKENS = {
   // Env bindings
   DiscordBotToken: 'DiscordBotToken',
   DiscordChannelId: 'DiscordChannelId',
-  CfAccountId: 'CfAccountId',
-  CfAigToken: 'CfAigToken',
-  AiGatewayId: 'AiGatewayId',
-  AiModel: 'AiModel',
+  AiGatewayConfig: 'AiGatewayConfig',
   MemoryKv: 'MemoryKv',
   MemoryEntryLimit: 'MemoryEntryLimit',
   SummaryHours: 'SummaryHours',

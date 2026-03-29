@@ -39,10 +39,12 @@ function createAdapter(overrides?: {
   githubSource?: GitHubSource
 }): AIServiceAdapter {
   return new AIServiceAdapter(
-    'test-account-id',
-    'test-gateway',
-    'test-token',
-    'openai/gpt-4.1-mini',
+    {
+      accountId: 'test-account-id',
+      gatewayId: 'test-gateway',
+      apiKey: 'test-token',
+      modelId: 'openai/gpt-4.1-mini',
+    },
     overrides?.memoryStore ?? createStubMemoryStore(),
     32,
     overrides?.githubSource ?? createStubGitHubSource(),

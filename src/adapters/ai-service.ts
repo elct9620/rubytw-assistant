@@ -12,7 +12,7 @@ import type {
 } from '../usecases/ports'
 import type { TopicGroup } from '../entities/topic-group'
 import type { ActionItem } from '../entities/action-item'
-import { TOKENS } from '../tokens'
+import { TOKENS, type AiGatewayConfig } from '../tokens'
 import GROUP_CONVERSATIONS_PROMPT from '../prompts/group-conversations.md'
 import GENERATE_ACTION_ITEMS_PROMPT from '../prompts/generate-action-items.md'
 
@@ -48,10 +48,7 @@ export class AIServiceAdapter
   implements ConversationGrouper, ActionItemGenerator
 {
   constructor(
-    @inject(TOKENS.CfAccountId) private accountId: string,
-    @inject(TOKENS.AiGatewayId) private gatewayId: string,
-    @inject(TOKENS.CfAigToken) private apiKey: string,
-    @inject(TOKENS.AiModel) private modelId: string,
+    @inject(TOKENS.AiGatewayConfig) private aiGatewayConfig: AiGatewayConfig,
     @inject(TOKENS.MemoryStore) private memoryStore: MemoryStore,
     @inject(TOKENS.MemoryEntryLimit) private memoryEntryLimit: number,
     @inject(TOKENS.GitHubSource) private githubSource: GitHubSource,
@@ -62,15 +59,13 @@ export class AIServiceAdapter
       '{{memoryEntryLimit}}',
       String(this.memoryEntryLimit),
     )
-    const tools = { ...this.createMemoryTools(), ...this.createGitHubTools() }
-
     const { output } = await generateText({
       model: this.createModel(),
       output: Output.object({ schema: GroupConversationsOutputSchema }),
       system,
       prompt: messages.join('\n'),
       temperature: 0.3,
-      tools,
+      tools: this.createTools(),
       stopWhen: stepCountIs(MAX_TOOL_STEPS),
     })
 
@@ -89,15 +84,13 @@ export class AIServiceAdapter
       '{{today}}',
       today,
     ).replace('{{memoryEntryLimit}}', String(this.memoryEntryLimit))
-    const tools = { ...this.createMemoryTools(), ...this.createGitHubTools() }
-
     const { output } = await generateText({
       model: this.createModel(),
       output: Output.object({ schema: GenerateActionItemsOutputSchema }),
       system,
       prompt: JSON.stringify(groups),
       temperature: 0.3,
-      tools,
+      tools: this.createTools(),
       stopWhen: stepCountIs(MAX_TOOL_STEPS),
     })
 
@@ -108,6 +101,10 @@ export class AIServiceAdapter
     }
 
     return output.items
+  }
+
+  private createTools(): ToolSet {
+    return { ...this.createMemoryTools(), ...this.createGitHubTools() }
   }
 
   private createGitHubTools(): ToolSet {
@@ -210,12 +207,13 @@ export class AIServiceAdapter
   }
 
   private createModel() {
+    const { accountId, gatewayId, apiKey, modelId } = this.aiGatewayConfig
     const aigateway = createAiGateway({
-      accountId: this.accountId,
-      gateway: this.gatewayId,
-      apiKey: this.apiKey,
+      accountId,
+      gateway: gatewayId,
+      apiKey,
     })
     const unified = createUnified()
-    return aigateway(unified(this.modelId))
+    return aigateway(unified(modelId))
   }
 }
