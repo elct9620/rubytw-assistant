@@ -37,26 +37,34 @@ pnpm vitest run tests/index.test.ts
 
 ### Layered Structure (Clean Architecture)
 
-- `src/index.ts` — **Composition root**: wires dependencies and exports `ExportedHandler<Env>` with `fetch` (Hono) and `scheduled` (cron) handlers
-- `src/usecases/` — **Use Cases**: application logic + port interfaces (e.g., `GenerateSummary` defines `GitHubSource`, `DiscordSource`, `AIService`, `DiscordNotifier` interfaces)
-- `src/handlers/` — **Inbound Handlers**: entry points that bridge framework/runtime calls to use cases (e.g., `scheduled.ts` for cron triggers, `health.ts` for HTTP health check). Hono HTTP handlers use the sub-app pattern (`app.route()`).
-- `src/adapters/` — **Outbound Gateways**: implement use case port interfaces for external services (e.g., `discord-notifier.ts` implements `DiscordNotifier`). Gateways accept a `fetchFn` parameter (defaults to global `fetch`) for testability.
+- `src/index.ts` — **Entry point**: imports the DI container, mounts Hono routes, and exports `ExportedHandler<Env>` with `fetch` (Hono) and `scheduled` (cron) handlers
+- `src/container.ts` — **Composition root**: registers all DI bindings (env values, port→adapter mappings, use case factories) using tsyringe
+- `src/tokens.ts` — **DI tokens**: string-based injection tokens for env bindings and port interfaces
+- `src/usecases/` — **Use Cases**: application logic. Port interfaces live in `ports.ts`. Use cases accept deps via constructor (plain object), not DI decorators.
+- `src/entities/` — **Domain Entities**: value objects and domain logic (e.g., `TopicGroup`, `ActionItem`, `MemoryEntry`)
+- `src/handlers/` — **Inbound Handlers**: bridge framework/runtime calls to use cases (e.g., `scheduled.ts` for cron, `health.ts` for HTTP). Hono HTTP handlers use the sub-app pattern (`app.route()`).
+- `src/adapters/` — **Outbound Gateways**: implement port interfaces for external services (Discord API, AI Gateway, KV). Adapters use `@inject()` decorators for DI.
+- `src/prompts/` — **Prompt Templates**: markdown files used as AI prompt templates (e.g., `generate-action-items.md`, `group-conversations.md`)
 
-Dependencies point inward: handlers/adapters → usecases. Port interfaces are defined in the use case layer, not in handlers or adapters.
+Dependencies point inward: handlers/adapters → usecases. Port interfaces are defined in the use case layer (`usecases/ports.ts`), not in handlers or adapters.
 
-### Composition Pattern
+### DI Container (tsyringe)
 
-Dependencies are constructed **inside handler scope** via factory functions, not at module scope. This is required because Cloudflare Workers `Env` bindings (secrets) are only available within `fetch`/`scheduled` handler invocations.
+The project uses tsyringe for dependency injection. Env bindings are accessed at module scope via `import { env } from 'cloudflare:workers'` and registered as values. Use cases are registered with `useFactory` so they receive plain dep objects (no DI decorators on use case classes).
 
 ```ts
-const scheduledHandler = createScheduledHandler((env) => ({
-  usecase: new GenerateSummary({
-    /* adapters using env */
-  }),
-  channelId: env.DISCORD_CHANNEL_ID,
-  hours: Number(env.SUMMARY_HOURS),
-}))
+// container.ts — registering an adapter and a use case
+container.register(TOKENS.DiscordSource, { useClass: DiscordSourceAdapter })
+container.register(GenerateSummary, {
+  useFactory: (c) =>
+    new GenerateSummary({
+      discord: c.resolve(TOKENS.DiscordSource),
+      // ...
+    }),
+})
 ```
+
+When adding a new dependency: define a token in `tokens.ts`, register in `container.ts`, and resolve where needed.
 
 ### Configuration Files
 
@@ -72,6 +80,7 @@ Tests use `cloudflare:test` helpers for the Workers runtime environment:
 - `createScheduledController()` / `createExecutionContext()` / `waitOnExecutionContext()` — for testing scheduled handlers
 - Tests import the worker and call `worker.fetch()` / `worker.scheduled()` directly (not `app.request()`)
 - Use case tests use stub implementations of port interfaces, not the Workers test helpers
+- **MSW (Mock Service Worker)** intercepts external HTTP calls in tests. A global MSW server is set up in `tests/setup.ts` with `onUnhandledRequest: 'error'` — any unmocked external request will fail the test. Add per-test handlers via `server.use()` from `tests/msw-server.ts`.
 
 ## Key Conventions
 
