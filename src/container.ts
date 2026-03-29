@@ -45,6 +45,9 @@ container.register(TOKENS.GitHubInstallationId, {
 container.register(TOKENS.MemoryStore, { useClass: KVMemoryStoreAdapter })
 container.register(TOKENS.DiscordNotifier, { useClass: DiscordNotifierAdapter })
 container.register(TOKENS.DiscordSource, { useClass: DiscordSourceAdapter })
+container.register(TOKENS.SummaryPresenter, {
+  useClass: DiscordSummaryPresenter,
+})
 
 // Port → Service mappings (orchestration)
 container.register(TOKENS.ConversationGrouper, {
@@ -52,9 +55,6 @@ container.register(TOKENS.ConversationGrouper, {
 })
 container.register(TOKENS.ActionItemGenerator, {
   useClass: ActionItemGeneratorService,
-})
-container.register(TOKENS.SummaryPresenter, {
-  useClass: DiscordSummaryPresenter,
 })
 
 // GitHub source — Octokit with App auth strategy
