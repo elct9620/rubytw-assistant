@@ -52,10 +52,10 @@ The system collects discussion messages from a designated Discord channel over a
 
 **AI Available Tools:**
 
-| Tool        | Capability                                                                                    | Purpose                                                                |
-| ----------- | --------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| Memory Tool | Read/write context memory with AI-determined structure (entry count capped by config)         | Retain important context across executions, avoid redundant processing |
-| GitHub Tool | Query Issues from GitHub Projects V2 with optional state filter (see GitHub Tool Query below) | Verify task status, relate conversations to existing issues            |
+| Tool        | Capability                                                                                               | Purpose                                                                |
+| ----------- | -------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| Memory Tool | Read/write index-based context memory with description and content fields (entry count capped by config) | Retain important context across executions, avoid redundant processing |
+| GitHub Tool | Query Issues from GitHub Projects V2 with optional state filter (see GitHub Tool Query below)            | Verify task status, relate conversations to existing issues            |
 
 **User Journey:**
 
@@ -186,24 +186,34 @@ Command behavior definitions are deferred until Feature 2 is specified. Only web
 | AI omits all filters              | Return all Issues regardless of state or due date                        | AI determines relevance based on state and due date fields in the returned data                      |
 | Project has more items than limit | Return at most 50 Issues per query                                       | AI works with available data; may miss items beyond the limit                                        |
 
+### Memory Tool Interface
+
+| State                             | Action                                               | Result                                                                                           |
+| --------------------------------- | ---------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| AI invokes `list_memories`        | Return index and description for each memory entry   | AI receives a list of entries with index and description only; empty entries return empty string |
+| AI invokes `read_memories(idx[])` | Return full content for each requested index         | AI receives content for specified indices; non-existent or empty entries return empty string     |
+| AI invokes `update_memory`        | Write description and content to the specified index | Entry at the given index is created or overwritten                                               |
+| AI writes empty content           | `update_memory` receives empty string as content     | The entry at that index is cleared (description and content become empty)                        |
+| Memory Store has no entries       | Any read operation                                   | Return empty results; system continues normally                                                  |
+
 ## Error Scenarios
 
-| Scenario                                                        | System Behavior                                                                                                          |
-| --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| Discord message history collection fails                        | Apply "exponential backoff retry"; after all retries fail, log error, do not send summary                                |
-| Discord API request fails (sending summary)                     | Apply "exponential backoff retry"; permanent failure logged                                                              |
-| No messages found in collection time window                     | Send a "no action items" notice to the designated Discord channel; do not invoke AI pipeline                             |
-| AI service fails to complete grouping or action item generation | Apply "exponential backoff retry"; after all retries fail, apply "raw message fallback"                                  |
-| AI output does not conform to expected structure                | Treat as AI service failure; apply same fallback behavior                                                                |
-| Memory Tool read/write fails                                    | Log warning; AI continues processing without memory assistance (degraded but not interrupted)                            |
-| Memory Store reaches Entry Limit                                | AI decides eviction strategy (merge or overwrite existing entries) to make room for new entries                          |
-| GitHub Tool query fails (auth failure, rate limit)              | Log warning; AI continues processing without GitHub data assistance (degraded but not interrupted)                       |
-| GitHub App authentication fails                                 | Apply "exponential backoff retry"; after all retries fail, log error, GitHub Tool unavailable                            |
-| Interaction command timeout (platform time limit)               | Reply with timeout notice, suggest retrying later                                                                        |
-| Debug endpoint called in production environment                 | Endpoint does not exist; return standard HTTP 404                                                                        |
-| Debug endpoint: source channel inaccessible                     | Return error indicating the channel could not be accessed; no retry                                                      |
-| Debug endpoint: Discord message collection fails                | Return error with failure reason; no retry (debug context favors fast feedback over resilience)                          |
-| Debug endpoint: AI pipeline fails                               | Return error with the failed phase name and failure reason; no fallback message sent, no retry (unlike Daily AI Summary) |
+| Scenario                                                        | System Behavior                                                                                                                   |
+| --------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| Discord message history collection fails                        | Apply "exponential backoff retry"; after all retries fail, log error, do not send summary                                         |
+| Discord API request fails (sending summary)                     | Apply "exponential backoff retry"; permanent failure logged                                                                       |
+| No messages found in collection time window                     | Send a "no action items" notice to the designated Discord channel; do not invoke AI pipeline                                      |
+| AI service fails to complete grouping or action item generation | Apply "exponential backoff retry"; after all retries fail, apply "raw message fallback"                                           |
+| AI output does not conform to expected structure                | Treat as AI service failure; apply same fallback behavior                                                                         |
+| Memory Tool read/write fails                                    | Log warning; AI continues processing without memory assistance (degraded but not interrupted)                                     |
+| Memory Store reaches Entry Limit                                | AI decides eviction strategy (clear entries by writing empty content, or overwrite existing entries) to make room for new entries |
+| GitHub Tool query fails (auth failure, rate limit)              | Log warning; AI continues processing without GitHub data assistance (degraded but not interrupted)                                |
+| GitHub App authentication fails                                 | Apply "exponential backoff retry"; after all retries fail, log error, GitHub Tool unavailable                                     |
+| Interaction command timeout (platform time limit)               | Reply with timeout notice, suggest retrying later                                                                                 |
+| Debug endpoint called in production environment                 | Endpoint does not exist; return standard HTTP 404                                                                                 |
+| Debug endpoint: source channel inaccessible                     | Return error indicating the channel could not be accessed; no retry                                                               |
+| Debug endpoint: Discord message collection fails                | Return error with failure reason; no retry (debug context favors fast feedback over resilience)                                   |
+| Debug endpoint: AI pipeline fails                               | Return error with the failed phase name and failure reason; no fallback message sent, no retry (unlike Daily AI Summary)          |
 
 ## Patterns
 
@@ -217,17 +227,17 @@ When the AI pipeline fails after all retries, the system sends a fallback messag
 
 ## Terminology
 
-| Term               | Definition                                                                                                                          |
-| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
-| Summary            | Structured action item list produced by the two-phase AI pipeline                                                                   |
-| Operator           | A member of the Ruby Taiwan core team responsible for community operations                                                          |
-| Command            | A query request issued by an operator via Discord Slash Command                                                                     |
-| Group              | Phase 1 output; aggregates contextually related conversation messages into a topic group with summary and attribute tags            |
-| Action Item        | Phase 2 output; a structured to-do extracted from a group, containing status, assignee, task description, and reason                |
-| Action Item Status | Classification label for action items: to-do, in-progress, done, stalled, or discussion                                             |
-| Memory Tool        | An AI-accessible tool that reads and writes context memory with AI-determined structure for retaining information across executions |
-| GitHub Tool        | An AI-accessible query tool that retrieves Issues from GitHub Projects V2 with optional state and due date filters via GitHub App   |
-| Schedule           | The mechanism that triggers the summary generation pipeline on a timed basis, driven by platform scheduling                         |
+| Term               | Definition                                                                                                                                                                                |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Summary            | Structured action item list produced by the two-phase AI pipeline                                                                                                                         |
+| Operator           | A member of the Ruby Taiwan core team responsible for community operations                                                                                                                |
+| Command            | A query request issued by an operator via Discord Slash Command                                                                                                                           |
+| Group              | Phase 1 output; aggregates contextually related conversation messages into a topic group with summary and attribute tags                                                                  |
+| Action Item        | Phase 2 output; a structured to-do extracted from a group, containing status, assignee, task description, and reason                                                                      |
+| Action Item Status | Classification label for action items: to-do, in-progress, done, stalled, or discussion                                                                                                   |
+| Memory Tool        | An AI-accessible tool set (`list_memories`, `read_memories`, `update_memory`) for index-based context memory with description and content fields, retaining information across executions |
+| GitHub Tool        | An AI-accessible query tool that retrieves Issues from GitHub Projects V2 with optional state and due date filters via GitHub App                                                         |
+| Schedule           | The mechanism that triggers the summary generation pipeline on a timed basis, driven by platform scheduling                                                                               |
 
 ## Contracts
 
@@ -237,6 +247,6 @@ When the AI pipeline fails after all retries, the system sends a fallback messag
 | GitHub API                  | System makes read-only REST/GraphQL API calls using GitHub App Installation Token; also serves as the backend for AI GitHub Tool                                                                           |
 | Discord Bot API             | System sends messages to designated channel and reads channel message history via Bot Token                                                                                                                |
 | AI Service                  | System makes two separate AI service calls: Phase 1 receives message list and produces groups; Phase 2 receives groups and produces action item list. Each phase is an independent request-response cycle. |
-| Memory Store                | AI reads and writes structured memory entries via persistent key-value store; entry count capped by configuration                                                                                          |
+| Memory Store                | AI reads and writes index-based memory entries (each with description and content) via persistent store; entry count capped by configuration; empty content clears the entry                               |
 | Cron Trigger                | Platform triggers summary generation pipeline on configured schedule                                                                                                                                       |
 | Debug Summary Endpoint      | Development-only HTTP endpoint; accepts source channel ID and optional hours; returns pipeline result in response body; does not exist in production                                                       |
