@@ -21,6 +21,8 @@
     "GITHUB_ORG": "rubytw",
     "GITHUB_PROJECT_NUMBER": "1",
     "DEBUG": "false",
+    "ENVIRONMENT": "production",
+    "LANGFUSE_BASE_URL": "https://us.cloud.langfuse.com",
   },
   "kv_namespaces": [
     {
@@ -42,4 +44,6 @@
   // - GITHUB_PRIVATE_KEY
   // - GITHUB_INSTALLATION_ID
   // - CF_AIG_TOKEN
+  // - LANGFUSE_PUBLIC_KEY (optional)
+  // - LANGFUSE_SECRET_KEY (optional)
 }

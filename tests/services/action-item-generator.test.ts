@@ -24,6 +24,7 @@ function createService(): ActionItemGeneratorService {
     createStubMemoryStore(),
     32,
     createStubGitHubSource(),
+    null,
   )
 }
 

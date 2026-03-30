@@ -7,9 +7,10 @@ import type {
   MemoryStore,
 } from '../usecases/ports'
 import type { TopicGroup } from '../entities/topic-group'
-import { TOKENS, type AiGatewayConfig } from '../tokens'
+import { TOKENS, type AiGatewayConfig, type LangfuseConfig } from '../tokens'
 import { createAITools } from './ai-tools'
 import { createAIModel } from './ai-model'
+import { createTelemetryContext } from '../telemetry/context'
 import GROUP_CONVERSATIONS_PROMPT from '../prompts/group-conversations.md'
 
 const MAX_TOOL_STEPS = 5
@@ -33,6 +34,8 @@ export class ConversationGrouperService implements ConversationGrouper {
     @inject(TOKENS.MemoryStore) private memoryStore: MemoryStore,
     @inject(TOKENS.MemoryEntryLimit) private memoryEntryLimit: number,
     @inject(TOKENS.GitHubSource) private githubSource: GitHubSource,
+    @inject(TOKENS.LangfuseConfig)
+    private langfuseConfig: LangfuseConfig | null,
   ) {}
 
   async groupConversations(messages: string[]): Promise<TopicGroup[]> {
@@ -45,6 +48,17 @@ export class ConversationGrouperService implements ConversationGrouper {
       githubSource: this.githubSource,
       memoryEntryLimit: this.memoryEntryLimit,
     })
+    const { tracer, integrations } = createTelemetryContext(
+      this.langfuseConfig,
+      { agentName: 'conversation-grouper' },
+    )
+    if (tracer) {
+      tracer.createTrace({
+        name: 'conversation-grouper',
+        input: { messageCount: messages.length },
+      })
+    }
+
     const { output } = await generateText({
       model: createAIModel(this.aiGatewayConfig),
       output: Output.object({ schema: GroupConversationsOutputSchema }),
@@ -53,6 +67,9 @@ export class ConversationGrouperService implements ConversationGrouper {
       temperature: 0.3,
       tools,
       stopWhen: stepCountIs(MAX_TOOL_STEPS),
+      ...(integrations && {
+        experimental_telemetry: { isEnabled: true, integrations },
+      }),
     })
 
     if (!output) {

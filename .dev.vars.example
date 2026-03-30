@@ -15,3 +15,7 @@ GITHUB_PRIVATE_KEY=your_github_private_key
 GITHUB_INSTALLATION_ID=your_github_installation_id
 GITHUB_ORG=rubytw
 GITHUB_PROJECT_NUMBER=1
+
+# Langfuse (optional)
+LANGFUSE_PUBLIC_KEY=your_langfuse_public_key
+LANGFUSE_SECRET_KEY=your_langfuse_secret_key

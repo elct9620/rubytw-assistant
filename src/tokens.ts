@@ -5,6 +5,13 @@ export interface AiGatewayConfig {
   modelId: string
 }
 
+export interface LangfuseConfig {
+  publicKey: string
+  secretKey: string
+  baseUrl?: string
+  environment?: string
+}
+
 export const TOKENS = {
   // Env bindings
   DiscordBotToken: 'DiscordBotToken',
@@ -19,6 +26,9 @@ export const TOKENS = {
   GitHubInstallationId: 'GitHubInstallationId',
   GitHubOrg: 'GitHubOrg',
   GitHubProjectNumber: 'GitHubProjectNumber',
+
+  // Langfuse telemetry (optional)
+  LangfuseConfig: 'LangfuseConfig',
 
   // Port interfaces
   MemoryStore: 'MemoryStore',

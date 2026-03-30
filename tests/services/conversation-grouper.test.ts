@@ -24,6 +24,7 @@ function createService(): ConversationGrouperService {
     createStubMemoryStore(),
     32,
     createStubGitHubSource(),
+    null,
   )
 }
 

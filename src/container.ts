@@ -41,6 +41,20 @@ container.register(TOKENS.GitHubInstallationId, {
   useValue: env.GITHUB_INSTALLATION_ID,
 })
 
+// Langfuse telemetry (optional — keys may not exist in env)
+const langfuseEnv = env as unknown as Record<string, string | undefined>
+container.register(TOKENS.LangfuseConfig, {
+  useValue:
+    langfuseEnv.LANGFUSE_PUBLIC_KEY && langfuseEnv.LANGFUSE_SECRET_KEY
+      ? {
+          publicKey: langfuseEnv.LANGFUSE_PUBLIC_KEY,
+          secretKey: langfuseEnv.LANGFUSE_SECRET_KEY,
+          baseUrl: env.LANGFUSE_BASE_URL,
+          environment: env.ENVIRONMENT,
+        }
+      : null,
+})
+
 // Port → Adapter mappings (infrastructure)
 container.register(TOKENS.MemoryStore, { useClass: KVMemoryStoreAdapter })
 container.register(TOKENS.DiscordNotifier, { useClass: DiscordNotifierAdapter })

@@ -8,9 +8,10 @@ import type {
 } from '../usecases/ports'
 import type { ActionItem } from '../entities/action-item'
 import type { TopicGroup } from '../entities/topic-group'
-import { TOKENS, type AiGatewayConfig } from '../tokens'
+import { TOKENS, type AiGatewayConfig, type LangfuseConfig } from '../tokens'
 import { createAITools } from './ai-tools'
 import { createAIModel } from './ai-model'
+import { createTelemetryContext } from '../telemetry/context'
 import GENERATE_ACTION_ITEMS_PROMPT from '../prompts/generate-action-items.md'
 
 const MAX_TOOL_STEPS = 5
@@ -35,6 +36,8 @@ export class ActionItemGeneratorService implements ActionItemGenerator {
     @inject(TOKENS.MemoryStore) private memoryStore: MemoryStore,
     @inject(TOKENS.MemoryEntryLimit) private memoryEntryLimit: number,
     @inject(TOKENS.GitHubSource) private githubSource: GitHubSource,
+    @inject(TOKENS.LangfuseConfig)
+    private langfuseConfig: LangfuseConfig | null,
   ) {}
 
   async generateActionItems(groups: TopicGroup[]): Promise<ActionItem[]> {
@@ -48,6 +51,17 @@ export class ActionItemGeneratorService implements ActionItemGenerator {
       githubSource: this.githubSource,
       memoryEntryLimit: this.memoryEntryLimit,
     })
+    const { tracer, integrations } = createTelemetryContext(
+      this.langfuseConfig,
+      { agentName: 'action-item-generator' },
+    )
+    if (tracer) {
+      tracer.createTrace({
+        name: 'action-item-generator',
+        input: { groupCount: groups.length },
+      })
+    }
+
     const { output } = await generateText({
       model: createAIModel(this.aiGatewayConfig),
       output: Output.object({ schema: GenerateActionItemsOutputSchema }),
@@ -56,6 +70,9 @@ export class ActionItemGeneratorService implements ActionItemGenerator {
       temperature: 0.3,
       tools,
       stopWhen: stepCountIs(MAX_TOOL_STEPS),
+      ...(integrations && {
+        experimental_telemetry: { isEnabled: true, integrations },
+      }),
     })
 
     if (!output) {
