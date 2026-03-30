@@ -110,7 +110,8 @@ A development-only HTTP endpoint that triggers the same AI summary pipeline as F
 | Discord Channel ID       | Designated channel for summary delivery and message collection | (required, no default) |
 | Summary Collection Hours | Collect Discord messages from the past N hours                 | 24                     |
 | Summary Item Limit       | Maximum number of action items per summary                     | 30                     |
-| Memory Entry Limit       | Maximum number of memory entries for Memory Tool               | 32                     |
+| Memory Entry Limit       | Maximum number of memory slots for Memory Tool                 | 32                     |
+| Memory Description Limit | Maximum character length for memory slot description           | 128                    |
 
 ## System Boundary
 
@@ -188,32 +189,34 @@ Command behavior definitions are deferred until Feature 2 is specified. Only web
 
 ### Memory Tool Interface
 
-| State                             | Action                                               | Result                                                                                           |
-| --------------------------------- | ---------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| AI invokes `list_memories`        | Return index and description for each memory entry   | AI receives a list of entries with index and description only; empty entries return empty string |
-| AI invokes `read_memories(idx[])` | Return full content for each requested index         | AI receives content for specified indices; non-existent or empty entries return empty string     |
-| AI invokes `update_memory`        | Write description and content to the specified index | Entry at the given index is created or overwritten                                               |
-| AI writes empty content           | `update_memory` receives empty string as content     | The entry at that index is cleared (description and content become empty)                        |
-| Memory Store has no entries       | Any read operation                                   | Return empty results; system continues normally                                                  |
+Memory Store provides a fixed number of slots indexed from 0 to Memory Entry Limit − 1. Each slot holds a description (max Memory Description Limit characters) and content. AI chooses which slot to read or write. Unused slots return empty strings for both description and content.
+
+| State                             | Action                                                            | Result                                                                                          |
+| --------------------------------- | ----------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| AI invokes `list_memories`        | Return index and description for every slot                       | AI receives all slots with index and description; unused slots have empty string as description |
+| AI invokes `read_memories(idx[])` | Return full content for each requested slot index                 | AI receives content for specified slots; unused slots return empty string as content            |
+| AI invokes `update_memory`        | Write description and content to the specified slot index         | Slot at the given index is created or overwritten                                               |
+| AI writes empty content           | `update_memory` receives empty string as content                  | The slot is cleared (description and content become empty string)                               |
+| Description exceeds length limit  | `update_memory` receives description longer than configured limit | System rejects the update and returns an error                                                  |
 
 ## Error Scenarios
 
-| Scenario                                                        | System Behavior                                                                                                                   |
-| --------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| Discord message history collection fails                        | Apply "exponential backoff retry"; after all retries fail, log error, do not send summary                                         |
-| Discord API request fails (sending summary)                     | Apply "exponential backoff retry"; permanent failure logged                                                                       |
-| No messages found in collection time window                     | Send a "no action items" notice to the designated Discord channel; do not invoke AI pipeline                                      |
-| AI service fails to complete grouping or action item generation | Apply "exponential backoff retry"; after all retries fail, apply "raw message fallback"                                           |
-| AI output does not conform to expected structure                | Treat as AI service failure; apply same fallback behavior                                                                         |
-| Memory Tool read/write fails                                    | Log warning; AI continues processing without memory assistance (degraded but not interrupted)                                     |
-| Memory Store reaches Entry Limit                                | AI decides eviction strategy (clear entries by writing empty content, or overwrite existing entries) to make room for new entries |
-| GitHub Tool query fails (auth failure, rate limit)              | Log warning; AI continues processing without GitHub data assistance (degraded but not interrupted)                                |
-| GitHub App authentication fails                                 | Apply "exponential backoff retry"; after all retries fail, log error, GitHub Tool unavailable                                     |
-| Interaction command timeout (platform time limit)               | Reply with timeout notice, suggest retrying later                                                                                 |
-| Debug endpoint called in production environment                 | Endpoint does not exist; return standard HTTP 404                                                                                 |
-| Debug endpoint: source channel inaccessible                     | Return error indicating the channel could not be accessed; no retry                                                               |
-| Debug endpoint: Discord message collection fails                | Return error with failure reason; no retry (debug context favors fast feedback over resilience)                                   |
-| Debug endpoint: AI pipeline fails                               | Return error with the failed phase name and failure reason; no fallback message sent, no retry (unlike Daily AI Summary)          |
+| Scenario                                                        | System Behavior                                                                                                               |
+| --------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Discord message history collection fails                        | Apply "exponential backoff retry"; after all retries fail, log error, do not send summary                                     |
+| Discord API request fails (sending summary)                     | Apply "exponential backoff retry"; permanent failure logged                                                                   |
+| No messages found in collection time window                     | Send a "no action items" notice to the designated Discord channel; do not invoke AI pipeline                                  |
+| AI service fails to complete grouping or action item generation | Apply "exponential backoff retry"; after all retries fail, apply "raw message fallback"                                       |
+| AI output does not conform to expected structure                | Treat as AI service failure; apply same fallback behavior                                                                     |
+| Memory Tool read/write fails                                    | Log warning; AI continues processing without memory assistance (degraded but not interrupted)                                 |
+| Memory Store reaches Entry Limit                                | AI decides eviction strategy (clear slots by writing empty content, or overwrite existing slots) to make room for new entries |
+| GitHub Tool query fails (auth failure, rate limit)              | Log warning; AI continues processing without GitHub data assistance (degraded but not interrupted)                            |
+| GitHub App authentication fails                                 | Apply "exponential backoff retry"; after all retries fail, log error, GitHub Tool unavailable                                 |
+| Interaction command timeout (platform time limit)               | Reply with timeout notice, suggest retrying later                                                                             |
+| Debug endpoint called in production environment                 | Endpoint does not exist; return standard HTTP 404                                                                             |
+| Debug endpoint: source channel inaccessible                     | Return error indicating the channel could not be accessed; no retry                                                           |
+| Debug endpoint: Discord message collection fails                | Return error with failure reason; no retry (debug context favors fast feedback over resilience)                               |
+| Debug endpoint: AI pipeline fails                               | Return error with the failed phase name and failure reason; no fallback message sent, no retry (unlike Daily AI Summary)      |
 
 ## Patterns
 
@@ -241,12 +244,12 @@ When the AI pipeline fails after all retries, the system sends a fallback messag
 
 ## Contracts
 
-| Interaction Point           | Contract                                                                                                                                                                                                   |
-| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Discord Interaction Webhook | System receives HTTP POST requests, verifies Ed25519 signature, processes commands, returns JSON response                                                                                                  |
-| GitHub API                  | System makes read-only REST/GraphQL API calls using GitHub App Installation Token; also serves as the backend for AI GitHub Tool                                                                           |
-| Discord Bot API             | System sends messages to designated channel and reads channel message history via Bot Token                                                                                                                |
-| AI Service                  | System makes two separate AI service calls: Phase 1 receives message list and produces groups; Phase 2 receives groups and produces action item list. Each phase is an independent request-response cycle. |
-| Memory Store                | AI reads and writes index-based memory entries (each with description and content) via persistent store; entry count capped by configuration; empty content clears the entry                               |
-| Cron Trigger                | Platform triggers summary generation pipeline on configured schedule                                                                                                                                       |
-| Debug Summary Endpoint      | Development-only HTTP endpoint; accepts source channel ID and optional hours; returns pipeline result in response body; does not exist in production                                                       |
+| Interaction Point           | Contract                                                                                                                                                                                                                              |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Discord Interaction Webhook | System receives HTTP POST requests, verifies Ed25519 signature, processes commands, returns JSON response                                                                                                                             |
+| GitHub API                  | System makes read-only REST/GraphQL API calls using GitHub App Installation Token; also serves as the backend for AI GitHub Tool                                                                                                      |
+| Discord Bot API             | System sends messages to designated channel and reads channel message history via Bot Token                                                                                                                                           |
+| AI Service                  | System makes two separate AI service calls: Phase 1 receives message list and produces groups; Phase 2 receives groups and produces action item list. Each phase is an independent request-response cycle.                            |
+| Memory Store                | AI reads and writes fixed-slot memory entries (each with description and content) via persistent store; slot count capped by Memory Entry Limit; description length capped by Memory Description Limit; empty content clears the slot |
+| Cron Trigger                | Platform triggers summary generation pipeline on configured schedule                                                                                                                                                                  |
+| Debug Summary Endpoint      | Development-only HTTP endpoint; accepts source channel ID and optional hours; returns pipeline result in response body; does not exist in production                                                                                  |
