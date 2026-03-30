@@ -39,6 +39,9 @@ The bot user messages are compacted summaries of previous conversations already 
 The input conversation is sorted by timestamp but may cover multiple topics and not sequentially.
 Identify and group related messages together based on their context and topics discussed.
 
+- When a conversation topic suggests a connection to project tasks, use `github_get_issues` to check whether a related issue already exists. Do not query for every group.
+- GitHub queries may fail silently — continue processing without GitHub data if needed.
+
 > Some messages may have attachments or reactions. You may not get the full context from just the text. Use your best judgment to group related messages.
 
 ## Phase 3: Creating Meta Information
@@ -69,9 +72,3 @@ Review current memory for any relevant information that can assist in organizing
 ## Phase 6: Generating Group Summaries
 
 For each contextual group created in Phase 2, generate a brief summary that captures the main points discussed within that group.
-
-## GitHub Tool Usage
-
-- Use `github_get_issues` to query current project issues when you need to determine whether a conversation topic relates to an existing task or issue.
-- Only query GitHub when the conversation content suggests a connection to project tasks — do not query for every group.
-- GitHub queries may fail silently — continue processing without GitHub data if needed.

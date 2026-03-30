@@ -53,6 +53,8 @@ Categorize each action item with one of the following statuses:
 - **stalled**: Tasks that are currently stalled or facing issues.
 - **discussion**: General discussions without specific action items.
 
+When classification would benefit from project data, use `github_get_issues` to verify task status (e.g., confirm whether a task is already tracked, in progress, or done). Do not query for every item. GitHub queries may fail silently — continue without GitHub data if needed.
+
 ## Phase 3: Creating Concise Action Items
 
 Each action item should contain the following elements:
@@ -93,9 +95,3 @@ No groups where `communityRelated` is "no" or `smallTalk` is "yes" should be inc
 Ensure each action item is clear, concise, and actionable in one statement.
 
 Use Traditional Chinese (Taiwan) to write the output.
-
-## GitHub Tool Usage
-
-- Use `github_get_issues` to verify task status when classifying action items (e.g., confirm whether a task is already tracked, in progress, or done).
-- Only query GitHub when action item classification would benefit from project data — do not query for every item.
-- GitHub queries may fail silently — continue processing without GitHub data if needed.
