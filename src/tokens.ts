@@ -30,6 +30,9 @@ export const TOKENS = {
   // Langfuse telemetry (optional)
   LangfuseConfig: 'LangfuseConfig',
 
+  // Request context
+  RequestContext: 'RequestContext',
+
   // Port interfaces
   MemoryStore: 'MemoryStore',
   GitHubSource: 'GitHubSource',

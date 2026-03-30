@@ -9,6 +9,7 @@ import type {
 import type { ActionItem } from '../entities/action-item'
 import type { TopicGroup } from '../entities/topic-group'
 import { TOKENS, type AiGatewayConfig, type LangfuseConfig } from '../tokens'
+import type { RequestContext } from '../context'
 import { createAITools } from './ai-tools'
 import { createAIModel } from './ai-model'
 import { createTelemetryContext } from '../telemetry/context'
@@ -38,6 +39,7 @@ export class ActionItemGeneratorService implements ActionItemGenerator {
     @inject(TOKENS.GitHubSource) private githubSource: GitHubSource,
     @inject(TOKENS.LangfuseConfig)
     private langfuseConfig: LangfuseConfig | null,
+    @inject(TOKENS.RequestContext) private ctx: RequestContext,
   ) {}
 
   async generateActionItems(groups: TopicGroup[]): Promise<ActionItem[]> {
@@ -51,16 +53,10 @@ export class ActionItemGeneratorService implements ActionItemGenerator {
       githubSource: this.githubSource,
       memoryEntryLimit: this.memoryEntryLimit,
     })
-    const { tracer, integrations } = createTelemetryContext(
-      this.langfuseConfig,
-      { agentName: 'action-item-generator' },
-    )
-    if (tracer) {
-      tracer.createTrace({
-        name: 'action-item-generator',
-        input: { groupCount: groups.length },
-      })
-    }
+    const { integrations } = createTelemetryContext(this.langfuseConfig, {
+      traceId: this.ctx.traceId,
+      agentName: 'action-item-generator',
+    })
 
     const { output } = await generateText({
       model: createAIModel(this.aiGatewayConfig),

@@ -8,6 +8,7 @@ import type {
 } from '../usecases/ports'
 import type { TopicGroup } from '../entities/topic-group'
 import { TOKENS, type AiGatewayConfig, type LangfuseConfig } from '../tokens'
+import type { RequestContext } from '../context'
 import { createAITools } from './ai-tools'
 import { createAIModel } from './ai-model'
 import { createTelemetryContext } from '../telemetry/context'
@@ -36,6 +37,7 @@ export class ConversationGrouperService implements ConversationGrouper {
     @inject(TOKENS.GitHubSource) private githubSource: GitHubSource,
     @inject(TOKENS.LangfuseConfig)
     private langfuseConfig: LangfuseConfig | null,
+    @inject(TOKENS.RequestContext) private ctx: RequestContext,
   ) {}
 
   async groupConversations(messages: string[]): Promise<TopicGroup[]> {
@@ -48,16 +50,10 @@ export class ConversationGrouperService implements ConversationGrouper {
       githubSource: this.githubSource,
       memoryEntryLimit: this.memoryEntryLimit,
     })
-    const { tracer, integrations } = createTelemetryContext(
-      this.langfuseConfig,
-      { agentName: 'conversation-grouper' },
-    )
-    if (tracer) {
-      tracer.createTrace({
-        name: 'conversation-grouper',
-        input: { messageCount: messages.length },
-      })
-    }
+    const { integrations } = createTelemetryContext(this.langfuseConfig, {
+      traceId: this.ctx.traceId,
+      agentName: 'conversation-grouper',
+    })
 
     const { output } = await generateText({
       model: createAIModel(this.aiGatewayConfig),

@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { ActionItemGeneratorService } from '../../src/services/action-item-generator'
 import GENERATE_ACTION_ITEMS_PROMPT from '../../src/prompts/generate-action-items.md'
 import { createStubMemoryStore, createStubGitHubSource } from './stubs'
+import { nullContext } from '../../src/context'
 
 const mockGenerateText = vi.fn()
 vi.mock('ai', () => ({
@@ -25,6 +26,7 @@ function createService(): ActionItemGeneratorService {
     32,
     createStubGitHubSource(),
     null,
+    nullContext,
   )
 }
 

@@ -18,6 +18,7 @@ beforeEach(() => {
   container.register(TOKENS.DiscordSource, {
     useValue: {},
   })
+  container.register(TOKENS.LangfuseConfig, { useFactory: () => null })
   container.register(GenerateSummary, {
     useFactory: () => ({ execute: mockExecute }),
   })

@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { ConversationGrouperService } from '../../src/services/conversation-grouper'
 import GROUP_CONVERSATIONS_PROMPT from '../../src/prompts/group-conversations.md'
 import { createStubMemoryStore, createStubGitHubSource } from './stubs'
+import { nullContext } from '../../src/context'
 
 const mockGenerateText = vi.fn()
 vi.mock('ai', () => ({
@@ -25,6 +26,7 @@ function createService(): ConversationGrouperService {
     32,
     createStubGitHubSource(),
     null,
+    nullContext,
   )
 }
 

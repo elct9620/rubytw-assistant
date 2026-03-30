@@ -14,6 +14,8 @@ beforeEach(() => {
   container.register(TOKENS.SummaryPresenter, {
     useValue: { present: mockPresent },
   })
+  container.register(TOKENS.LangfuseConfig, { useFactory: () => null })
+  container.register(TOKENS.RequestContext, { useFactory: () => ({}) })
   container.register(GenerateSummary, {
     useFactory: () => ({ execute: mockExecute }),
   })

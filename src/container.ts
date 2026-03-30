@@ -4,6 +4,7 @@ import { env } from 'cloudflare:workers'
 import { Octokit } from '@octokit/core'
 import { createAppAuth } from '@octokit/auth-app'
 import { TOKENS } from './tokens'
+import { nullContext } from './context'
 import { KVMemoryStoreAdapter } from './adapters/kv-memory-store'
 import { ConversationGrouperService } from './services/conversation-grouper'
 import { ActionItemGeneratorService } from './services/action-item-generator'
@@ -44,7 +45,7 @@ container.register(TOKENS.GitHubInstallationId, {
 // Langfuse telemetry (optional — keys may not exist in env)
 const langfuseEnv = env as unknown as Record<string, string | undefined>
 container.register(TOKENS.LangfuseConfig, {
-  useValue:
+  useFactory: () =>
     langfuseEnv.LANGFUSE_PUBLIC_KEY && langfuseEnv.LANGFUSE_SECRET_KEY
       ? {
           publicKey: langfuseEnv.LANGFUSE_PUBLIC_KEY,
@@ -53,6 +54,11 @@ container.register(TOKENS.LangfuseConfig, {
           environment: env.ENVIRONMENT,
         }
       : null,
+})
+
+// Request context (default: no trace)
+container.register(TOKENS.RequestContext, {
+  useFactory: () => nullContext,
 })
 
 // Port → Adapter mappings (infrastructure)
