@@ -6,6 +6,9 @@ DISCORD_CHANNEL_ID=your_discord_channel_id
 # Debug
 DEBUG=true
 
+# AI Gateway
+CF_AIG_TOKEN=your_cf_aig_token
+
 # GitHub App
 GITHUB_APP_ID=your_github_app_id
 GITHUB_PRIVATE_KEY=your_github_private_key
