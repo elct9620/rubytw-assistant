@@ -62,7 +62,6 @@ describe('ConversationGrouperService', () => {
           '32',
         ),
         prompt: 'msg-1\nmsg-2',
-        temperature: 0.3,
       }),
     )
   })

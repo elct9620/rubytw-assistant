@@ -1,8 +1,8 @@
 import { describe, it, expect, vi } from 'vitest'
 
-const mockCreateUnified = vi.fn().mockReturnValue(() => 'mock-model')
-vi.mock('ai-gateway-provider/providers/unified', () => ({
-  createUnified: (...args: unknown[]) => mockCreateUnified(...args),
+const mockCreateOpenAI = vi.fn().mockReturnValue(() => 'mock-model')
+vi.mock('ai-gateway-provider/providers/openai', () => ({
+  createOpenAI: (...args: unknown[]) => mockCreateOpenAI(...args),
 }))
 
 vi.mock('ai-gateway-provider', () => ({
@@ -10,20 +10,16 @@ vi.mock('ai-gateway-provider', () => ({
 }))
 
 describe('createAIModel', () => {
-  it('should enable supportsStructuredOutputs on unified provider', async () => {
+  it('should create model using OpenAI provider via AI Gateway', async () => {
     const { createAIModel } = await import('../../src/services/ai-model')
 
     createAIModel({
       accountId: 'test-account',
       gatewayId: 'test-gateway',
       apiKey: 'test-key',
-      modelId: 'openai/gpt-4.1-mini',
+      modelId: 'gpt-5.4-nano',
     })
 
-    expect(mockCreateUnified).toHaveBeenCalledWith(
-      expect.objectContaining({
-        supportsStructuredOutputs: true,
-      }),
-    )
+    expect(mockCreateOpenAI).toHaveBeenCalled()
   })
 })

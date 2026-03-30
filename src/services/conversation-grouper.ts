@@ -60,7 +60,7 @@ export class ConversationGrouperService implements ConversationGrouper {
       output: Output.object({ schema: GroupConversationsOutputSchema }),
       system,
       prompt: messages.join('\n'),
-      temperature: 0.3,
+      providerOptions: { openai: { reasoningEffort: 'low' } },
       tools,
       stopWhen: stepCountIs(MAX_TOOL_STEPS),
       ...(integrations && {

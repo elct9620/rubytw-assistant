@@ -68,7 +68,7 @@ export class ActionItemGeneratorService implements ActionItemGenerator {
       output: Output.object({ schema: GenerateActionItemsOutputSchema }),
       system,
       prompt: JSON.stringify(groups),
-      temperature: 0.3,
+      providerOptions: { openai: { reasoningEffort: 'low' } },
       tools,
       stopWhen: stepCountIs(MAX_TOOL_STEPS),
       ...(integrations && {

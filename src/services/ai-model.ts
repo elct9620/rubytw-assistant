@@ -1,5 +1,5 @@
 import { createAiGateway } from 'ai-gateway-provider'
-import { createUnified } from 'ai-gateway-provider/providers/unified'
+import { createOpenAI } from 'ai-gateway-provider/providers/openai'
 import type { AiGatewayConfig } from '../tokens'
 
 export function createAIModel(config: AiGatewayConfig) {
@@ -9,6 +9,6 @@ export function createAIModel(config: AiGatewayConfig) {
     gateway: gatewayId,
     apiKey,
   })
-  const unified = createUnified({ supportsStructuredOutputs: true })
-  return aigateway(unified(modelId))
+  const openai = createOpenAI()
+  return aigateway(openai(modelId))
 }

@@ -73,7 +73,6 @@ describe('ActionItemGeneratorService', () => {
         output: expect.objectContaining({ type: 'object' }),
         system: expectedSystem,
         prompt: JSON.stringify(groups),
-        temperature: 0.3,
       }),
     )
   })
