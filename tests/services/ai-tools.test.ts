@@ -30,7 +30,6 @@ function createStubGitHubSource(
 ): GitHubSource {
   return {
     getIssues: vi.fn().mockResolvedValue([]),
-    getProjectActivities: vi.fn().mockResolvedValue([]),
     ...overrides,
   }
 }
@@ -55,7 +54,6 @@ describe('createAITools', () => {
         'memory_write',
         'memory_delete',
         'github_get_issues',
-        'github_get_project_activities',
       ]),
     )
   })
@@ -163,36 +161,22 @@ describe('createAITools', () => {
       expect(result.issues).toEqual([])
     })
 
-    it('github_get_project_activities should return activities from source', async () => {
-      const activities = ['activity-1']
+    it('github_get_issues should pass filter to source', async () => {
+      const getIssues = vi.fn().mockResolvedValue([])
       const tools = createTools({
-        githubSource: createStubGitHubSource({
-          getProjectActivities: vi.fn().mockResolvedValue(activities),
-        }),
+        githubSource: createStubGitHubSource({ getIssues }),
       })
 
-      const result = await getTool(
-        tools,
-        'github_get_project_activities',
-      ).execute({})
-      expect(result).toEqual({ activities, count: 1 })
-    })
-
-    it('github_get_project_activities should return error object on failure', async () => {
-      const tools = createTools({
-        githubSource: createStubGitHubSource({
-          getProjectActivities: vi
-            .fn()
-            .mockRejectedValue(new Error('rate limit')),
-        }),
+      await getTool(tools, 'github_get_issues').execute({
+        state: 'OPEN',
+        dueDateFrom: '2026-03-01',
+        dueDateTo: '2026-03-31',
       })
-
-      const result = await getTool(
-        tools,
-        'github_get_project_activities',
-      ).execute({})
-      expect(result.error).toBe('query failed')
-      expect(result.activities).toEqual([])
+      expect(getIssues).toHaveBeenCalledWith({
+        state: 'OPEN',
+        dueDateFrom: '2026-03-01',
+        dueDateTo: '2026-03-31',
+      })
     })
   })
 })

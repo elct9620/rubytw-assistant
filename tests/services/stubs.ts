@@ -13,6 +13,5 @@ export function createStubMemoryStore(): MemoryStore {
 export function createStubGitHubSource(): GitHubSource {
   return {
     getIssues: vi.fn().mockResolvedValue([]),
-    getProjectActivities: vi.fn().mockResolvedValue([]),
   }
 }

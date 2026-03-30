@@ -2,9 +2,14 @@ import type { TopicGroup } from '../entities/topic-group'
 import type { ActionItem } from '../entities/action-item'
 import type { MemoryEntry } from '../entities/memory-entry'
 
+export interface IssueFilter {
+  state?: 'OPEN' | 'CLOSED'
+  dueDateFrom?: string
+  dueDateTo?: string
+}
+
 export interface GitHubSource {
-  getIssues(): Promise<string[]>
-  getProjectActivities(): Promise<string[]>
+  getIssues(filter?: IssueFilter): Promise<string[]>
 }
 
 export interface DiscordSource {

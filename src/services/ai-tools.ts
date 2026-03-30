@@ -85,29 +85,33 @@ function createGitHubTools({ githubSource }: AIToolsDeps): ToolSet {
   return {
     github_get_issues: tool({
       description:
-        'Query GitHub Projects V2 issues to check task status and relate conversations to existing issues',
-      inputSchema: z.object({}),
-      execute: async () => {
+        'Query GitHub Projects V2 issues to check task status and relate conversations to existing issues. Returns all issues by default; use filters to narrow results.',
+      inputSchema: z.object({
+        state: z
+          .enum(['OPEN', 'CLOSED'])
+          .optional()
+          .describe('Filter issues by state. Returns all if omitted.'),
+        dueDateFrom: z
+          .string()
+          .optional()
+          .describe(
+            'Filter issues with due date on or after this date (YYYY-MM-DD). Issues without due date are excluded when set.',
+          ),
+        dueDateTo: z
+          .string()
+          .optional()
+          .describe(
+            'Filter issues with due date on or before this date (YYYY-MM-DD). Issues without due date are excluded when set.',
+          ),
+      }),
+      execute: async ({ state, dueDateFrom, dueDateTo }) => {
         try {
-          const issues = await githubSource.getIssues()
+          const filter = { state, dueDateFrom, dueDateTo }
+          const issues = await githubSource.getIssues(filter)
           return { issues, count: issues.length }
         } catch (error) {
           console.warn('GitHub get issues failed', error)
           return { issues: [], count: 0, error: 'query failed' }
-        }
-      },
-    }),
-    github_get_project_activities: tool({
-      description:
-        'Query GitHub Projects V2 recent activities to understand project progress',
-      inputSchema: z.object({}),
-      execute: async () => {
-        try {
-          const activities = await githubSource.getProjectActivities()
-          return { activities, count: activities.length }
-        } catch (error) {
-          console.warn('GitHub get project activities failed', error)
-          return { activities: [], count: 0, error: 'query failed' }
         }
       },
     }),

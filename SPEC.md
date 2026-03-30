@@ -52,10 +52,10 @@ The system collects discussion messages from a designated Discord channel over a
 
 **AI Available Tools:**
 
-| Tool        | Capability                                                                            | Purpose                                                                |
-| ----------- | ------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| Memory Tool | Read/write context memory with AI-determined structure (entry count capped by config) | Retain important context across executions, avoid redundant processing |
-| GitHub Tool | Read-only access to GitHub Projects and Issues                                        | Verify task status, assist action item classification                  |
+| Tool        | Capability                                                                                    | Purpose                                                                |
+| ----------- | --------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| Memory Tool | Read/write context memory with AI-determined structure (entry count capped by config)         | Retain important context across executions, avoid redundant processing |
+| GitHub Tool | Query Issues from GitHub Projects V2 with optional state filter (see GitHub Tool Query below) | Verify task status, relate conversations to existing issues            |
 
 **User Journey:**
 
@@ -176,6 +176,16 @@ Command behavior definitions are deferred until Feature 2 is specified. Only web
 | Access Token valid        | Send GitHub API request                                 | Retrieve requested data            |
 | Access Token expired      | Re-obtain Installation Access Token                     | Retry request with refreshed token |
 
+### GitHub Tool Query
+
+| State                             | Action                                                                   | Result                                                                                               |
+| --------------------------------- | ------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------- |
+| AI invokes GitHub Tool            | Query Project V2 items; filter to Issues only (exclude PRs, DraftIssues) | Return Issue list with: title, number, state, url, labels, assignees, project status field, due date |
+| AI specifies state filter         | Apply state filter (OPEN or CLOSED) to Issue list                        | Return only Issues matching the specified state                                                      |
+| AI specifies due date range       | Apply due date range filter (from/to) to Issue list                      | Return only Issues with due date within the specified range; Issues without due date are excluded    |
+| AI omits all filters              | Return all Issues regardless of state or due date                        | AI determines relevance based on state and due date fields in the returned data                      |
+| Project has more items than limit | Return at most 50 Issues per query                                       | AI works with available data; may miss items beyond the limit                                        |
+
 ## Error Scenarios
 
 | Scenario                                                        | System Behavior                                                                                                          |
@@ -216,7 +226,7 @@ When the AI pipeline fails after all retries, the system sends a fallback messag
 | Action Item        | Phase 2 output; a structured to-do extracted from a group, containing status, assignee, task description, and reason                |
 | Action Item Status | Classification label for action items: to-do, in-progress, done, stalled, or discussion                                             |
 | Memory Tool        | An AI-accessible tool that reads and writes context memory with AI-determined structure for retaining information across executions |
-| GitHub Tool        | An AI-accessible query tool that provides read-only access to GitHub Projects and Issues via GitHub App                             |
+| GitHub Tool        | An AI-accessible query tool that retrieves Issues from GitHub Projects V2 with optional state and due date filters via GitHub App   |
 | Schedule           | The mechanism that triggers the summary generation pipeline on a timed basis, driven by platform scheduling                         |
 
 ## Contracts

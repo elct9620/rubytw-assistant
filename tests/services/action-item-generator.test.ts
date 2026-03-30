@@ -145,7 +145,6 @@ describe('ActionItemGeneratorService', () => {
           memory_write: expect.anything(),
           memory_delete: expect.anything(),
           github_get_issues: expect.anything(),
-          github_get_project_activities: expect.anything(),
         }),
         stopWhen: expect.objectContaining({ type: 'stepCount', count: 5 }),
       }),

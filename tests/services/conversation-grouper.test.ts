@@ -117,9 +117,6 @@ describe('ConversationGrouperService', () => {
           github_get_issues: expect.objectContaining({
             description: expect.stringContaining('GitHub Projects V2 issues'),
           }),
-          github_get_project_activities: expect.objectContaining({
-            description: expect.stringContaining('project progress'),
-          }),
         }),
         stopWhen: expect.objectContaining({
           type: 'stepCount',
