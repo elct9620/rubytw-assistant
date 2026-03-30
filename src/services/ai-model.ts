@@ -9,6 +9,6 @@ export function createAIModel(config: AiGatewayConfig) {
     gateway: gatewayId,
     apiKey,
   })
-  const unified = createUnified()
+  const unified = createUnified({ supportsStructuredOutputs: true })
   return aigateway(unified(modelId))
 }
