@@ -2,7 +2,6 @@ import { describe, it, expect, vi } from 'vitest'
 import {
   GitHubSourceAdapter,
   formatIssueToXml,
-  type GitHubGraphQLFn,
 } from '../../src/adapters/github-source'
 
 function makeProjectResponse(
@@ -48,8 +47,12 @@ function makeIssueContent(overrides?: {
   }
 }
 
-function createAdapter(graphql: GitHubGraphQLFn) {
-  return new GitHubSourceAdapter(graphql, 'rubytw', 1)
+function createAdapter(graphql: ReturnType<typeof vi.fn>) {
+  return new GitHubSourceAdapter(
+    { graphql } as unknown as import('@octokit/core').Octokit,
+    'rubytw',
+    1,
+  )
 }
 
 describe('GitHubSourceAdapter', () => {

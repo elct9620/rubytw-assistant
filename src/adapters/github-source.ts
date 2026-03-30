@@ -1,10 +1,6 @@
+import type { Octokit } from '@octokit/core'
 import type { GitHubSource } from '../usecases/ports'
 import { escapeXml } from './shared'
-
-export type GitHubGraphQLFn = <T = unknown>(
-  query: string,
-  variables?: Record<string, unknown>,
-) => Promise<T>
 
 interface ProjectItemNode {
   content: {
@@ -113,16 +109,19 @@ export function formatIssueToXml(issue: FormattedIssue): string {
 
 export class GitHubSourceAdapter implements GitHubSource {
   constructor(
-    private graphql: GitHubGraphQLFn,
+    private octokit: Octokit,
     private org: string,
     private projectNumber: number,
   ) {}
 
   async getIssues(): Promise<string[]> {
-    const result = await this.graphql<ProjectQueryResult>(PROJECT_ITEMS_QUERY, {
-      organization: this.org,
-      number: this.projectNumber,
-    })
+    const result = await this.octokit.graphql<ProjectQueryResult>(
+      PROJECT_ITEMS_QUERY,
+      {
+        organization: this.org,
+        number: this.projectNumber,
+      },
+    )
 
     const items = result.organization.projectV2.items.nodes
 

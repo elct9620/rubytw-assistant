@@ -73,7 +73,7 @@ container.register(TOKENS.GitHubSource, {
       },
     })
     return new GitHubSourceAdapter(
-      octokit.graphql,
+      octokit,
       c.resolve(TOKENS.GitHubOrg),
       c.resolve(TOKENS.GitHubProjectNumber),
     )

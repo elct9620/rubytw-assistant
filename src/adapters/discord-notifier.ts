@@ -7,7 +7,7 @@ import { TOKENS } from '../tokens'
 export class DiscordNotifierAdapter implements DiscordNotifier {
   constructor(
     @inject(TOKENS.DiscordBotToken) private botToken: string,
-    private fetchFn: FetchFn = fetch,
+    private fetchFn: FetchFn = (...args) => fetch(...args),
   ) {}
 
   async sendMessage(channelId: string, content: string): Promise<void> {

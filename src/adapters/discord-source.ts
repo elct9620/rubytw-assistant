@@ -75,7 +75,7 @@ export class DiscordSourceAdapter implements DiscordSource {
   constructor(
     @inject(TOKENS.DiscordBotToken) private botToken: string,
     @inject(TOKENS.DiscordChannelId) private channelId: string,
-    private fetchFn: FetchFn = fetch,
+    private fetchFn: FetchFn = (...args) => fetch(...args),
   ) {}
 
   async getChannelMessages(hours: number): Promise<string[]> {
