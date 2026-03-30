@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { ConversationGrouperService } from '../../src/services/conversation-grouper'
-import type { GitHubSource, MemoryStore } from '../../src/usecases/ports'
 import GROUP_CONVERSATIONS_PROMPT from '../../src/prompts/group-conversations.md'
+import { createStubMemoryStore, createStubGitHubSource } from './stubs'
 
 const mockGenerateText = vi.fn()
 vi.mock('ai', () => ({
@@ -12,22 +12,6 @@ vi.mock('ai', () => ({
   tool: (def: unknown) => def,
   stepCountIs: (n: number) => ({ type: 'stepCount', count: n }),
 }))
-
-function createStubMemoryStore(): MemoryStore {
-  return {
-    list: vi.fn().mockResolvedValue([]),
-    put: vi.fn().mockResolvedValue(undefined),
-    delete: vi.fn().mockResolvedValue(undefined),
-    count: vi.fn().mockResolvedValue(0),
-  }
-}
-
-function createStubGitHubSource(): GitHubSource {
-  return {
-    getIssues: vi.fn().mockResolvedValue([]),
-    getProjectActivities: vi.fn().mockResolvedValue([]),
-  }
-}
 
 function createService(): ConversationGrouperService {
   return new ConversationGrouperService(

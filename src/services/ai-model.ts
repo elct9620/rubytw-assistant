@@ -1,0 +1,14 @@
+import { createAiGateway } from 'ai-gateway-provider'
+import { createUnified } from 'ai-gateway-provider/providers/unified'
+import type { AiGatewayConfig } from '../tokens'
+
+export function createAiModel(config: AiGatewayConfig) {
+  const { accountId, gatewayId, apiKey, modelId } = config
+  const aigateway = createAiGateway({
+    accountId,
+    gateway: gatewayId,
+    apiKey,
+  })
+  const unified = createUnified()
+  return aigateway(unified(modelId))
+}

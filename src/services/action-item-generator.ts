@@ -1,7 +1,5 @@
 import { injectable, inject } from 'tsyringe'
 import { generateText, Output, stepCountIs } from 'ai'
-import { createAiGateway } from 'ai-gateway-provider'
-import { createUnified } from 'ai-gateway-provider/providers/unified'
 import { z } from 'zod'
 import type {
   ActionItemGenerator,
@@ -12,6 +10,7 @@ import type { ActionItem } from '../entities/action-item'
 import type { TopicGroup } from '../entities/topic-group'
 import { TOKENS, type AiGatewayConfig } from '../tokens'
 import { createAITools } from './ai-tools'
+import { createAiModel } from './ai-model'
 import GENERATE_ACTION_ITEMS_PROMPT from '../prompts/generate-action-items.md'
 
 const MAX_TOOL_STEPS = 5
@@ -50,7 +49,7 @@ export class ActionItemGeneratorService implements ActionItemGenerator {
       memoryEntryLimit: this.memoryEntryLimit,
     })
     const { output } = await generateText({
-      model: this.createModel(),
+      model: createAiModel(this.aiGatewayConfig),
       output: Output.object({ schema: GenerateActionItemsOutputSchema }),
       system,
       prompt: JSON.stringify(groups),
@@ -66,16 +65,5 @@ export class ActionItemGeneratorService implements ActionItemGenerator {
     }
 
     return output.items
-  }
-
-  private createModel() {
-    const { accountId, gatewayId, apiKey, modelId } = this.aiGatewayConfig
-    const aigateway = createAiGateway({
-      accountId,
-      gateway: gatewayId,
-      apiKey,
-    })
-    const unified = createUnified()
-    return aigateway(unified(modelId))
   }
 }
