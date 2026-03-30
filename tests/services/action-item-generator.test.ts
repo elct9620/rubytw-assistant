@@ -73,6 +73,7 @@ describe('ActionItemGeneratorService', () => {
         output: expect.objectContaining({ type: 'object' }),
         system: expectedSystem,
         prompt: JSON.stringify(groups),
+        providerOptions: { openai: { reasoningEffort: 'low' } },
       }),
     )
   })

@@ -62,6 +62,7 @@ describe('ConversationGrouperService', () => {
           '32',
         ),
         prompt: 'msg-1\nmsg-2',
+        providerOptions: { openai: { reasoningEffort: 'low' } },
       }),
     )
   })
