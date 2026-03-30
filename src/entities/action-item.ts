@@ -8,7 +8,7 @@ export type ActionItemStatus =
 export interface ActionItem {
   status: ActionItemStatus
   description: string
-  assignee: string
+  assignee: string | null
   reason: string
 }
 
@@ -24,7 +24,7 @@ export function formatActionItems(items: ActionItem[]): string {
   return items
     .map(
       (item) =>
-        `- [${STATUS_LABELS[item.status]}] ${item.description} (${item.assignee}) — ${item.reason}`,
+        `- [${STATUS_LABELS[item.status]}] ${item.description}${item.assignee ? ` (${item.assignee})` : ''} — ${item.reason}`,
     )
     .join('\n')
 }

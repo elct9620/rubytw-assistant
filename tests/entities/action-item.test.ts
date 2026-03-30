@@ -26,6 +26,21 @@ describe('formatActionItems', () => {
     )
   })
 
+  it('should omit assignee parentheses when assignee is null', () => {
+    const items: ActionItem[] = [
+      {
+        status: 'stalled',
+        description: '尚未有志願者負責線上聚會主持工作',
+        assignee: null,
+        reason: '導致活動籌備停滯',
+      },
+    ]
+
+    expect(formatActionItems(items)).toBe(
+      '- [停滯] 尚未有志願者負責線上聚會主持工作 — 導致活動籌備停滯',
+    )
+  })
+
   it('should return empty string for empty array', () => {
     expect(formatActionItems([])).toBe('')
   })

@@ -22,7 +22,12 @@ const ActionItemSchema = z.object({
     .enum(['to-do', 'in-progress', 'done', 'stalled', 'discussion'])
     .describe('action item status'),
   description: z.string().describe('task description'),
-  assignee: z.string().describe('assignee'),
+  assignee: z
+    .string()
+    .nullable()
+    .describe(
+      'person name exactly as it appears in conversation, or null if unassigned (never use generic labels like 社群成員)',
+    ),
   reason: z.string().describe('reason'),
 })
 
