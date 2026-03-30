@@ -91,8 +91,8 @@ function createGitHubTools({ githubSource }: AIToolsDeps): ToolSet {
         try {
           const issues = await githubSource.getIssues()
           return { issues, count: issues.length }
-        } catch {
-          console.warn('GitHub get issues failed')
+        } catch (error) {
+          console.warn('GitHub get issues failed', error)
           return { issues: [], count: 0, error: 'query failed' }
         }
       },
@@ -105,8 +105,8 @@ function createGitHubTools({ githubSource }: AIToolsDeps): ToolSet {
         try {
           const activities = await githubSource.getProjectActivities()
           return { activities, count: activities.length }
-        } catch {
-          console.warn('GitHub get project activities failed')
+        } catch (error) {
+          console.warn('GitHub get project activities failed', error)
           return { activities: [], count: 0, error: 'query failed' }
         }
       },

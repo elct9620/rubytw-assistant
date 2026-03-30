@@ -11,7 +11,7 @@ import { ActionItemGeneratorService } from './services/action-item-generator'
 import { DiscordNotifierAdapter } from './adapters/discord-notifier'
 import { DiscordSourceAdapter } from './adapters/discord-source'
 import { DiscordSummaryPresenter } from './adapters/discord-summary-presenter'
-import { GitHubSourceAdapter } from './adapters/github-source'
+import { GitHubSourceAdapter, ensurePkcs8 } from './adapters/github-source'
 import { GenerateSummary } from './usecases/generate-summary'
 
 // Env bindings
@@ -88,7 +88,7 @@ container.register(TOKENS.GitHubSource, {
       authStrategy: createAppAuth,
       auth: {
         appId: c.resolve<string>(TOKENS.GitHubAppId),
-        privateKey: c.resolve<string>(TOKENS.GitHubPrivateKey),
+        privateKey: ensurePkcs8(c.resolve<string>(TOKENS.GitHubPrivateKey)),
         installationId: c.resolve<string>(TOKENS.GitHubInstallationId),
       },
     })
