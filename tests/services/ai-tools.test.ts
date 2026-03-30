@@ -178,5 +178,15 @@ describe('createAITools', () => {
         dueDateTo: '2026-03-31',
       })
     })
+
+    it('github_get_issues should pass empty filter when no params given', async () => {
+      const getIssues = vi.fn().mockResolvedValue([])
+      const tools = createTools({
+        githubSource: createStubGitHubSource({ getIssues }),
+      })
+
+      await getTool(tools, 'github_get_issues').execute({})
+      expect(getIssues).toHaveBeenCalledWith({})
+    })
   })
 })

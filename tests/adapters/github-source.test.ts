@@ -237,6 +237,71 @@ describe('GitHubSourceAdapter', () => {
 
     expect(result).toHaveLength(2)
   })
+
+  it('should apply state and due date filters together', async () => {
+    const graphql = vi.fn().mockResolvedValue(
+      makeProjectResponse([
+        {
+          content: makeIssueContent({
+            title: 'Open Due Soon',
+            number: 1,
+            state: 'OPEN',
+          }),
+          fieldValues: {
+            nodes: [
+              {
+                __typename: 'ProjectV2ItemFieldDateValue',
+                date: '2026-03-20',
+                field: { name: 'Due' },
+              },
+            ],
+          },
+        },
+        {
+          content: makeIssueContent({
+            title: 'Closed Due Soon',
+            number: 2,
+            state: 'CLOSED',
+          }),
+          fieldValues: {
+            nodes: [
+              {
+                __typename: 'ProjectV2ItemFieldDateValue',
+                date: '2026-03-25',
+                field: { name: 'Due' },
+              },
+            ],
+          },
+        },
+        {
+          content: makeIssueContent({
+            title: 'Open Due Later',
+            number: 3,
+            state: 'OPEN',
+          }),
+          fieldValues: {
+            nodes: [
+              {
+                __typename: 'ProjectV2ItemFieldDateValue',
+                date: '2026-05-01',
+                field: { name: 'Due' },
+              },
+            ],
+          },
+        },
+      ]),
+    )
+
+    const adapter = createAdapter(graphql)
+    const result = await adapter.getIssues({
+      state: 'OPEN',
+      dueDateFrom: '2026-03-01',
+      dueDateTo: '2026-03-31',
+    })
+
+    expect(result).toHaveLength(1)
+    expect(result[0]).toContain('<title>Open Due Soon</title>')
+  })
 })
 
 describe('formatIssueToXml', () => {

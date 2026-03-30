@@ -106,7 +106,11 @@ function createGitHubTools({ githubSource }: AIToolsDeps): ToolSet {
       }),
       execute: async ({ state, dueDateFrom, dueDateTo }) => {
         try {
-          const filter = { state, dueDateFrom, dueDateTo }
+          const filter = {
+            ...(state && { state }),
+            ...(dueDateFrom && { dueDateFrom }),
+            ...(dueDateTo && { dueDateTo }),
+          }
           const issues = await githubSource.getIssues(filter)
           return { issues, count: issues.length }
         } catch (error) {
