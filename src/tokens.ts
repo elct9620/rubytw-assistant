@@ -19,6 +19,7 @@ export const TOKENS = {
   AiGatewayConfig: 'AiGatewayConfig',
   MemoryKv: 'MemoryKv',
   MemoryEntryLimit: 'MemoryEntryLimit',
+  MemoryDescriptionLimit: 'MemoryDescriptionLimit',
   SummaryHours: 'SummaryHours',
 
   GitHubAppId: 'GitHubAppId',

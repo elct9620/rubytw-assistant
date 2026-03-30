@@ -4,9 +4,8 @@ import type { GitHubSource, MemoryStore } from '../../src/usecases/ports'
 export function createStubMemoryStore(): MemoryStore {
   return {
     list: vi.fn().mockResolvedValue([]),
-    put: vi.fn().mockResolvedValue(undefined),
-    delete: vi.fn().mockResolvedValue(undefined),
-    count: vi.fn().mockResolvedValue(0),
+    read: vi.fn().mockResolvedValue([]),
+    update: vi.fn().mockResolvedValue(undefined),
   }
 }
 

@@ -7,6 +7,7 @@ export interface AIToolsDeps {
   memoryStore: MemoryStore
   githubSource: GitHubSource
   memoryEntryLimit: number
+  memoryDescriptionLimit: number
 }
 
 export function createAITools(deps: AIToolsDeps): ToolSet {
@@ -16,65 +17,74 @@ export function createAITools(deps: AIToolsDeps): ToolSet {
 function createMemoryTools({
   memoryStore,
   memoryEntryLimit,
+  memoryDescriptionLimit,
 }: AIToolsDeps): ToolSet {
   return {
-    memory_read: tool({
+    list_memories: tool({
       description:
-        'Read all memory entries from persistent store to recall context from previous executions',
+        'List all memory slots with their index and description. Use this to see what is stored before reading or updating.',
       inputSchema: z.object({}),
       execute: async () => {
         try {
-          const entries = await memoryStore.list()
-          return { entries, count: entries.length, limit: memoryEntryLimit }
+          const slots = await memoryStore.list()
+          return { slots, limit: memoryEntryLimit }
+        } catch {
+          console.warn('Memory list failed')
+          return { slots: [], limit: memoryEntryLimit, error: 'list failed' }
+        }
+      },
+    }),
+    read_memories: tool({
+      description:
+        'Read full content of memory slots by their indices. Use after list_memories to get details for specific slots.',
+      inputSchema: z.object({
+        indices: z
+          .array(
+            z
+              .number()
+              .int()
+              .min(0)
+              .max(memoryEntryLimit - 1),
+          )
+          .describe('slot indices to read'),
+      }),
+      execute: async ({ indices }) => {
+        try {
+          const entries = await memoryStore.read(indices)
+          return { entries }
         } catch {
           console.warn('Memory read failed')
-          return {
-            entries: [],
-            count: 0,
-            limit: memoryEntryLimit,
-            error: 'read failed',
-          }
+          return { entries: [], error: 'read failed' }
         }
       },
     }),
-    memory_write: tool({
-      description:
-        'Write a memory entry to persistent store for future executions',
+    update_memory: tool({
+      description: `Write description and content to a memory slot. Write empty content to clear the slot. Description max ${memoryDescriptionLimit} characters.`,
       inputSchema: z.object({
-        key: z.string().describe('unique identifier for this memory entry'),
-        content: z.string().describe('the information to remember'),
-        tag: z.string().optional().describe('category tag for organization'),
+        index: z
+          .number()
+          .int()
+          .min(0)
+          .max(memoryEntryLimit - 1)
+          .describe('slot index to write'),
+        description: z
+          .string()
+          .max(memoryDescriptionLimit)
+          .describe('short description of what this slot stores'),
+        content: z
+          .string()
+          .describe('the information to store, or empty string to clear'),
       }),
-      execute: async ({ key, content, tag }) => {
+      execute: async ({ index, description, content }) => {
         try {
-          await memoryStore.put({
-            key,
-            content,
-            tag,
-            updatedAt: new Date().toISOString(),
-          })
+          await memoryStore.update(index, description, content)
           return { success: true }
         } catch (e) {
-          console.warn('Memory write failed:', e)
+          console.warn('Memory update failed:', e)
           return {
             success: false,
-            error: 'write failed - entry limit may be reached',
+            error: e instanceof Error ? e.message : 'update failed',
           }
-        }
-      },
-    }),
-    memory_delete: tool({
-      description: 'Delete a memory entry from persistent store to free space',
-      inputSchema: z.object({
-        key: z.string().describe('key of the entry to delete'),
-      }),
-      execute: async ({ key }) => {
-        try {
-          await memoryStore.delete(key)
-          return { success: true }
-        } catch {
-          console.warn('Memory delete failed')
-          return { success: false, error: 'delete failed' }
         }
       },
     }),

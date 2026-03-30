@@ -1,9 +1,10 @@
 import { env } from 'cloudflare:workers'
 import { describe, it, expect, beforeEach } from 'vitest'
 import { KVMemoryStoreAdapter } from '../../src/adapters/kv-memory-store'
-import type { MemoryEntry } from '../../src/entities/memory-entry'
 
 const KEY_PREFIX = 'memory:'
+const ENTRY_LIMIT = 4
+const DESCRIPTION_LIMIT = 128
 
 async function clearKV(kv: KVNamespace) {
   const { keys } = await kv.list({ prefix: KEY_PREFIX })
@@ -15,125 +16,110 @@ describe('KVMemoryStoreAdapter', () => {
 
   beforeEach(async () => {
     await clearKV(env.MEMORY_KV)
-    adapter = new KVMemoryStoreAdapter(env.MEMORY_KV, 32)
+    adapter = new KVMemoryStoreAdapter(
+      env.MEMORY_KV,
+      ENTRY_LIMIT,
+      DESCRIPTION_LIMIT,
+    )
   })
 
   describe('list', () => {
-    it('should return empty array when no entries exist', async () => {
-      const entries = await adapter.list()
-      expect(entries).toEqual([])
+    it('should return all slots with empty descriptions when no entries exist', async () => {
+      const slots = await adapter.list()
+      expect(slots).toHaveLength(ENTRY_LIMIT)
+      expect(slots).toEqual([
+        { index: 0, description: '' },
+        { index: 1, description: '' },
+        { index: 2, description: '' },
+        { index: 3, description: '' },
+      ])
     })
 
-    it.todo(
-      'should filter out null entries from stale keys (KV eventual consistency, not reproducible in miniflare)',
-    )
+    it('should return descriptions for occupied slots', async () => {
+      await env.MEMORY_KV.put(
+        'memory:1',
+        JSON.stringify({
+          description: 'ongoing tasks',
+          content: 'task details',
+        }),
+      )
 
-    it('should return all stored entries', async () => {
-      const entry: MemoryEntry = {
-        key: 'topic-1',
-        content: 'Ruby Conf planning',
-        tag: 'event',
-        updatedAt: '2026-03-28T00:00:00.000Z',
-      }
-      await env.MEMORY_KV.put('memory:topic-1', JSON.stringify(entry))
-
-      const entries = await adapter.list()
-      expect(entries).toEqual([entry])
+      const slots = await adapter.list()
+      expect(slots[1]).toEqual({ index: 1, description: 'ongoing tasks' })
+      expect(slots[0]).toEqual({ index: 0, description: '' })
     })
   })
 
-  describe('put', () => {
-    it('should store entry with memory: prefix', async () => {
-      const entry: MemoryEntry = {
-        key: 'topic-1',
-        content: 'Ruby Conf planning',
-        updatedAt: '2026-03-28T00:00:00.000Z',
-      }
-
-      await adapter.put(entry)
-
-      const stored = await env.MEMORY_KV.get<MemoryEntry>(
-        'memory:topic-1',
-        'json',
-      )
-      expect(stored).toEqual(entry)
+  describe('read', () => {
+    it('should return empty strings for unused slots', async () => {
+      const entries = await adapter.read([0, 2])
+      expect(entries).toEqual([
+        { index: 0, description: '', content: '' },
+        { index: 2, description: '', content: '' },
+      ])
     })
 
-    it('should reject when entry limit is reached', async () => {
-      const limitedAdapter = new KVMemoryStoreAdapter(env.MEMORY_KV, 2)
-
-      for (let i = 0; i < 2; i++) {
-        await env.MEMORY_KV.put(
-          `memory:entry-${i}`,
-          JSON.stringify({
-            key: `entry-${i}`,
-            content: `content ${i}`,
-            updatedAt: '2026-03-28T00:00:00.000Z',
-          }),
-        )
-      }
-
-      await expect(
-        limitedAdapter.put({
-          key: 'entry-new',
-          content: 'new content',
-          updatedAt: '2026-03-28T00:00:00.000Z',
-        }),
-      ).rejects.toThrow('Memory store entry limit reached')
-    })
-
-    it('should allow overwriting existing entry without counting as new', async () => {
-      const limitedAdapter = new KVMemoryStoreAdapter(env.MEMORY_KV, 1)
-
+    it('should return full content for occupied slots', async () => {
       await env.MEMORY_KV.put(
-        'memory:topic-1',
+        'memory:0',
         JSON.stringify({
-          key: 'topic-1',
-          content: 'old content',
-          updatedAt: '2026-03-28T00:00:00.000Z',
+          description: 'ongoing tasks',
+          content: 'task details here',
         }),
       )
 
-      await expect(
-        limitedAdapter.put({
-          key: 'topic-1',
-          content: 'updated content',
-          updatedAt: '2026-03-28T00:00:00.000Z',
-        }),
-      ).resolves.toBeUndefined()
+      const entries = await adapter.read([0])
+      expect(entries).toEqual([
+        {
+          index: 0,
+          description: 'ongoing tasks',
+          content: 'task details here',
+        },
+      ])
     })
   })
 
-  describe('delete', () => {
-    it('should delete entry by key', async () => {
-      await env.MEMORY_KV.put(
-        'memory:topic-1',
-        JSON.stringify({
-          key: 'topic-1',
-          content: 'content',
-          updatedAt: '2026-03-28T00:00:00.000Z',
-        }),
-      )
+  describe('update', () => {
+    it('should store entry at specified index', async () => {
+      await adapter.update(0, 'test description', 'test content')
 
-      await adapter.delete('topic-1')
+      const stored = await env.MEMORY_KV.get('memory:0', 'json')
+      expect(stored).toEqual({
+        description: 'test description',
+        content: 'test content',
+      })
+    })
 
-      const stored = await env.MEMORY_KV.get('memory:topic-1')
+    it('should overwrite existing entry', async () => {
+      await adapter.update(0, 'old', 'old content')
+      await adapter.update(0, 'new', 'new content')
+
+      const stored = await env.MEMORY_KV.get('memory:0', 'json')
+      expect(stored).toEqual({ description: 'new', content: 'new content' })
+    })
+
+    it('should clear slot when content is empty', async () => {
+      await adapter.update(0, 'test', 'test content')
+      await adapter.update(0, '', '')
+
+      const stored = await env.MEMORY_KV.get('memory:0')
       expect(stored).toBeNull()
     })
-  })
 
-  describe('count', () => {
-    it('should return 0 when empty', async () => {
-      const count = await adapter.count()
-      expect(count).toBe(0)
+    it('should reject index out of range', async () => {
+      await expect(adapter.update(-1, 'desc', 'content')).rejects.toThrow(
+        'out of range',
+      )
+      await expect(
+        adapter.update(ENTRY_LIMIT, 'desc', 'content'),
+      ).rejects.toThrow('out of range')
     })
 
-    it('should return number of stored entries', async () => {
-      await env.MEMORY_KV.put('memory:a', '{}')
-      await env.MEMORY_KV.put('memory:b', '{}')
-
-      const count = await adapter.count()
-      expect(count).toBe(2)
+    it('should reject description exceeding limit', async () => {
+      const longDesc = 'a'.repeat(DESCRIPTION_LIMIT + 1)
+      await expect(adapter.update(0, longDesc, 'content')).rejects.toThrow(
+        'Description exceeds',
+      )
     })
   })
 })

@@ -41,6 +41,8 @@ export class ActionItemGeneratorService implements ActionItemGenerator {
     @inject(TOKENS.AiGatewayConfig) private aiGatewayConfig: AiGatewayConfig,
     @inject(TOKENS.MemoryStore) private memoryStore: MemoryStore,
     @inject(TOKENS.MemoryEntryLimit) private memoryEntryLimit: number,
+    @inject(TOKENS.MemoryDescriptionLimit)
+    private memoryDescriptionLimit: number,
     @inject(TOKENS.GitHubSource) private githubSource: GitHubSource,
     @inject(TOKENS.LangfuseConfig)
     private langfuseConfig: LangfuseConfig | null,
@@ -57,6 +59,7 @@ export class ActionItemGeneratorService implements ActionItemGenerator {
       memoryStore: this.memoryStore,
       githubSource: this.githubSource,
       memoryEntryLimit: this.memoryEntryLimit,
+      memoryDescriptionLimit: this.memoryDescriptionLimit,
     })
     const { integrations } = createTelemetryContext(this.langfuseConfig, {
       traceId: this.ctx.traceId,

@@ -24,6 +24,7 @@ function createService(): ConversationGrouperService {
     },
     createStubMemoryStore(),
     32,
+    128,
     createStubGitHubSource(),
     null,
     nullContext,
@@ -105,14 +106,16 @@ describe('ConversationGrouperService', () => {
     expect(mockGenerateText).toHaveBeenCalledWith(
       expect.objectContaining({
         tools: expect.objectContaining({
-          memory_read: expect.objectContaining({
-            description: expect.stringContaining('Read all memory entries'),
+          list_memories: expect.objectContaining({
+            description: expect.stringContaining('List all memory slots'),
           }),
-          memory_write: expect.objectContaining({
-            description: expect.stringContaining('Write a memory entry'),
+          read_memories: expect.objectContaining({
+            description: expect.stringContaining('Read full content'),
           }),
-          memory_delete: expect.objectContaining({
-            description: expect.stringContaining('Delete a memory entry'),
+          update_memory: expect.objectContaining({
+            description: expect.stringContaining(
+              'Write description and content',
+            ),
           }),
           github_get_issues: expect.objectContaining({
             description: expect.stringContaining('GitHub Projects V2 issues'),

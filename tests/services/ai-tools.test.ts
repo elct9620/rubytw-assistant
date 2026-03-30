@@ -18,9 +18,8 @@ function getTool(tools: Record<string, unknown>, name: string): MockTool {
 function createStubMemoryStore(overrides?: Partial<MemoryStore>): MemoryStore {
   return {
     list: vi.fn().mockResolvedValue([]),
-    put: vi.fn().mockResolvedValue(undefined),
-    delete: vi.fn().mockResolvedValue(undefined),
-    count: vi.fn().mockResolvedValue(0),
+    read: vi.fn().mockResolvedValue([]),
+    update: vi.fn().mockResolvedValue(undefined),
     ...overrides,
   }
 }
@@ -42,6 +41,7 @@ function createTools(overrides?: {
     memoryStore: overrides?.memoryStore ?? createStubMemoryStore(),
     githubSource: overrides?.githubSource ?? createStubGitHubSource(),
     memoryEntryLimit: 32,
+    memoryDescriptionLimit: 128,
   })
 }
 
@@ -50,89 +50,101 @@ describe('createAITools', () => {
     const tools = createTools()
     expect(Object.keys(tools)).toEqual(
       expect.arrayContaining([
-        'memory_read',
-        'memory_write',
-        'memory_delete',
+        'list_memories',
+        'read_memories',
+        'update_memory',
         'github_get_issues',
       ]),
     )
   })
 
   describe('memory tools', () => {
-    it('memory_read should return entries from store', async () => {
-      const entries = [
-        {
-          key: 'k1',
-          content: 'test',
-          updatedAt: '2026-03-28T00:00:00.000Z',
-        },
+    it('list_memories should return slots from store', async () => {
+      const slots = [
+        { index: 0, description: 'ongoing tasks' },
+        { index: 1, description: '' },
       ]
       const tools = createTools({
         memoryStore: createStubMemoryStore({
-          list: vi.fn().mockResolvedValue(entries),
+          list: vi.fn().mockResolvedValue(slots),
         }),
       })
 
-      const result = await getTool(tools, 'memory_read').execute({})
-      expect(result).toEqual({ entries, count: 1, limit: 32 })
+      const result = await getTool(tools, 'list_memories').execute({})
+      expect(result).toEqual({ slots, limit: 32 })
     })
 
-    it('memory_read should return error object on failure', async () => {
+    it('list_memories should return error object on failure', async () => {
       const tools = createTools({
         memoryStore: createStubMemoryStore({
           list: vi.fn().mockRejectedValue(new Error('KV error')),
         }),
       })
 
-      const result = await getTool(tools, 'memory_read').execute({})
+      const result = await getTool(tools, 'list_memories').execute({})
+      expect(result.error).toBe('list failed')
+      expect(result.slots).toEqual([])
+    })
+
+    it('read_memories should return entries for requested indices', async () => {
+      const entries = [
+        { index: 0, description: 'ongoing tasks', content: 'task details' },
+      ]
+      const tools = createTools({
+        memoryStore: createStubMemoryStore({
+          read: vi.fn().mockResolvedValue(entries),
+        }),
+      })
+
+      const result = await getTool(tools, 'read_memories').execute({
+        indices: [0],
+      })
+      expect(result).toEqual({ entries })
+    })
+
+    it('read_memories should return error object on failure', async () => {
+      const tools = createTools({
+        memoryStore: createStubMemoryStore({
+          read: vi.fn().mockRejectedValue(new Error('KV error')),
+        }),
+      })
+
+      const result = await getTool(tools, 'read_memories').execute({
+        indices: [0],
+      })
       expect(result.error).toBe('read failed')
       expect(result.entries).toEqual([])
     })
 
-    it('memory_write should call store.put with entry', async () => {
+    it('update_memory should call store.update', async () => {
       const store = createStubMemoryStore()
       const tools = createTools({ memoryStore: store })
 
-      const result = await getTool(tools, 'memory_write').execute({
-        key: 'test-key',
+      const result = await getTool(tools, 'update_memory').execute({
+        index: 0,
+        description: 'test slot',
         content: 'test content',
-        tag: 'event',
       })
       expect(result).toEqual({ success: true })
-      expect(store.put).toHaveBeenCalledWith(
-        expect.objectContaining({
-          key: 'test-key',
-          content: 'test content',
-          tag: 'event',
-          updatedAt: expect.any(String),
-        }),
-      )
+      expect(store.update).toHaveBeenCalledWith(0, 'test slot', 'test content')
     })
 
-    it('memory_write should return error on failure', async () => {
+    it('update_memory should return error on failure', async () => {
       const tools = createTools({
         memoryStore: createStubMemoryStore({
-          put: vi.fn().mockRejectedValue(new Error('limit reached')),
+          update: vi
+            .fn()
+            .mockRejectedValue(new Error('Index 99 out of range (0..31)')),
         }),
       })
 
-      const result = await getTool(tools, 'memory_write').execute({
-        key: 'k',
+      const result = await getTool(tools, 'update_memory').execute({
+        index: 99,
+        description: 'd',
         content: 'c',
       })
       expect(result.success).toBe(false)
-      expect(result.error).toBeDefined()
-    })
-
-    it('memory_delete should call store.delete', async () => {
-      const store = createStubMemoryStore()
-      const tools = createTools({ memoryStore: store })
-
-      const result = await getTool(tools, 'memory_delete').execute({
-        key: 'old-key',
-      })
-      expect(result).toEqual({ success: true })
-      expect(store.delete).toHaveBeenCalledWith('old-key')
+      expect(result.error).toBe('Index 99 out of range (0..31)')
     })
   })
 

@@ -1,7 +1,5 @@
 import type { TopicGroup } from '../entities/topic-group'
 import type { ActionItem } from '../entities/action-item'
-import type { MemoryEntry } from '../entities/memory-entry'
-
 export interface IssueFilter {
   state?: 'OPEN' | 'CLOSED'
   dueDateFrom?: string
@@ -38,8 +36,9 @@ export interface SummaryPresenter {
 }
 
 export interface MemoryStore {
-  list(): Promise<MemoryEntry[]>
-  put(entry: MemoryEntry): Promise<void>
-  delete(key: string): Promise<void>
-  count(): Promise<number>
+  list(): Promise<{ index: number; description: string }[]>
+  read(
+    indices: number[],
+  ): Promise<{ index: number; description: string; content: string }[]>
+  update(index: number, description: string, content: string): Promise<void>
 }

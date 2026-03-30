@@ -1,6 +1,4 @@
 export interface MemoryEntry {
-  key: string
+  description: string
   content: string
-  tag?: string
-  updatedAt: string
 }

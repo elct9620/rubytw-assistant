@@ -31,6 +31,9 @@ container.register(TOKENS.MemoryKv, { useValue: env.MEMORY_KV })
 container.register(TOKENS.MemoryEntryLimit, {
   useValue: Number(env.MEMORY_ENTRY_LIMIT),
 })
+container.register(TOKENS.MemoryDescriptionLimit, {
+  useValue: Number(env.MEMORY_DESCRIPTION_LIMIT),
+})
 container.register(TOKENS.SummaryHours, {
   useValue: Number(env.SUMMARY_HOURS),
 })

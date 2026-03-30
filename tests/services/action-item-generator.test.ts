@@ -24,6 +24,7 @@ function createService(): ActionItemGeneratorService {
     },
     createStubMemoryStore(),
     32,
+    128,
     createStubGitHubSource(),
     null,
     nullContext,
@@ -141,9 +142,9 @@ describe('ActionItemGeneratorService', () => {
     expect(mockGenerateText).toHaveBeenCalledWith(
       expect.objectContaining({
         tools: expect.objectContaining({
-          memory_read: expect.anything(),
-          memory_write: expect.anything(),
-          memory_delete: expect.anything(),
+          list_memories: expect.anything(),
+          read_memories: expect.anything(),
+          update_memory: expect.anything(),
           github_get_issues: expect.anything(),
         }),
         stopWhen: expect.objectContaining({ type: 'stepCount', count: 5 }),

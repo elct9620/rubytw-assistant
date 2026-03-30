@@ -10,34 +10,60 @@ export class KVMemoryStoreAdapter implements MemoryStore {
   constructor(
     @inject(TOKENS.MemoryKv) private kv: KVNamespace,
     @inject(TOKENS.MemoryEntryLimit) private entryLimit: number,
+    @inject(TOKENS.MemoryDescriptionLimit) private descriptionLimit: number,
   ) {}
 
-  async list(): Promise<MemoryEntry[]> {
-    const { keys } = await this.kv.list({ prefix: KEY_PREFIX })
-    const entries = await Promise.all(
-      keys.map((k) => this.kv.get<MemoryEntry>(k.name, 'json')),
+  async list(): Promise<{ index: number; description: string }[]> {
+    const slots = await Promise.all(
+      Array.from({ length: this.entryLimit }, (_, i) =>
+        this.kv.get<MemoryEntry>(`${KEY_PREFIX}${i}`, 'json').then((entry) => ({
+          index: i,
+          description: entry?.description ?? '',
+        })),
+      ),
     )
-    return entries.filter((e): e is MemoryEntry => e !== null)
+    return slots
   }
 
-  async put(entry: MemoryEntry): Promise<void> {
-    const existing = await this.kv.get(`${KEY_PREFIX}${entry.key}`)
-    if (!existing) {
-      const currentCount = await this.count()
-      if (currentCount >= this.entryLimit) {
-        throw new Error('Memory store entry limit reached')
-      }
+  async read(
+    indices: number[],
+  ): Promise<{ index: number; description: string; content: string }[]> {
+    return Promise.all(
+      indices.map(async (i) => {
+        const entry = await this.kv.get<MemoryEntry>(
+          `${KEY_PREFIX}${i}`,
+          'json',
+        )
+        return {
+          index: i,
+          description: entry?.description ?? '',
+          content: entry?.content ?? '',
+        }
+      }),
+    )
+  }
+
+  async update(
+    index: number,
+    description: string,
+    content: string,
+  ): Promise<void> {
+    if (index < 0 || index >= this.entryLimit) {
+      throw new Error(`Index ${index} out of range (0..${this.entryLimit - 1})`)
     }
 
-    await this.kv.put(`${KEY_PREFIX}${entry.key}`, JSON.stringify(entry))
-  }
+    if (description.length > this.descriptionLimit) {
+      throw new Error(
+        `Description exceeds ${this.descriptionLimit} character limit`,
+      )
+    }
 
-  async delete(key: string): Promise<void> {
-    await this.kv.delete(`${KEY_PREFIX}${key}`)
-  }
+    if (content === '') {
+      await this.kv.delete(`${KEY_PREFIX}${index}`)
+      return
+    }
 
-  async count(): Promise<number> {
-    const { keys } = await this.kv.list({ prefix: KEY_PREFIX })
-    return keys.length
+    const entry: MemoryEntry = { description, content }
+    await this.kv.put(`${KEY_PREFIX}${index}`, JSON.stringify(entry))
   }
 }
