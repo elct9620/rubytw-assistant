@@ -10,7 +10,7 @@ import type { ActionItem } from '../entities/action-item'
 import type { TopicGroup } from '../entities/topic-group'
 import { TOKENS, type AiGatewayConfig } from '../tokens'
 import { createAITools } from './ai-tools'
-import { createAiModel } from './ai-model'
+import { createAIModel } from './ai-model'
 import GENERATE_ACTION_ITEMS_PROMPT from '../prompts/generate-action-items.md'
 
 const MAX_TOOL_STEPS = 5
@@ -49,7 +49,7 @@ export class ActionItemGeneratorService implements ActionItemGenerator {
       memoryEntryLimit: this.memoryEntryLimit,
     })
     const { output } = await generateText({
-      model: createAiModel(this.aiGatewayConfig),
+      model: createAIModel(this.aiGatewayConfig),
       output: Output.object({ schema: GenerateActionItemsOutputSchema }),
       system,
       prompt: JSON.stringify(groups),

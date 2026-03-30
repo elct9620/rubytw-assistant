@@ -9,7 +9,7 @@ import type {
 import type { TopicGroup } from '../entities/topic-group'
 import { TOKENS, type AiGatewayConfig } from '../tokens'
 import { createAITools } from './ai-tools'
-import { createAiModel } from './ai-model'
+import { createAIModel } from './ai-model'
 import GROUP_CONVERSATIONS_PROMPT from '../prompts/group-conversations.md'
 
 const MAX_TOOL_STEPS = 5
@@ -46,7 +46,7 @@ export class ConversationGrouperService implements ConversationGrouper {
       memoryEntryLimit: this.memoryEntryLimit,
     })
     const { output } = await generateText({
-      model: createAiModel(this.aiGatewayConfig),
+      model: createAIModel(this.aiGatewayConfig),
       output: Output.object({ schema: GroupConversationsOutputSchema }),
       system,
       prompt: messages.join('\n'),
