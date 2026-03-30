@@ -1,9 +1,8 @@
 import { Hono } from 'hono'
 import { container } from '../container'
-import { TOKENS, type LangfuseConfig } from '../tokens'
-import type { RequestContext } from '../context'
-import { createTelemetryContext } from '../telemetry/context'
+import { TOKENS } from '../tokens'
 import { GenerateSummary } from '../usecases/generate-summary'
+import { setupTrace } from './telemetry-setup'
 
 const debug = new Hono<{ Bindings: Env }>()
 
@@ -15,17 +14,10 @@ debug.get('/summary', async (c) => {
 
   const child = container.createChildContainer()
   child.register(TOKENS.DiscordChannelId, { useValue: channelId })
-
-  const config = child.resolve<LangfuseConfig | null>(TOKENS.LangfuseConfig)
-  const { tracer } = createTelemetryContext(config)
-  const ctx: RequestContext = {}
-  if (tracer) {
-    ctx.traceId = tracer.createTrace({
-      name: 'generate-summary',
-      input: { channelId, debug: true },
-    })
-  }
-  child.register(TOKENS.RequestContext, { useValue: ctx })
+  const tracer = setupTrace(child, {
+    name: 'generate-summary',
+    input: { channelId, debug: true },
+  })
 
   const usecase = child.resolve(GenerateSummary)
   const hours = Number(c.req.query('hours')) || Number(c.env.SUMMARY_HOURS)

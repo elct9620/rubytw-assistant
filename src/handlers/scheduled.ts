@@ -1,9 +1,8 @@
 import { container } from '../container'
 import { GenerateSummary } from '../usecases/generate-summary'
 import type { SummaryPresenter } from '../usecases/ports'
-import { TOKENS, type LangfuseConfig } from '../tokens'
-import type { RequestContext } from '../context'
-import { createTelemetryContext } from '../telemetry/context'
+import { TOKENS } from '../tokens'
+import { setupTrace } from './telemetry-setup'
 
 export async function scheduledHandler(
   controller: ScheduledController,
@@ -13,17 +12,10 @@ export async function scheduledHandler(
   )
 
   const child = container.createChildContainer()
-
-  const config = child.resolve<LangfuseConfig | null>(TOKENS.LangfuseConfig)
-  const { tracer } = createTelemetryContext(config)
-  const ctx: RequestContext = {}
-  if (tracer) {
-    ctx.traceId = tracer.createTrace({
-      name: 'generate-summary',
-      input: { cron: controller.cron },
-    })
-  }
-  child.register(TOKENS.RequestContext, { useValue: ctx })
+  const tracer = setupTrace(child, {
+    name: 'generate-summary',
+    input: { cron: controller.cron },
+  })
 
   const usecase = child.resolve(GenerateSummary)
   const presenter = child.resolve<SummaryPresenter>(TOKENS.SummaryPresenter)
