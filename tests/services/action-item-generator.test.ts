@@ -1,8 +1,10 @@
+import { env } from 'cloudflare:workers'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { ActionItemGeneratorService } from '../../src/services/action-item-generator'
 import GENERATE_ACTION_ITEMS_PROMPT from '../../src/prompts/generate-action-items.md'
-import { createStubMemoryStore, createStubGitHubSource } from './stubs'
+import { createStubGitHubSource } from './stubs'
 import { nullContext } from '../../src/context'
+import { KVMemoryStoreAdapter } from '../../src/adapters/kv-memory-store'
 
 const mockGenerateText = vi.fn()
 vi.mock('ai', () => ({
@@ -22,7 +24,7 @@ function createService(): ActionItemGeneratorService {
       apiKey: 'test-token',
       modelId: 'openai/gpt-4.1-mini',
     },
-    createStubMemoryStore(),
+    new KVMemoryStoreAdapter(env.MEMORY_KV, 32, 128),
     32,
     128,
     createStubGitHubSource(),
