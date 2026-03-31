@@ -9,7 +9,7 @@ Following tools are available to you:
 - **list_memories**: List all memory slots with their index and description.
 - **read_memories**: Read full content of specific memory slots by index.
 - **update_memory**: Write description and content to a memory slot, or clear it by writing empty content.
-- **github_get_issues**: Query GitHub Projects V2 issues to verify task status when classifying action items. You can filter by state (OPEN/CLOSED) or due date range (dueDateFrom/dueDateTo).
+- **github_get_issues**: Query GitHub Projects V2 issues to verify task status when classifying action items. Filter by state (OPEN/CLOSED) for best results — most issues have no due date set, so filtering by state alone returns the most complete results.
 
 Use tools to get necessary information for building the action items effectively.
 
@@ -29,8 +29,7 @@ Today is {{today}}.
 
 The conversation is grouped by topic and context. Identify the action items and key points discussed within each topic.
 
-- Exclude conversations that are small talk or greetings.
-- Exclude conversations that are not related to Ruby community.
+- Focus on conversations related to Ruby Taiwan community operations.
 - Create action items based on the discussions for each relevant group.
 
 ## Phase 1: Filtering Relevant Conversations
@@ -77,7 +76,7 @@ Categorize each action item with one of the following statuses:
 - **stalled**: Tasks that are currently stalled or facing issues.
 - **discussion**: General discussions without specific action items.
 
-When classification would benefit from project data, use `github_get_issues` to verify task status (e.g., confirm whether a task is already tracked, in progress, or done). Do not query for every item. GitHub queries may fail silently — continue without GitHub data if needed.
+When creating an action item with status "to-do" or "in-progress", query `github_get_issues` with state=OPEN to check if the task is already tracked as an issue. Use the issue status to inform your classification — e.g., if an issue is already open and assigned, classify as "in-progress" rather than "to-do". Query once per batch of related items rather than per item. GitHub queries may fail silently — continue without GitHub data if needed.
 
 ## Phase 3: Creating Concise Action Items
 
@@ -87,11 +86,11 @@ Each action item should contain the following elements:
 - **What** (description): Clearly state the task or action to be done.
 - **Why** (reason): Briefly explain the reason or purpose behind the action item.
 
-**IMPORTANT constraints for assignee:**
+**Assignee rules:**
 
+- Only assign to **active participants in the conversation** — people who sent messages in the chat.
 - Use the person's actual name exactly as it appears in conversation (e.g., "Kasa", "Stan", "蒼時弦也").
-- If no specific person is mentioned or responsible, do NOT assign — set assignee to null.
-- NEVER use generic labels like "社群成員", "相關人員", "Ruby Taiwan" as assignee.
+- Set assignee to null when no specific participant is responsible, or when the person is only mentioned but did not participate (e.g., family members, external vendors, third parties).
 
 Examples:
 
@@ -103,17 +102,42 @@ Merge related action items into a single concise item to avoid redundancy. Each 
 
 ## Phase 4: Updating Memory
 
-Review current memory for any relevant information that can assist in organizing the conversation effectively.
+Use `list_memories` first to review existing slots, then `read_memories` for relevant ones.
 
-- Use `list_memories` first to review existing slots.
-- Use `update_memory` with empty content to clear outdated or irrelevant slots.
-- Use `update_memory` to write new relevant information to available slots.
+### What to save — Decision Table
 
-**IMPORTANT:** Clean unused or irrelevant information from memory when no longer needed. e.g. duplicate information, outdated context, etc.
+- **C1**: Will this information be useful in future runs (not just today)?
+- **C2**: Can this information be derived from the conversation alone?
+
+| C1  | C2  | Action | Example                                                     |
+| --- | --- | ------ | ----------------------------------------------------------- |
+| Y   | N   | Save   | "RubyKaraoke: social event at RubyKaigi, not a RT activity" |
+| Y   | Y   | Save   | "Kasa: active organizer" (role persists across runs)        |
+| N   | Y   | Skip   | Today's conversation topics (already in summary output)     |
+| N   | N   | Skip   | Transient reactions or one-off comments                     |
+
+### Memory categories and examples
+
+Slots are freely allocated — no fixed categories. Use any available slot.
+
+| Category  | What to save                          | Example description (≤128 chars)       | Example content                                           |
+| --------- | ------------------------------------- | -------------------------------------- | --------------------------------------------------------- |
+| People    | Active community members and roles    | "Kasa: RT organizer"                   | "Handles promotion, supplies, Threads posts"              |
+| People    | External contacts interacting with RT | "Tons of fun: external speaker"        | "Invited for meetup, coordinating via Google Meet"        |
+| Knowledge | External events and relation to RT    | "RubyKaigi: annual Ruby conf in Japan" | "Not a RT event. RubyKaraoke is a social activity there." |
+| Knowledge | Projects/tools the community uses     | "NTUCOOL: project by community member" | "Kasa's LMS project, potential talk topic"                |
+| Task      | Ongoing action items across runs      | "Meetup speaker coordination"          | "Calendar event pending for Tons of fun"                  |
+
+### When to update vs clear
+
+- Information already in memory but details changed → update the existing slot
+- Task completed or no longer relevant → clear the slot (write empty content)
+- Duplicate information across slots → merge into one and clear the other
+- After generating action items, save ongoing items to memory so the next run can track status changes
 
 ## Phase 5: Review and Finalize
 
-No groups where `communityRelated` is "no" or `smallTalk` is "yes" should be included in the final output.
+Only include groups where `communityRelated` is "yes" and `smallTalk` is "no" in the final output.
 
 Ensure each action item is clear, concise, and actionable in one statement.
 
