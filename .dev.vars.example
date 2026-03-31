@@ -16,6 +16,9 @@ GITHUB_INSTALLATION_ID=your_github_installation_id
 GITHUB_ORG=rubytw
 GITHUB_PROJECT_NUMBER=1
 
+# Environment
+ENVIRONMENT=development
+
 # Langfuse (optional)
 LANGFUSE_PUBLIC_KEY=your_langfuse_public_key
 LANGFUSE_SECRET_KEY=your_langfuse_secret_key
