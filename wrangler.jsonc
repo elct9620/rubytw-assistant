@@ -19,7 +19,7 @@
     "AI_GATEWAY_ID": "rubytw-assistant",
     "MEMORY_ENTRY_LIMIT": "32",
     "MEMORY_DESCRIPTION_LIMIT": "128",
-    "GITHUB_ORG": "rubytw",
+    "GITHUB_ORG": "rubytaiwan",
     "GITHUB_PROJECT_NUMBER": "1",
     "DEBUG": "false",
     "LANGFUSE_BASE_URL": "https://us.cloud.langfuse.com",
