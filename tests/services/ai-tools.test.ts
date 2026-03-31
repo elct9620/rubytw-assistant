@@ -18,7 +18,13 @@ function getTool(tools: Record<string, unknown>, name: string): MockTool {
 function createStubMemoryStore(overrides?: Partial<MemoryStore>): MemoryStore {
   return {
     list: vi.fn().mockResolvedValue([]),
-    read: vi.fn().mockResolvedValue([]),
+    read: vi
+      .fn()
+      .mockImplementation((indices: number[]) =>
+        Promise.resolve(
+          indices.map((i) => ({ index: i, description: '', content: '' })),
+        ),
+      ),
     update: vi.fn().mockResolvedValue(undefined),
     ...overrides,
   }
@@ -157,6 +163,45 @@ describe('createAITools', () => {
       expect(result.error).toBe(
         'must read_memories for index 1 before updating',
       )
+    })
+
+    it('update_memory should reject when read_memories failed for the same index', async () => {
+      const tools = createTools({
+        memoryStore: createStubMemoryStore({
+          read: vi.fn().mockRejectedValue(new Error('KV error')),
+        }),
+      })
+
+      await getTool(tools, 'read_memories').execute({ indices: [2] })
+      const result = await getTool(tools, 'update_memory').execute({
+        index: 2,
+        description: 'test',
+        content: 'content',
+      })
+      expect(result.success).toBe(false)
+      expect(result.error).toBe(
+        'must read_memories for index 2 before updating',
+      )
+    })
+
+    it('update_memory should allow updating multiple indices after batch read', async () => {
+      const store = createStubMemoryStore()
+      const tools = createTools({ memoryStore: store })
+
+      await getTool(tools, 'read_memories').execute({ indices: [0, 2, 5] })
+      const r1 = await getTool(tools, 'update_memory').execute({
+        index: 0,
+        description: 'slot 0',
+        content: 'content 0',
+      })
+      const r2 = await getTool(tools, 'update_memory').execute({
+        index: 5,
+        description: 'slot 5',
+        content: 'content 5',
+      })
+      expect(r1).toEqual({ success: true })
+      expect(r2).toEqual({ success: true })
+      expect(store.update).toHaveBeenCalledTimes(2)
     })
 
     it('update_memory should return error on failure', async () => {

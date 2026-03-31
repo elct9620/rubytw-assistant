@@ -53,7 +53,7 @@ function createMemoryTools({
       execute: async ({ indices }) => {
         try {
           const entries = await memoryStore.read(indices)
-          for (const i of indices) readIndices.add(i)
+          for (const entry of entries) readIndices.add(entry.index)
           return { entries }
         } catch {
           console.warn('Memory read failed')
