@@ -1,9 +1,21 @@
 import { injectable, inject } from 'tsyringe'
-import type { MemoryStore } from '../usecases/ports'
-import type { MemoryEntry } from '../entities/memory-entry'
+import type {
+  MemoryStore,
+  MemorySlot,
+  MemorySlotDetail,
+} from '../usecases/ports'
 import { TOKENS } from '../tokens'
 
-const KEY_PREFIX = 'memory:'
+interface StoredSlot {
+  description: string
+  content: string
+}
+
+const KV_KEY = 'memory:slots'
+
+function emptySlots(count: number): StoredSlot[] {
+  return Array.from({ length: count }, () => ({ description: '', content: '' }))
+}
 
 @injectable()
 export class KVMemoryStoreAdapter implements MemoryStore {
@@ -13,34 +25,17 @@ export class KVMemoryStoreAdapter implements MemoryStore {
     @inject(TOKENS.MemoryDescriptionLimit) private descriptionLimit: number,
   ) {}
 
-  async list(): Promise<{ index: number; description: string }[]> {
-    const slots = await Promise.all(
-      Array.from({ length: this.entryLimit }, (_, i) =>
-        this.kv.get<MemoryEntry>(`${KEY_PREFIX}${i}`, 'json').then((entry) => ({
-          index: i,
-          description: entry?.description ?? '',
-        })),
-      ),
-    )
-    return slots
+  async list(): Promise<MemorySlot[]> {
+    const slots = await this.loadSlots()
+    return slots.map((s, i) => ({ index: i, description: s.description }))
   }
 
-  async read(
-    indices: number[],
-  ): Promise<{ index: number; description: string; content: string }[]> {
-    return Promise.all(
-      indices.map(async (i) => {
-        const entry = await this.kv.get<MemoryEntry>(
-          `${KEY_PREFIX}${i}`,
-          'json',
-        )
-        return {
-          index: i,
-          description: entry?.description ?? '',
-          content: entry?.content ?? '',
-        }
-      }),
-    )
+  async read(indices: number[]): Promise<MemorySlotDetail[]> {
+    const slots = await this.loadSlots()
+    return indices.map((i) => {
+      const slot = slots[i] ?? { description: '', content: '' }
+      return { index: i, description: slot.description, content: slot.content }
+    })
   }
 
   async update(
@@ -58,12 +53,19 @@ export class KVMemoryStoreAdapter implements MemoryStore {
       )
     }
 
+    const slots = await this.loadSlots()
+
     if (content === '') {
-      await this.kv.delete(`${KEY_PREFIX}${index}`)
-      return
+      slots[index] = { description: '', content: '' }
+    } else {
+      slots[index] = { description, content }
     }
 
-    const entry: MemoryEntry = { description, content }
-    await this.kv.put(`${KEY_PREFIX}${index}`, JSON.stringify(entry))
+    await this.kv.put(KV_KEY, JSON.stringify(slots))
+  }
+
+  private async loadSlots(): Promise<StoredSlot[]> {
+    const data = await this.kv.get<StoredSlot[]>(KV_KEY, 'json')
+    return data ?? emptySlots(this.entryLimit)
   }
 }

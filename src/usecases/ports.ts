@@ -1,5 +1,6 @@
 import type { TopicGroup } from '../entities/topic-group'
 import type { ActionItem } from '../entities/action-item'
+
 export interface IssueFilter {
   state?: 'OPEN' | 'CLOSED'
   dueDateFrom?: string
@@ -35,10 +36,17 @@ export interface SummaryPresenter {
   present(result: SummaryResult): Promise<void>
 }
 
+export interface MemorySlot {
+  index: number
+  description: string
+}
+
+export interface MemorySlotDetail extends MemorySlot {
+  content: string
+}
+
 export interface MemoryStore {
-  list(): Promise<{ index: number; description: string }[]>
-  read(
-    indices: number[],
-  ): Promise<{ index: number; description: string; content: string }[]>
+  list(): Promise<MemorySlot[]>
+  read(indices: number[]): Promise<MemorySlotDetail[]>
   update(index: number, description: string, content: string): Promise<void>
 }
