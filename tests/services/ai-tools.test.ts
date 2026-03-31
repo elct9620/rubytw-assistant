@@ -181,13 +181,9 @@ describe('createAITools', () => {
 
       await getTool(tools, 'github_get_issues').execute({
         state: 'OPEN',
-        dueDateFrom: '2026-03-01',
-        dueDateTo: '2026-03-31',
       })
       expect(getIssues).toHaveBeenCalledWith({
         state: 'OPEN',
-        dueDateFrom: '2026-03-01',
-        dueDateTo: '2026-03-31',
       })
     })
 

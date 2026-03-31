@@ -21,7 +21,6 @@ interface ProjectItemNode {
 interface FieldValueNode {
   __typename?: string
   name?: string
-  date?: string
   field?: { name: string }
 }
 
@@ -43,7 +42,6 @@ export interface FormattedIssue {
   labels: string[]
   assignees: string[]
   status: string | null
-  dueDate: string | null
 }
 
 const PROJECT_ITEMS_QUERY = `
@@ -70,10 +68,6 @@ const PROJECT_ITEMS_QUERY = `
                   name
                   field { ... on ProjectV2FieldCommon { name } }
                 }
-                ... on ProjectV2ItemFieldDateValue {
-                  date
-                  field { ... on ProjectV2FieldCommon { name } }
-                }
               }
             }
           }
@@ -92,15 +86,6 @@ function extractStatus(fieldValues: FieldValueNode[]): string | null {
   return statusField?.name ?? null
 }
 
-function extractDueDate(fieldValues: FieldValueNode[]): string | null {
-  const dateField = fieldValues.find(
-    (fv) =>
-      fv.__typename === 'ProjectV2ItemFieldDateValue' &&
-      fv.field?.name === 'Due',
-  )
-  return dateField?.date ?? null
-}
-
 export function formatIssueToXml(issue: FormattedIssue): string {
   const parts = [
     `<issue number="${issue.number}" state="${issue.state}" url="${issue.url}">`,
@@ -117,10 +102,6 @@ export function formatIssueToXml(issue: FormattedIssue): string {
 
   if (issue.status) {
     parts.push(`  <status>${escapeXml(issue.status)}</status>`)
-  }
-
-  if (issue.dueDate) {
-    parts.push(`  <due-date>${escapeXml(issue.dueDate)}</due-date>`)
   }
 
   parts.push('</issue>')
@@ -168,17 +149,10 @@ export class GitHubSourceAdapter implements GitHubSource {
           labels: content.labels.nodes.map((l) => l.name),
           assignees: content.assignees.nodes.map((a) => a.login),
           status: extractStatus(item.fieldValues.nodes),
-          dueDate: extractDueDate(item.fieldValues.nodes),
         }
       })
       .filter((issue) => {
         if (filter?.state && issue.state !== filter.state) return false
-        if (filter?.dueDateFrom || filter?.dueDateTo) {
-          if (!issue.dueDate) return false
-          if (filter.dueDateFrom && issue.dueDate < filter.dueDateFrom)
-            return false
-          if (filter.dueDateTo && issue.dueDate > filter.dueDateTo) return false
-        }
         return true
       })
       .map(formatIssueToXml)

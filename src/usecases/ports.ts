@@ -3,8 +3,6 @@ import type { ActionItem } from '../entities/action-item'
 
 export interface IssueFilter {
   state?: 'OPEN' | 'CLOSED'
-  dueDateFrom?: string
-  dueDateTo?: string
 }
 
 export interface GitHubSource {

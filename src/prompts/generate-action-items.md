@@ -9,7 +9,7 @@ Following tools are available to you:
 - **list_memories**: List all memory slots with their index and description.
 - **read_memories**: Read full content of specific memory slots by index.
 - **update_memory**: Write description and content to a memory slot, or clear it by writing empty content.
-- **github_get_issues**: Query GitHub Projects V2 issues to verify task status when classifying action items. Filter by state (OPEN/CLOSED) for best results — most issues have no due date set, so filtering by state alone returns the most complete results.
+- **github_get_issues**: Query GitHub Projects V2 issues to verify task status when classifying action items. Filter by state (OPEN/CLOSED) to narrow results.
 
 Use tools to get necessary information for building the action items effectively.
 

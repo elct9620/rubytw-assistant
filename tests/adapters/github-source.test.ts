@@ -176,50 +176,6 @@ describe('GitHubSourceAdapter', () => {
     expect(result[0]).toContain('<title>Open Issue</title>')
   })
 
-  it('should filter issues by due date range', async () => {
-    const graphql = vi.fn().mockResolvedValue(
-      makeProjectResponse([
-        {
-          content: makeIssueContent({ title: 'Due Soon', number: 1 }),
-          fieldValues: {
-            nodes: [
-              {
-                __typename: 'ProjectV2ItemFieldDateValue',
-                date: '2026-03-15',
-                field: { name: 'Due' },
-              },
-            ],
-          },
-        },
-        {
-          content: makeIssueContent({ title: 'Due Later', number: 2 }),
-          fieldValues: {
-            nodes: [
-              {
-                __typename: 'ProjectV2ItemFieldDateValue',
-                date: '2026-05-01',
-                field: { name: 'Due' },
-              },
-            ],
-          },
-        },
-        {
-          content: makeIssueContent({ title: 'No Due Date', number: 3 }),
-        },
-      ]),
-    )
-
-    const adapter = createAdapter(graphql)
-    const result = await adapter.getIssues({
-      dueDateFrom: '2026-03-01',
-      dueDateTo: '2026-03-31',
-    })
-
-    expect(result).toHaveLength(1)
-    expect(result[0]).toContain('<title>Due Soon</title>')
-    expect(result[0]).toContain('<due-date>2026-03-15</due-date>')
-  })
-
   it('should return all issues when no filter is provided', async () => {
     const graphql = vi.fn().mockResolvedValue(
       makeProjectResponse([
@@ -237,71 +193,6 @@ describe('GitHubSourceAdapter', () => {
 
     expect(result).toHaveLength(2)
   })
-
-  it('should apply state and due date filters together', async () => {
-    const graphql = vi.fn().mockResolvedValue(
-      makeProjectResponse([
-        {
-          content: makeIssueContent({
-            title: 'Open Due Soon',
-            number: 1,
-            state: 'OPEN',
-          }),
-          fieldValues: {
-            nodes: [
-              {
-                __typename: 'ProjectV2ItemFieldDateValue',
-                date: '2026-03-20',
-                field: { name: 'Due' },
-              },
-            ],
-          },
-        },
-        {
-          content: makeIssueContent({
-            title: 'Closed Due Soon',
-            number: 2,
-            state: 'CLOSED',
-          }),
-          fieldValues: {
-            nodes: [
-              {
-                __typename: 'ProjectV2ItemFieldDateValue',
-                date: '2026-03-25',
-                field: { name: 'Due' },
-              },
-            ],
-          },
-        },
-        {
-          content: makeIssueContent({
-            title: 'Open Due Later',
-            number: 3,
-            state: 'OPEN',
-          }),
-          fieldValues: {
-            nodes: [
-              {
-                __typename: 'ProjectV2ItemFieldDateValue',
-                date: '2026-05-01',
-                field: { name: 'Due' },
-              },
-            ],
-          },
-        },
-      ]),
-    )
-
-    const adapter = createAdapter(graphql)
-    const result = await adapter.getIssues({
-      state: 'OPEN',
-      dueDateFrom: '2026-03-01',
-      dueDateTo: '2026-03-31',
-    })
-
-    expect(result).toHaveLength(1)
-    expect(result[0]).toContain('<title>Open Due Soon</title>')
-  })
 })
 
 describe('formatIssueToXml', () => {
@@ -314,7 +205,6 @@ describe('formatIssueToXml', () => {
       labels: ['bug'],
       assignees: ['alice'],
       status: 'Todo',
-      dueDate: '2026-04-01',
     })
 
     expect(xml).toContain('<issue number="10"')
@@ -324,10 +214,9 @@ describe('formatIssueToXml', () => {
     expect(xml).toContain('<labels>bug</labels>')
     expect(xml).toContain('<assignees>alice</assignees>')
     expect(xml).toContain('<status>Todo</status>')
-    expect(xml).toContain('<due-date>2026-04-01</due-date>')
   })
 
-  it('should omit labels, assignees, status, and due-date when empty or null', () => {
+  it('should omit labels, assignees, and status when empty or null', () => {
     const xml = formatIssueToXml({
       title: 'No Labels',
       number: 1,
@@ -336,13 +225,11 @@ describe('formatIssueToXml', () => {
       labels: [],
       assignees: [],
       status: null,
-      dueDate: null,
     })
 
     expect(xml).not.toContain('<labels>')
     expect(xml).not.toContain('<assignees>')
     expect(xml).not.toContain('<status>')
-    expect(xml).not.toContain('<due-date>')
   })
 
   it('should escape XML special characters', () => {
@@ -354,7 +241,6 @@ describe('formatIssueToXml', () => {
       labels: [],
       assignees: [],
       status: null,
-      dueDate: null,
     })
 
     expect(xml).toContain(

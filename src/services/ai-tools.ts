@@ -101,25 +101,11 @@ function createGitHubTools({ githubSource }: AIToolsDeps): ToolSet {
           .enum(['OPEN', 'CLOSED'])
           .optional()
           .describe('Filter issues by state. Returns all if omitted.'),
-        dueDateFrom: z
-          .string()
-          .optional()
-          .describe(
-            'Filter issues with due date on or after this date (YYYY-MM-DD). Issues without due date are excluded when set.',
-          ),
-        dueDateTo: z
-          .string()
-          .optional()
-          .describe(
-            'Filter issues with due date on or before this date (YYYY-MM-DD). Issues without due date are excluded when set.',
-          ),
       }),
-      execute: async ({ state, dueDateFrom, dueDateTo }) => {
+      execute: async ({ state }) => {
         try {
           const filter = {
             ...(state && { state }),
-            ...(dueDateFrom && { dueDateFrom }),
-            ...(dueDateTo && { dueDateTo }),
           }
           const issues = await githubSource.getIssues(filter)
           return { issues, count: issues.length }
