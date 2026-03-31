@@ -78,33 +78,36 @@ describe('KVMemoryStoreAdapter', () => {
     it('should store entry at specified index', async () => {
       await adapter.update(0, 'test description', 'test content')
 
-      const stored = await env.MEMORY_KV.get(KV_KEY, 'json')
-      expect((stored as { description: string; content: string }[])[0]).toEqual(
-        {
-          description: 'test description',
-          content: 'test content',
-        },
-      )
+      const entries = await adapter.read([0])
+      expect(entries[0]).toEqual({
+        index: 0,
+        description: 'test description',
+        content: 'test content',
+      })
     })
 
     it('should overwrite existing entry', async () => {
       await adapter.update(0, 'old', 'old content')
       await adapter.update(0, 'new', 'new content')
 
-      const stored = await env.MEMORY_KV.get(KV_KEY, 'json')
-      expect((stored as { description: string; content: string }[])[0]).toEqual(
-        { description: 'new', content: 'new content' },
-      )
+      const entries = await adapter.read([0])
+      expect(entries[0]).toEqual({
+        index: 0,
+        description: 'new',
+        content: 'new content',
+      })
     })
 
     it('should clear slot when content is empty', async () => {
       await adapter.update(0, 'test', 'test content')
       await adapter.update(0, '', '')
 
-      const stored = await env.MEMORY_KV.get(KV_KEY, 'json')
-      expect((stored as { description: string; content: string }[])[0]).toEqual(
-        { description: '', content: '' },
-      )
+      const entries = await adapter.read([0])
+      expect(entries[0]).toEqual({
+        index: 0,
+        description: '',
+        content: '',
+      })
     })
 
     it('should reject index out of range', async () => {
