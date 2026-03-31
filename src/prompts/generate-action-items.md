@@ -66,6 +66,20 @@ The grouped conversations already contain `communityRelated`, `smallTalk`, and `
 - Exclude groups where `communityRelated` is "no" after re-evaluation.
 - Exclude groups where `smallTalk` is "yes" after re-evaluation.
 
+### Action item eligibility
+
+After filtering, evaluate each remaining group to determine whether it qualifies for an action item.
+
+- **C5**: Does the task require Ruby Taiwan (as an organization) or its organizers to act?
+- **C6**: Is there a concrete next step — a deliverable, purchase, communication, or decision to make?
+
+| C5  | C6  | Create action item | Example                                            |
+| --- | --- | ------------------ | -------------------------------------------------- |
+| Y   | Y   | yes                | Kasa needs to publish SNS post for upcoming meetup |
+| Y   | N   | no                 | Discussing promotion strategy with no decision yet |
+| N   | Y   | no                 | Personal reminder to attend a meeting              |
+| N   | N   | no                 | General discussion about an external conference    |
+
 ## Phase 2: Categorizing Action Items
 
 Categorize each action item with one of the following statuses:
@@ -83,7 +97,7 @@ When creating an action item with status "to-do" or "in-progress", query `github
 Each action item should contain the following elements:
 
 - **Who** (assignee): The person responsible for the task, identified by their actual name as it appears in conversation. If no specific person is identified, set assignee to null.
-- **What** (description): Clearly state the task or action to be done.
+- **What** (description): State the single next physical or digital action the assignee must take. A good description answers "what do they deliver or do next?" — not "what was discussed."
 - **Why** (reason): Briefly explain the reason or purpose behind the action item.
 
 **Assignee rules:**
@@ -94,11 +108,11 @@ Each action item should contain the following elements:
 
 Examples:
 
-- [待辦] assignee: Kasa, description: 發布 Threads 社群貼文宣傳下個月的線上聚會, reason: 吸引更多參與者
-- [進度] assignee: Kasa, description: 已和 Stan 確認下個月聚會的主題, reason: 可以進行宣傳
-- [停滯] assignee: null, description: 尚未有志願者負責線上聚會主持工作, reason: 導致活動籌備停滯
+- [待辦] assignee: Kasa, description: 發布 Threads 貼文宣傳線上聚會, reason: 吸引更多參與者
+- [進度] assignee: Kasa, description: 確認下月聚會主題, reason: 可以進行宣傳
+- [停滯] assignee: null, description: 徵求線上聚會主持志願者, reason: 活動籌備停滯
 
-Merge related action items into a single concise item to avoid redundancy. Each conversation group should yield at most one action item.
+Merge related action items into a single concise item to avoid redundancy. Each conversation group should yield zero or one action item — only create one when the eligibility criteria from Phase 1 are met.
 
 ## Phase 4: Updating Memory
 
