@@ -19,8 +19,14 @@ const MAX_TOOL_STEPS = 5
 const TopicGroupSchema = z.object({
   topic: z.string().describe('topic title'),
   summary: z.string().describe('topic summary'),
-  communityRelated: z.enum(['yes', 'no']).describe('whether community related'),
-  smallTalk: z.enum(['yes', 'no']).describe('whether small talk'),
+  communityRelated: z
+    .enum(['yes', 'no'])
+    .describe('whether related to Ruby Taiwan community operations'),
+  smallTalk: z
+    .enum(['yes', 'no'])
+    .describe(
+      'whether casual conversation without actionable content for Ruby Taiwan',
+    ),
   lostContext: z.enum(['yes', 'no']).describe('whether context is lost'),
 })
 

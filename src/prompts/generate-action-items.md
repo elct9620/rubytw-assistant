@@ -37,7 +37,7 @@ The conversation is grouped by topic and context. Identify the action items and 
 
 The grouped conversations already contain `communityRelated`, `smallTalk`, and `lostContext` attributes.
 
-- Review summary and ensure attributes are correctly assigned.
+- Review summary and ensure attributes are correctly assigned. In particular, verify that `communityRelated` reflects Ruby Taiwan's own operations — discussions about external events or other communities should be "no" unless Ruby Taiwan has a concrete task to act on.
 - Review bot user messages for context only.
 - Exclude groups where `communityRelated` is "no".
 - Exclude groups where `smallTalk` is "yes".
