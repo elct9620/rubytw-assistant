@@ -1,50 +1,57 @@
 {
-  "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "rubytw-assistant",
-  "main": "src/index.ts",
-  "compatibility_date": "2026-03-27",
-  "compatibility_flags": ["nodejs_compat"],
-  "rules": [
-    {
-      "type": "Text",
-      "globs": ["**/*.md"],
-      "fallthrough": true,
-    },
-  ],
-  "vars": {
-    "SUMMARY_HOURS": "24",
-    "SUMMARY_ITEM_LIMIT": "30",
-    "AI_MODEL": "gpt-5.4-nano",
-    "CF_ACCOUNT_ID": "614fcd230e7a893b205fd36259d9aff3",
-    "AI_GATEWAY_ID": "rubytw-assistant",
-    "MEMORY_ENTRY_LIMIT": "32",
-    "MEMORY_DESCRIPTION_LIMIT": "128",
-    "GITHUB_ORG": "rubytw",
-    "GITHUB_PROJECT_NUMBER": "1",
-    "DEBUG": "false",
-    "ENVIRONMENT": "production",
-    "LANGFUSE_BASE_URL": "https://us.cloud.langfuse.com",
-  },
-  "kv_namespaces": [
-    {
-      "binding": "MEMORY_KV",
-    },
-  ],
-  "observability": {
-    "enabled": true,
-    "head_sampling_rate": 1,
-  },
-  "triggers": {
-    "crons": ["0 16 * * *"],
-  },
-  // Secrets (set via `wrangler secret put`):
-  // - DISCORD_PUBLIC_KEY
-  // - DISCORD_BOT_TOKEN
-  // - DISCORD_CHANNEL_ID
-  // - GITHUB_APP_ID
-  // - GITHUB_PRIVATE_KEY
-  // - GITHUB_INSTALLATION_ID
-  // - CF_AIG_TOKEN
-  // - LANGFUSE_PUBLIC_KEY (optional)
-  // - LANGFUSE_SECRET_KEY (optional)
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "rubytw-assistant",
+	"main": "src/index.ts",
+	"compatibility_date": "2026-03-27",
+	"compatibility_flags": [
+		"nodejs_compat"
+	],
+	"rules": [
+		{
+			"type": "Text",
+			"globs": [
+				"**/*.md"
+			],
+			"fallthrough": true,
+		},
+	],
+	"vars": {
+		"SUMMARY_HOURS": "24",
+		"SUMMARY_ITEM_LIMIT": "30",
+		"AI_MODEL": "gpt-5.4-nano",
+		"CF_ACCOUNT_ID": "614fcd230e7a893b205fd36259d9aff3",
+		"AI_GATEWAY_ID": "rubytw-assistant",
+		"MEMORY_ENTRY_LIMIT": "32",
+		"MEMORY_DESCRIPTION_LIMIT": "128",
+		"GITHUB_ORG": "rubytw",
+		"GITHUB_PROJECT_NUMBER": "1",
+		"DEBUG": "false",
+		"ENVIRONMENT": "production",
+		"LANGFUSE_BASE_URL": "https://us.cloud.langfuse.com",
+	},
+	"kv_namespaces": [
+		{
+			"binding": "MEMORY_KV",
+			"id": "9dcf2589f66143aa8ed7128177d76d19",
+		},
+	],
+	"observability": {
+		"enabled": true,
+		"head_sampling_rate": 1,
+	},
+	"triggers": {
+		"crons": [
+			"0 16 * * *"
+		],
+	},
+	// Secrets (set via `wrangler secret put`):
+	// - DISCORD_PUBLIC_KEY
+	// - DISCORD_BOT_TOKEN
+	// - DISCORD_CHANNEL_ID
+	// - GITHUB_APP_ID
+	// - GITHUB_PRIVATE_KEY
+	// - GITHUB_INSTALLATION_ID
+	// - CF_AIG_TOKEN
+	// - LANGFUSE_PUBLIC_KEY (optional)
+	// - LANGFUSE_SECRET_KEY (optional)
 }
