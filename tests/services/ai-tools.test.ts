@@ -116,10 +116,11 @@ describe('createAITools', () => {
       expect(result.entries).toEqual([])
     })
 
-    it('update_memory should call store.update', async () => {
+    it('update_memory should call store.update after reading the same index', async () => {
       const store = createStubMemoryStore()
       const tools = createTools({ memoryStore: store })
 
+      await getTool(tools, 'read_memories').execute({ indices: [0] })
       const result = await getTool(tools, 'update_memory').execute({
         index: 0,
         description: 'test slot',
@@ -129,15 +130,44 @@ describe('createAITools', () => {
       expect(store.update).toHaveBeenCalledWith(0, 'test slot', 'test content')
     })
 
-    it('update_memory should return error on failure', async () => {
-      const tools = createTools({
-        memoryStore: createStubMemoryStore({
-          update: vi
-            .fn()
-            .mockRejectedValue(new Error('Index 99 out of range (0..31)')),
-        }),
-      })
+    it('update_memory should reject when index was not read first', async () => {
+      const tools = createTools()
 
+      const result = await getTool(tools, 'update_memory').execute({
+        index: 3,
+        description: 'test',
+        content: 'content',
+      })
+      expect(result.success).toBe(false)
+      expect(result.error).toBe(
+        'must read_memories for index 3 before updating',
+      )
+    })
+
+    it('update_memory should reject when a different index was read', async () => {
+      const tools = createTools()
+
+      await getTool(tools, 'read_memories').execute({ indices: [0] })
+      const result = await getTool(tools, 'update_memory').execute({
+        index: 1,
+        description: 'test',
+        content: 'content',
+      })
+      expect(result.success).toBe(false)
+      expect(result.error).toBe(
+        'must read_memories for index 1 before updating',
+      )
+    })
+
+    it('update_memory should return error on failure', async () => {
+      const store = createStubMemoryStore({
+        update: vi
+          .fn()
+          .mockRejectedValue(new Error('Index 99 out of range (0..31)')),
+      })
+      const tools = createTools({ memoryStore: store })
+
+      await getTool(tools, 'read_memories').execute({ indices: [99] })
       const result = await getTool(tools, 'update_memory').execute({
         index: 99,
         description: 'd',

@@ -19,6 +19,8 @@ function createMemoryTools({
   memoryEntryLimit,
   memoryDescriptionLimit,
 }: AIToolsDeps): ToolSet {
+  const readIndices = new Set<number>()
+
   return {
     list_memories: tool({
       description:
@@ -51,6 +53,7 @@ function createMemoryTools({
       execute: async ({ indices }) => {
         try {
           const entries = await memoryStore.read(indices)
+          for (const i of indices) readIndices.add(i)
           return { entries }
         } catch {
           console.warn('Memory read failed')
@@ -76,6 +79,12 @@ function createMemoryTools({
           .describe('the information to store, or empty string to clear'),
       }),
       execute: async ({ index, description, content }) => {
+        if (!readIndices.has(index)) {
+          return {
+            success: false,
+            error: `must read_memories for index ${index} before updating`,
+          }
+        }
         try {
           await memoryStore.update(index, description, content)
           return { success: true }
