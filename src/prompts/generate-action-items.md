@@ -35,12 +35,37 @@ The conversation is grouped by topic and context. Identify the action items and 
 
 ## Phase 1: Filtering Relevant Conversations
 
-The grouped conversations already contain `communityRelated`, `smallTalk`, and `lostContext` attributes.
+The grouped conversations already contain `communityRelated`, `smallTalk`, and `lostContext` attributes. These were assigned permissively — you must re-evaluate each group using the decision tables below before generating action items.
 
-- Review summary and ensure attributes are correctly assigned. In particular, verify that `communityRelated` reflects Ruby Taiwan's own operations — discussions about external events or other communities should be "no" unless Ruby Taiwan has a concrete task to act on.
+### Re-evaluate `communityRelated`
+
+- **C1**: Is Ruby Taiwan the organizer of this event or activity?
+- **C2**: Does the discussion involve managing Ruby Taiwan's shared resources (supplies, shared drives, social media)?
+
+| C1  | C2  | communityRelated | Example                                                                |
+| --- | --- | ---------------- | ---------------------------------------------------------------------- |
+| Y   | Y   | yes              | Ordering supplies for a Ruby Taiwan meetup                             |
+| Y   | N   | yes              | Coordinating speakers or logistics for a Ruby Taiwan event             |
+| N   | Y   | yes              | Organizing vendor info in community Google Drive                       |
+| N   | N   | no               | Members discussing personal CFP submissions, RubyKaraoke participation |
+
+### Re-evaluate `smallTalk`
+
+- **C3**: Does the discussion have actionable next steps for Ruby Taiwan?
+- **C4**: Is the content primarily social (greetings, banter, personal updates)?
+
+| C3  | C4  | smallTalk | Example                                                                                           |
+| --- | --- | --------- | ------------------------------------------------------------------------------------------------- |
+| Y   | Y   | no        | Casual tone but deciding on meetup logistics                                                      |
+| Y   | N   | no        | Task discussion with concrete next steps                                                          |
+| N   | Y   | yes       | Memes, personal complaints, singing invitations at external events                                |
+| N   | N   | no        | Members discussing personal conference plans (not actionable for Ruby Taiwan, but not small talk) |
+
+### Filtering rules
+
 - Review bot user messages for context only.
-- Exclude groups where `communityRelated` is "no".
-- Exclude groups where `smallTalk` is "yes".
+- Exclude groups where `communityRelated` is "no" after re-evaluation.
+- Exclude groups where `smallTalk` is "yes" after re-evaluation.
 
 ## Phase 2: Categorizing Action Items
 

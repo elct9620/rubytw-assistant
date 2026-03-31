@@ -45,9 +45,11 @@ Identify and group related messages together based on their context and topics d
 
 ## Phase 3: Creating Meta Information
 
-- Is the conversation related to **Ruby Taiwan community operations**? e.g. organizing Ruby Taiwan events, social media promotion for Ruby Taiwan, coordinating community tasks. Discussions about external events or other communities (e.g. RubyKaigi, RubyKaraoke, COSCUP) are only community-related if Ruby Taiwan has a concrete action to take (e.g. submitting a CFP, arranging group travel, sponsorship).
-- Is the conversation casual without actionable content for Ruby Taiwan? e.g. personal updates, greetings, chatting about external events with no follow-up task, social banter between members.
-- Is the conversation lost context due to long time gap? e.g. previous messages that are not included here.
+This channel is used by Ruby Taiwan community organizers. Prefer creating more fine-grained groups over merging loosely related topics. Classification at this stage should be permissive — when in doubt, mark `communityRelated` as "yes" and let the action item phase apply stricter filtering.
+
+- `communityRelated`: Does the topic relate to Ruby Taiwan operations or activities the community cares about? Mark "yes" broadly; only mark "no" for clearly personal matters or pure social chat.
+- `smallTalk`: Is the content primarily social with no discussion substance? Mark "yes" only for greetings, banter, memes, or emotional venting. Discussions about external events or personal plans are "no" — they have substance even if not actionable for Ruby Taiwan.
+- `lostContext`: Mark "yes" when the conversation references previous messages not included in today's records, making intent unclear.
 
 ## Phase 4: Identifying References
 
