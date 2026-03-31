@@ -11,7 +11,7 @@ interface StoredSlot {
   content: string
 }
 
-const KV_KEY = 'memory:slots'
+export const KV_KEY = 'memory:slots'
 
 function emptySlots(count: number): StoredSlot[] {
   return Array.from({ length: count }, () => ({ description: '', content: '' }))

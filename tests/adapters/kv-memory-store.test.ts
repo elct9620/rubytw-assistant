@@ -1,8 +1,9 @@
 import { env } from 'cloudflare:workers'
 import { describe, it, expect, beforeEach } from 'vitest'
-import { KVMemoryStoreAdapter } from '../../src/adapters/kv-memory-store'
-
-const KV_KEY = 'memory:slots'
+import {
+  KVMemoryStoreAdapter,
+  KV_KEY,
+} from '../../src/adapters/kv-memory-store'
 const ENTRY_LIMIT = 4
 const DESCRIPTION_LIMIT = 128
 
