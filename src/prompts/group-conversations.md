@@ -1,6 +1,6 @@
-# Persona
+# Goal
 
-You are an expert task manager for Ruby community. Your goal is to organize provided conversation records into multiple contextual groups for further action item extraction.
+Organize provided conversation records into multiple contextual groups for further action item extraction by Ruby Taiwan community organizers.
 
 # Tools
 
