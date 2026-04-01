@@ -49,6 +49,26 @@ pnpm vitest run tests/index.test.ts
 
 Dependencies point inward: handlers/services/adapters → usecases. Port interfaces are defined in the use case layer (`usecases/ports.ts`), not in handlers, services, or adapters.
 
+### Request Lifecycle
+
+Handlers create a **child container** per request/cron trigger via `container.createChildContainer()` for isolation. The flow:
+
+1. Handler creates child container
+2. `setupTrace()` creates a Langfuse tracer (if configured), populates `RequestContext` with `traceId`, and registers it in the child container
+3. Use case is resolved from child container, executed, and result presented
+4. `finally` block flushes telemetry via `tracer.shutdown()`
+
+### Telemetry (Langfuse)
+
+- **Optional**: telemetry activates only when both `LANGFUSE_PUBLIC_KEY` and `LANGFUSE_SECRET_KEY` are present; otherwise `createTelemetryContext()` returns `{}`
+- `LangfuseTelemetryIntegration` implements the AI SDK's `TelemetryIntegration` interface, hooking into `onStart`, `onStepFinish`, `onToolCallStart/Finish`, etc.
+- Traces form a hierarchy: trace → agent → generation → tool spans
+- `src/context.ts` defines `RequestContext` (with optional `traceId`) — a per-request value registered in the child container, not a singleton
+
+### Prompt Templates
+
+Markdown files in `src/prompts/` are imported as strings via a custom type declaration (`text-modules.d.ts` + wrangler text rule). Templates use `{{variable}}` placeholders replaced via string interpolation in services.
+
 ### DI Container (tsyringe)
 
 The project uses tsyringe for dependency injection. Env bindings are accessed at module scope via `import { env } from 'cloudflare:workers'` and registered as values. Use cases are registered with `useFactory` so they receive plain dep objects (no DI decorators on use case classes).
@@ -80,8 +100,9 @@ Tests use `cloudflare:test` helpers for the Workers runtime environment:
 - `env` — provides bindings defined in `wrangler.jsonc`
 - `createScheduledController()` / `createExecutionContext()` / `waitOnExecutionContext()` — for testing scheduled handlers
 - Tests import the worker and call `worker.fetch()` / `worker.scheduled()` directly (not `app.request()`)
-- Use case tests use stub implementations of port interfaces, not the Workers test helpers
+- Use case tests use stub implementations of port interfaces (stubs in `tests/services/stubs.ts`), not the Workers test helpers
 - **MSW (Mock Service Worker)** intercepts external HTTP calls in tests. A global MSW server is set up in `tests/setup.ts` with `onUnhandledRequest: 'error'` — any unmocked external request will fail the test. Add per-test handlers via `server.use()` from `tests/msw-server.ts`.
+- Tests call `container.clearInstances()` before each test to reset DI state
 
 ## Key Conventions
 
@@ -90,3 +111,8 @@ Tests use `cloudflare:test` helpers for the Workers runtime environment:
 - ESLint ignores `dist/`, `.wrangler/`, and `worker-configuration.d.ts`
 - Production secrets are deployed via `wrangler secret put`; local secrets go in `.dev.vars` (see Configuration Files above)
 - Cron trigger runs at `0 16 * * *` UTC (midnight Taiwan time, UTC+8)
+- Services use AI SDK's `generateText()` with Zod schemas for structured output extraction
+- Services constrain AI tool loops with `stepCountIs(MAX_TOOL_STEPS)`
+- AI model is created via `createAIModel(config)` which chains through AI Gateway
+- Debug endpoint at `/debug/summary?channel_id=X&hours=Y` for dev-only summary previews
+- Compatibility flag `nodejs_compat` is enabled for crypto API support
