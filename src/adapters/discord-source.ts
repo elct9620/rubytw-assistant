@@ -81,9 +81,11 @@ export class DiscordSourceAdapter implements DiscordSource {
     const sinceMs = BigInt(Date.now() - hours * 3600 * 1000)
     let afterSnowflake = String((sinceMs - DISCORD_EPOCH) << 22n)
     const collected: DiscordMessage[] = []
+    let totalFetched = 0
 
     for (let page = 0; page < MAX_PAGES; page++) {
       const batch = await this.fetchMessages(afterSnowflake)
+      totalFetched += batch.length
       for (const msg of batch) {
         if (msg.content) {
           collected.push(msg)
@@ -92,6 +94,13 @@ export class DiscordSourceAdapter implements DiscordSource {
 
       if (batch.length < MAX_MESSAGES_PER_REQUEST) break
       afterSnowflake = batch[batch.length - 1].id
+    }
+
+    if (totalFetched > 0 && collected.length === 0) {
+      console.warn(
+        `Discord returned ${totalFetched} messages but all had empty content. ` +
+          'Ensure the MESSAGE_CONTENT privileged intent is enabled in the Discord Developer Portal.',
+      )
     }
 
     return collected.map(formatMessageToXml)
@@ -105,7 +114,7 @@ export class DiscordSourceAdapter implements DiscordSource {
       },
     })
 
-    assertDiscordResponse(response)
+    await assertDiscordResponse(response)
 
     return (await response.json()) as DiscordMessage[]
   }

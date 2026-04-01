@@ -1,13 +1,19 @@
 import { http, HttpResponse } from 'msw'
-import { describe, it, expect, vi, afterEach } from 'vitest'
+import { container } from 'tsyringe'
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import {
   DiscordSourceAdapter,
   formatMessageToXml,
 } from '../../src/adapters/discord-source'
+import { TOKENS } from '../../src/tokens'
 import { server } from '../msw-server'
 
 const DISCORD_EPOCH = 1420070400000n
 const MESSAGES_URL = 'https://discord.com/api/v10/channels/channel-123/messages'
+
+beforeEach(() => {
+  container.clearInstances()
+})
 
 function makeMessage(
   id: string,
@@ -93,21 +99,41 @@ describe('DiscordSourceAdapter', () => {
     expect(result[1]).toContain('<content>world</content>')
   })
 
-  it('should throw error when API returns non-ok response', async () => {
+  it('should throw error with response body when API returns non-ok response', async () => {
     server.use(
       http.get(MESSAGES_URL, () => {
-        return new HttpResponse(null, {
-          status: 403,
-          statusText: 'Forbidden',
-        })
+        return HttpResponse.json(
+          { code: 50001, message: 'Missing Access' },
+          { status: 403, statusText: 'Forbidden' },
+        )
       }),
     )
 
     const adapter = new DiscordSourceAdapter('bot-token', 'channel-123')
 
     await expect(adapter.getChannelMessages(24)).rejects.toThrow(
-      'Discord API error: 403 Forbidden',
+      /Discord API error: 403 Forbidden.*Missing Access/,
     )
+  })
+
+  it('should warn when messages are returned but all have empty content', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+
+    server.use(
+      http.get(MESSAGES_URL, () => {
+        return HttpResponse.json([makeMessage('1', ''), makeMessage('2', '')])
+      }),
+    )
+
+    const adapter = new DiscordSourceAdapter('bot-token', 'channel-123')
+    const result = await adapter.getChannelMessages(24)
+
+    expect(result).toHaveLength(0)
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('MESSAGE_CONTENT'),
+    )
+
+    warnSpy.mockRestore()
   })
 
   it('should paginate when API returns 100 messages', async () => {
@@ -258,5 +284,29 @@ describe('formatMessageToXml', () => {
     const xml = formatMessageToXml(msg)
 
     expect(xml).not.toContain('<mentions')
+  })
+})
+
+describe('DiscordSourceAdapter DI integration', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('should resolve from container and fetch messages via Discord API', async () => {
+    server.use(
+      http.get(MESSAGES_URL, () => {
+        return HttpResponse.json([makeMessage('1', 'hello from DI')])
+      }),
+    )
+
+    const child = container.createChildContainer()
+    child.register(TOKENS.DiscordBotToken, { useValue: 'di-test-token' })
+    child.register(TOKENS.DiscordChannelId, { useValue: 'channel-123' })
+    const adapter = child.resolve(DiscordSourceAdapter)
+
+    const result = await adapter.getChannelMessages(24)
+
+    expect(result).toHaveLength(1)
+    expect(result[0]).toContain('<content>hello from DI</content>')
   })
 })

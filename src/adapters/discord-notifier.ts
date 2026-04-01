@@ -20,6 +20,6 @@ export class DiscordNotifierAdapter implements DiscordNotifier {
       },
     )
 
-    assertDiscordResponse(response)
+    await assertDiscordResponse(response)
   }
 }

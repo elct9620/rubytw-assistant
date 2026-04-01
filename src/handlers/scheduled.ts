@@ -25,6 +25,10 @@ export async function scheduledHandler(
     const result = await usecase.execute(hours)
     await presenter.present(result)
   } finally {
-    await tracer?.flush()
+    try {
+      await tracer?.flush()
+    } catch (flushError) {
+      console.error('Failed to flush telemetry trace:', flushError)
+    }
   }
 }

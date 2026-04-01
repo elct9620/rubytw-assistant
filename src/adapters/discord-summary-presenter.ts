@@ -8,6 +8,7 @@ import { formatActionItems } from '../entities/action-item'
 import { TOKENS } from '../tokens'
 
 const MAX_ACTION_ITEMS = 30
+const DISCORD_MAX_CONTENT_LENGTH = 2000
 const NO_ACTION_ITEMS_NOTICE = '本次摘要期間內無待辦事項。'
 
 @injectable()
@@ -24,7 +25,24 @@ export class DiscordSummaryPresenter implements SummaryPresenter {
     }
 
     const capped = result.actionItems.slice(0, MAX_ACTION_ITEMS)
-    const summary = formatActionItems(capped)
-    await this.notifier.sendMessage(this.channelId, summary)
+    const lines = formatActionItems(capped).split('\n')
+
+    const chunks: string[] = []
+    let current = ''
+
+    for (const line of lines) {
+      const next = current ? `${current}\n${line}` : line
+      if (next.length > DISCORD_MAX_CONTENT_LENGTH && current) {
+        chunks.push(current)
+        current = line
+      } else {
+        current = next
+      }
+    }
+    if (current) chunks.push(current)
+
+    for (const chunk of chunks) {
+      await this.notifier.sendMessage(this.channelId, chunk)
+    }
   }
 }

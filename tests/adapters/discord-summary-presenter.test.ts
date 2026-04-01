@@ -1,8 +1,15 @@
-import { describe, it, expect, vi } from 'vitest'
+import { http, HttpResponse } from 'msw'
+import { container } from 'tsyringe'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { DiscordSummaryPresenter } from '../../src/adapters/discord-summary-presenter'
+import { DiscordNotifierAdapter } from '../../src/adapters/discord-notifier'
+import { TOKENS } from '../../src/tokens'
 import type { SummaryResult } from '../../src/usecases/ports'
 import type { ActionItem } from '../../src/entities/action-item'
 import type { TopicGroup } from '../../src/entities/topic-group'
+import { server } from '../msw-server'
+
+const MESSAGES_URL = 'https://discord.com/api/v10/channels/channel-123/messages'
 
 function createMockNotifier() {
   return {
@@ -24,6 +31,10 @@ const sampleActionItem: ActionItem = {
   assignee: 'Alice',
   reason: '官網資訊過舊',
 }
+
+beforeEach(() => {
+  container.clearInstances()
+})
 
 describe('DiscordSummaryPresenter', () => {
   it('should send formatted action items to the channel', async () => {
@@ -78,8 +89,103 @@ describe('DiscordSummaryPresenter', () => {
 
     await presenter.present(result)
 
-    const sentMessage = notifier.sendMessage.mock.calls[0][1]
-    const lines = sentMessage.split('\n')
-    expect(lines).toHaveLength(30)
+    const allLines = notifier.sendMessage.mock.calls
+      .map((call) => (call as [string, string])[1])
+      .join('\n')
+      .split('\n')
+    expect(allLines).toHaveLength(30)
+  })
+
+  it('should split into multiple messages when content exceeds 2000 chars', async () => {
+    const notifier = createMockNotifier()
+    const presenter = new DiscordSummaryPresenter(notifier, 'channel-123')
+
+    const longItems: ActionItem[] = Array.from({ length: 30 }, (_, i) => ({
+      status: 'to-do' as const,
+      description: `長任務描述第${i + 1}項${'詳'.repeat(40)}`,
+      assignee: `負責人${i + 1}`,
+      reason: `原因說明需要足夠長${'補'.repeat(40)}`,
+    }))
+
+    const result: SummaryResult = {
+      topicGroups: [actionableGroup],
+      actionItems: longItems,
+    }
+
+    await presenter.present(result)
+
+    expect(notifier.sendMessage.mock.calls.length).toBeGreaterThan(1)
+    for (const call of notifier.sendMessage.mock.calls) {
+      expect((call as [string, string])[1].length).toBeLessThanOrEqual(2000)
+    }
+  })
+})
+
+describe('DiscordSummaryPresenter DI integration', () => {
+  it('should resolve full Presenter → Notifier chain and send via Discord API', async () => {
+    const sentMessages: string[] = []
+
+    server.use(
+      http.post(MESSAGES_URL, async ({ request }) => {
+        const body = (await request.json()) as { content: string }
+        sentMessages.push(body.content)
+        return HttpResponse.json({})
+      }),
+    )
+
+    const child = container.createChildContainer()
+    child.register(TOKENS.DiscordBotToken, { useValue: 'di-test-token' })
+    child.register(TOKENS.DiscordChannelId, { useValue: 'channel-123' })
+    child.register(TOKENS.DiscordNotifier, {
+      useClass: DiscordNotifierAdapter,
+    })
+    const presenter = child.resolve(DiscordSummaryPresenter)
+
+    const result: SummaryResult = {
+      topicGroups: [actionableGroup],
+      actionItems: [sampleActionItem],
+    }
+
+    await presenter.present(result)
+
+    expect(sentMessages).toHaveLength(1)
+    expect(sentMessages[0]).toBe('- [待辦] 更新官網 (Alice) — 官網資訊過舊')
+  })
+
+  it('should send chunked messages via Discord API when content is long', async () => {
+    const sentMessages: string[] = []
+
+    server.use(
+      http.post(MESSAGES_URL, async ({ request }) => {
+        const body = (await request.json()) as { content: string }
+        sentMessages.push(body.content)
+        return HttpResponse.json({})
+      }),
+    )
+
+    const child = container.createChildContainer()
+    child.register(TOKENS.DiscordBotToken, { useValue: 'di-test-token' })
+    child.register(TOKENS.DiscordChannelId, { useValue: 'channel-123' })
+    child.register(TOKENS.DiscordNotifier, {
+      useClass: DiscordNotifierAdapter,
+    })
+    const presenter = child.resolve(DiscordSummaryPresenter)
+
+    const longItems: ActionItem[] = Array.from({ length: 30 }, (_, i) => ({
+      status: 'to-do' as const,
+      description: `長任務描述第${i + 1}項${'詳'.repeat(40)}`,
+      assignee: `負責人${i + 1}`,
+      reason: `原因說明需要足夠長${'補'.repeat(40)}`,
+    }))
+
+    await presenter.present({
+      topicGroups: [actionableGroup],
+      actionItems: longItems,
+    })
+
+    expect(sentMessages.length).toBeGreaterThan(1)
+    for (const msg of sentMessages) {
+      expect(msg.length).toBeLessThanOrEqual(2000)
+    }
   })
 })
