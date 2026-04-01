@@ -5,7 +5,10 @@ import { DiscordSummaryPresenter } from '../../src/adapters/discord-summary-pres
 import { DiscordNotifierAdapter } from '../../src/adapters/discord-notifier'
 import { TOKENS } from '../../src/tokens'
 import type { SummaryResult } from '../../src/usecases/ports'
-import type { ActionItem } from '../../src/entities/action-item'
+import {
+  formatActionItems,
+  type ActionItem,
+} from '../../src/entities/action-item'
 import type { TopicGroup } from '../../src/entities/topic-group'
 import { server } from '../msw-server'
 
@@ -107,6 +110,9 @@ describe('DiscordSummaryPresenter', () => {
       reason: `原因說明需要足夠長${'補'.repeat(40)}`,
     }))
 
+    // Precondition: ensure test data actually exceeds Discord limit
+    expect(formatActionItems(longItems).length).toBeGreaterThan(2000)
+
     const result: SummaryResult = {
       topicGroups: [actionableGroup],
       actionItems: longItems,
@@ -118,6 +124,31 @@ describe('DiscordSummaryPresenter', () => {
     for (const call of notifier.sendMessage.mock.calls) {
       expect((call as [string, string])[1].length).toBeLessThanOrEqual(2000)
     }
+  })
+
+  it('should truncate a single action item that exceeds 2000 chars', async () => {
+    const notifier = createMockNotifier()
+    const presenter = new DiscordSummaryPresenter(notifier, 'channel-123')
+
+    const oversizedItem: ActionItem = {
+      status: 'to-do',
+      description: '任'.repeat(2000),
+      assignee: 'Alice',
+      reason: '原因',
+    }
+
+    // Precondition: single formatted line exceeds limit
+    expect(formatActionItems([oversizedItem]).length).toBeGreaterThan(2000)
+
+    await presenter.present({
+      topicGroups: [actionableGroup],
+      actionItems: [oversizedItem],
+    })
+
+    expect(notifier.sendMessage).toHaveBeenCalledOnce()
+    const sent = (notifier.sendMessage.mock.calls[0] as [string, string])[1]
+    expect(sent.length).toBeLessThanOrEqual(2000)
+    expect(sent).toMatch(/\.\.\.$/)
   })
 })
 
@@ -177,6 +208,9 @@ describe('DiscordSummaryPresenter DI integration', () => {
       assignee: `負責人${i + 1}`,
       reason: `原因說明需要足夠長${'補'.repeat(40)}`,
     }))
+
+    // Precondition: ensure test data actually exceeds Discord limit
+    expect(formatActionItems(longItems).length).toBeGreaterThan(2000)
 
     await presenter.present({
       topicGroups: [actionableGroup],

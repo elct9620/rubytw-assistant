@@ -34,7 +34,12 @@ export class DiscordSummaryPresenter implements SummaryPresenter {
       const next = current ? `${current}\n${line}` : line
       if (next.length > DISCORD_MAX_CONTENT_LENGTH && current) {
         chunks.push(current)
-        current = line
+        current =
+          line.length > DISCORD_MAX_CONTENT_LENGTH
+            ? line.slice(0, DISCORD_MAX_CONTENT_LENGTH - 3) + '...'
+            : line
+      } else if (!current && line.length > DISCORD_MAX_CONTENT_LENGTH) {
+        current = line.slice(0, DISCORD_MAX_CONTENT_LENGTH - 3) + '...'
       } else {
         current = next
       }
