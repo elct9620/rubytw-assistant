@@ -1,6 +1,6 @@
 import { injectable, inject } from 'tsyringe'
 import type { DiscordSource } from '../usecases/ports'
-import { type FetchFn, assertDiscordResponse, escapeXml } from './shared'
+import { assertDiscordResponse, escapeXml } from './shared'
 import { TOKENS } from '../tokens'
 
 const DISCORD_EPOCH = 1420070400000n
@@ -75,7 +75,6 @@ export class DiscordSourceAdapter implements DiscordSource {
   constructor(
     @inject(TOKENS.DiscordBotToken) private botToken: string,
     @inject(TOKENS.DiscordChannelId) private channelId: string,
-    private fetchFn: FetchFn = (...args) => fetch(...args),
   ) {}
 
   async getChannelMessages(hours: number): Promise<string[]> {
@@ -100,7 +99,7 @@ export class DiscordSourceAdapter implements DiscordSource {
 
   private async fetchMessages(after: string): Promise<DiscordMessage[]> {
     const url = `https://discord.com/api/v10/channels/${this.channelId}/messages?after=${after}&limit=${MAX_MESSAGES_PER_REQUEST}`
-    const response = await this.fetchFn(url, {
+    const response = await fetch(url, {
       headers: {
         Authorization: `Bot ${this.botToken}`,
       },
