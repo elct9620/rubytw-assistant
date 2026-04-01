@@ -39,6 +39,48 @@ describe('scheduledHandler', () => {
     expect(mockPresent).toHaveBeenCalledWith(result)
   })
 
+  it('should flush Langfuse trace even when use case throws', async () => {
+    let flushedBatch: unknown[] = []
+    server.use(
+      http.post(
+        'https://us.cloud.langfuse.com/api/public/ingestion',
+        async ({ request }) => {
+          const body = (await request.json()) as { batch: unknown[] }
+          flushedBatch = body.batch
+          return HttpResponse.json({ successes: [], errors: [] })
+        },
+      ),
+    )
+
+    container.register(TOKENS.LangfuseConfig, {
+      useFactory: () => ({
+        publicKey: 'pk-test',
+        secretKey: 'sk-test',
+        baseUrl: 'https://us.cloud.langfuse.com',
+        environment: 'test',
+      }),
+    })
+
+    mockExecute.mockRejectedValue(new Error('AI service failed'))
+
+    const controller = { cron: '0 16 * * *', scheduledTime: Date.now() }
+    await expect(
+      scheduledHandler(controller as ScheduledController),
+    ).rejects.toThrow('AI service failed')
+
+    expect(flushedBatch.length).toBeGreaterThan(0)
+  })
+
+  it('should re-throw presenter errors after flushing', async () => {
+    mockExecute.mockResolvedValue({ topicGroups: [], actionItems: [] })
+    mockPresent.mockRejectedValue(new Error('Discord API error'))
+
+    const controller = { cron: '0 16 * * *', scheduledTime: Date.now() }
+    await expect(
+      scheduledHandler(controller as ScheduledController),
+    ).rejects.toThrow('Discord API error')
+  })
+
   it('should flush Langfuse trace when telemetry is enabled', async () => {
     let flushedBatch: unknown[] = []
     server.use(

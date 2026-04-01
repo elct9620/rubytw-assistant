@@ -369,6 +369,80 @@ describe('LangfuseTracer', () => {
     ])
   })
 
+  it('createTool includes level in event body when provided', async () => {
+    const tracer = new LangfuseTracer({ client })
+    tracer.createTrace({ name: 'test', input: 'test' })
+
+    tracer.createTool({
+      parentId: 'gen-1',
+      name: 'github_get_issues',
+      input: {},
+      output: { error: 'query failed' },
+      startTime: '2025-01-01T00:00:00.000Z',
+      endTime: '2025-01-01T00:00:01.000Z',
+      level: 'WARNING',
+    })
+
+    await tracer.flush()
+    const batch = parseBatch()
+    const toolEvent = batch.find((e) => e.type === 'tool-create') as Record<
+      string,
+      unknown
+    >
+    expect((toolEvent.body as Record<string, unknown>).level).toBe('WARNING')
+  })
+
+  it('createTool includes statusMessage in event body when provided', async () => {
+    const tracer = new LangfuseTracer({ client })
+    tracer.createTrace({ name: 'test', input: 'test' })
+
+    tracer.createTool({
+      parentId: 'gen-1',
+      name: 'github_get_issues',
+      input: {},
+      output: { error: 'query failed' },
+      startTime: '2025-01-01T00:00:00.000Z',
+      endTime: '2025-01-01T00:00:01.000Z',
+      level: 'ERROR',
+      statusMessage: 'GraphQL request failed',
+    })
+
+    await tracer.flush()
+    const batch = parseBatch()
+    const toolEvent = batch.find((e) => e.type === 'tool-create') as Record<
+      string,
+      unknown
+    >
+    expect((toolEvent.body as Record<string, unknown>).statusMessage).toBe(
+      'GraphQL request failed',
+    )
+  })
+
+  it('createTool omits level and statusMessage when not provided', async () => {
+    const tracer = new LangfuseTracer({ client })
+    tracer.createTrace({ name: 'test', input: 'test' })
+
+    tracer.createTool({
+      parentId: 'gen-1',
+      name: 'memory_read',
+      input: {},
+      output: [],
+      startTime: '2025-01-01T00:00:00.000Z',
+      endTime: '2025-01-01T00:00:01.000Z',
+    })
+
+    await tracer.flush()
+    const batch = parseBatch()
+    const toolEvent = batch.find((e) => e.type === 'tool-create') as Record<
+      string,
+      unknown
+    >
+    expect((toolEvent.body as Record<string, unknown>).level).toBeUndefined()
+    expect(
+      (toolEvent.body as Record<string, unknown>).statusMessage,
+    ).toBeUndefined()
+  })
+
   it('setTraceId allows using existing trace', async () => {
     const tracer = new LangfuseTracer({ client })
     tracer.setTraceId('existing-trace-id')
@@ -670,5 +744,105 @@ describe('LangfuseTelemetryIntegration', () => {
     await runLifecycle(integration)
 
     expect(fetchSpy).toHaveBeenCalledOnce()
+  })
+
+  it('tool-create has level WARNING when output contains error field', async () => {
+    const integration = new LangfuseTelemetryIntegration({ tracer })
+
+    await integration.onStart!({
+      model: { provider: 'openai', modelId: 'openai/gpt-4.1-mini' },
+      prompt: 'test',
+    } as Parameters<NonNullable<typeof integration.onStart>>[0])
+
+    await integration.onStepStart!({
+      stepNumber: 0,
+      model: { provider: 'openai', modelId: 'openai/gpt-4.1-mini' },
+    } as Parameters<NonNullable<typeof integration.onStepStart>>[0])
+
+    await integration.onToolCallStart!({
+      stepNumber: 0,
+      toolCall: {
+        toolCallId: 'tc-1',
+        toolName: 'github_get_issues',
+        input: {},
+      },
+    } as Parameters<NonNullable<typeof integration.onToolCallStart>>[0])
+
+    await integration.onToolCallFinish!({
+      stepNumber: 0,
+      toolCall: {
+        toolCallId: 'tc-1',
+        toolName: 'github_get_issues',
+        input: {},
+      },
+      success: true,
+      output: { issues: [], count: 0, error: 'query failed' },
+      durationMs: 50,
+    } as Parameters<NonNullable<typeof integration.onToolCallFinish>>[0])
+
+    await integration.onStepFinish!({
+      stepNumber: 0,
+      usage: { inputTokens: 10, outputTokens: 5 },
+      text: 'done',
+      response: { modelId: 'openai/gpt-4.1-mini' },
+    } as Parameters<NonNullable<typeof integration.onStepFinish>>[0])
+
+    await integration.onFinish!({
+      text: 'done',
+      totalUsage: { inputTokens: 10, outputTokens: 5 },
+    } as Parameters<NonNullable<typeof integration.onFinish>>[0])
+
+    const toolCreate = findEvent('tool-create')
+    expect(toolCreate.body.level).toBe('WARNING')
+  })
+
+  it('tool-create has level ERROR when event.success is false', async () => {
+    const integration = new LangfuseTelemetryIntegration({ tracer })
+
+    await integration.onStart!({
+      model: { provider: 'openai', modelId: 'openai/gpt-4.1-mini' },
+      prompt: 'test',
+    } as Parameters<NonNullable<typeof integration.onStart>>[0])
+
+    await integration.onStepStart!({
+      stepNumber: 0,
+      model: { provider: 'openai', modelId: 'openai/gpt-4.1-mini' },
+    } as Parameters<NonNullable<typeof integration.onStepStart>>[0])
+
+    await integration.onToolCallStart!({
+      stepNumber: 0,
+      toolCall: {
+        toolCallId: 'tc-1',
+        toolName: 'github_get_issues',
+        input: {},
+      },
+    } as Parameters<NonNullable<typeof integration.onToolCallStart>>[0])
+
+    await integration.onToolCallFinish!({
+      stepNumber: 0,
+      toolCall: {
+        toolCallId: 'tc-1',
+        toolName: 'github_get_issues',
+        input: {},
+      },
+      success: false,
+      error: new Error('GraphQL failed'),
+      durationMs: 50,
+    } as Parameters<NonNullable<typeof integration.onToolCallFinish>>[0])
+
+    await integration.onStepFinish!({
+      stepNumber: 0,
+      usage: { inputTokens: 10, outputTokens: 5 },
+      text: 'done',
+      response: { modelId: 'openai/gpt-4.1-mini' },
+    } as Parameters<NonNullable<typeof integration.onStepFinish>>[0])
+
+    await integration.onFinish!({
+      text: 'done',
+      totalUsage: { inputTokens: 10, outputTokens: 5 },
+    } as Parameters<NonNullable<typeof integration.onFinish>>[0])
+
+    const toolCreate = findEvent('tool-create')
+    expect(toolCreate.body.level).toBe('ERROR')
   })
 })

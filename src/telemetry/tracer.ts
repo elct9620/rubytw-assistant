@@ -115,6 +115,8 @@ export class LangfuseTracer {
     startTime: string
     endTime: string
     metadata?: Record<string, unknown>
+    level?: 'DEBUG' | 'DEFAULT' | 'WARNING' | 'ERROR'
+    statusMessage?: string
   }): string {
     const id = crypto.randomUUID()
     this.emit('tool-create', {
@@ -127,6 +129,8 @@ export class LangfuseTracer {
       startTime: options.startTime,
       endTime: options.endTime,
       ...(options.metadata && { metadata: options.metadata }),
+      ...(options.level && { level: options.level }),
+      ...(options.statusMessage && { statusMessage: options.statusMessage }),
     })
     return id
   }

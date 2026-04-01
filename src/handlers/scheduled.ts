@@ -21,8 +21,10 @@ export async function scheduledHandler(
   const presenter = child.resolve<SummaryPresenter>(TOKENS.SummaryPresenter)
   const hours = child.resolve<number>(TOKENS.SummaryHours)
 
-  const result = await usecase.execute(hours)
-  await presenter.present(result)
-
-  await tracer?.flush()
+  try {
+    const result = await usecase.execute(hours)
+    await presenter.present(result)
+  } finally {
+    await tracer?.flush()
+  }
 }

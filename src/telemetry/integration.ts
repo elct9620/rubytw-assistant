@@ -81,6 +81,8 @@ export class LangfuseTelemetryIntegration implements TelemetryIntegration {
     const pending = this.pendingToolCalls.get(toolCallId)
     const parentGenerationId = this.generationIds.get(stepNumber)
 
+    const level = this.deriveToolLevel(event)
+
     this.tracer.createTool({
       parentId: parentGenerationId ?? null,
       name: event.toolCall.toolName,
@@ -92,9 +94,24 @@ export class LangfuseTelemetryIntegration implements TelemetryIntegration {
         durationMs: event.durationMs,
         success: event.success,
       },
+      ...(level && { level }),
     })
 
     this.pendingToolCalls.delete(toolCallId)
+  }
+
+  private deriveToolLevel(
+    event: OnToolCallFinishEvent<ToolSet>,
+  ): 'WARNING' | 'ERROR' | undefined {
+    if (!event.success) return 'ERROR'
+    if (
+      event.output &&
+      typeof event.output === 'object' &&
+      'error' in event.output
+    ) {
+      return 'WARNING'
+    }
+    return undefined
   }
 
   onStepFinish = async (event: OnStepFinishEvent<ToolSet>): Promise<void> => {
