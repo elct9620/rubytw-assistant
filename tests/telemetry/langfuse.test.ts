@@ -443,6 +443,120 @@ describe('LangfuseTracer', () => {
     ).toBeUndefined()
   })
 
+  it('includes environment in agent-create', async () => {
+    const tracer = new LangfuseTracer({
+      client,
+      environment: 'production',
+    })
+
+    tracer.createTrace({ name: 'test', input: 'test' })
+    tracer.createAgent({ name: 'test-agent' })
+    await tracer.flush()
+
+    const batch = parseBatch()
+    const agentCreate = batch.find((e) => e.type === 'agent-create') as Record<
+      string,
+      unknown
+    >
+    expect((agentCreate.body as Record<string, unknown>).environment).toBe(
+      'production',
+    )
+  })
+
+  it('includes environment in generation-create', async () => {
+    const tracer = new LangfuseTracer({
+      client,
+      environment: 'production',
+    })
+
+    tracer.createTrace({ name: 'test', input: 'test' })
+    const agentId = tracer.createAgent({ name: 'test-agent' })
+    tracer.createGeneration({
+      parentId: agentId,
+      name: 'step-0',
+      model: 'openai/gpt-4.1-mini',
+      input: [{ role: 'user', content: 'Hello' }],
+    })
+    await tracer.flush()
+
+    const batch = parseBatch()
+    const genCreate = batch.find(
+      (e) => e.type === 'generation-create',
+    ) as Record<string, unknown>
+    expect((genCreate.body as Record<string, unknown>).environment).toBe(
+      'production',
+    )
+  })
+
+  it('includes environment in tool-create', async () => {
+    const tracer = new LangfuseTracer({
+      client,
+      environment: 'production',
+    })
+
+    tracer.createTrace({ name: 'test', input: 'test' })
+    tracer.createTool({
+      parentId: 'gen-1',
+      name: 'memory_read',
+      input: { query: 'test' },
+      output: [{ key: 'test' }],
+      startTime: '2025-01-01T00:00:00.000Z',
+      endTime: '2025-01-01T00:00:01.000Z',
+    })
+    await tracer.flush()
+
+    const batch = parseBatch()
+    const toolCreate = batch.find((e) => e.type === 'tool-create') as Record<
+      string,
+      unknown
+    >
+    expect((toolCreate.body as Record<string, unknown>).environment).toBe(
+      'production',
+    )
+  })
+
+  it('omits environment from observations when not provided', async () => {
+    const tracer = new LangfuseTracer({ client })
+    tracer.createTrace({ name: 'test', input: 'test' })
+    tracer.createAgent({ name: 'test-agent' })
+    tracer.createGeneration({
+      parentId: null,
+      name: 'step-0',
+      input: [],
+    })
+    tracer.createTool({
+      parentId: null,
+      name: 'memory_read',
+      input: {},
+      output: [],
+      startTime: '2025-01-01T00:00:00.000Z',
+      endTime: '2025-01-01T00:00:01.000Z',
+    })
+    await tracer.flush()
+
+    const batch = parseBatch()
+    const agentCreate = batch.find((e) => e.type === 'agent-create') as Record<
+      string,
+      unknown
+    >
+    const genCreate = batch.find(
+      (e) => e.type === 'generation-create',
+    ) as Record<string, unknown>
+    const toolCreate = batch.find((e) => e.type === 'tool-create') as Record<
+      string,
+      unknown
+    >
+    expect(
+      (agentCreate.body as Record<string, unknown>).environment,
+    ).toBeUndefined()
+    expect(
+      (genCreate.body as Record<string, unknown>).environment,
+    ).toBeUndefined()
+    expect(
+      (toolCreate.body as Record<string, unknown>).environment,
+    ).toBeUndefined()
+  })
+
   it('setTraceId allows using existing trace', async () => {
     const tracer = new LangfuseTracer({ client })
     tracer.setTraceId('existing-trace-id')

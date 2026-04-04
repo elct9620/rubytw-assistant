@@ -55,6 +55,7 @@ export class LangfuseTracer {
       traceId: this._traceId,
       name: options.name,
       startTime: new Date().toISOString(),
+      ...(this.environment && { environment: this.environment }),
     })
     return agentId
   }
@@ -83,6 +84,7 @@ export class LangfuseTracer {
       model: options.model,
       startTime: new Date().toISOString(),
       input: options.input,
+      ...(this.environment && { environment: this.environment }),
     })
     return generationId
   }
@@ -128,6 +130,7 @@ export class LangfuseTracer {
       output: options.output,
       startTime: options.startTime,
       endTime: options.endTime,
+      ...(this.environment && { environment: this.environment }),
       ...(options.metadata && { metadata: options.metadata }),
       ...(options.level && { level: options.level }),
       ...(options.statusMessage && { statusMessage: options.statusMessage }),
