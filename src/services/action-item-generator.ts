@@ -1,5 +1,5 @@
 import { injectable, inject } from 'tsyringe'
-import { generateText, Output, stepCountIs } from 'ai'
+import { generateText, NoOutputGeneratedError, Output, stepCountIs } from 'ai'
 import { z } from 'zod'
 import type {
   ActionItemGenerator,
@@ -15,7 +15,7 @@ import { createAIModel } from './ai-model'
 import { createTelemetryContext } from '../telemetry/context'
 import GENERATE_ACTION_ITEMS_PROMPT from '../prompts/generate-action-items.md'
 
-const MAX_TOOL_STEPS = 5
+const MAX_TOOL_STEPS = 30
 
 const ActionItemSchema = z.object({
   status: z
@@ -66,7 +66,7 @@ export class ActionItemGeneratorService implements ActionItemGenerator {
       agentName: 'action-item-generator',
     })
 
-    const { output } = await generateText({
+    const result = await generateText({
       model: createAIModel(this.aiGatewayConfig),
       output: Output.object({ schema: GenerateActionItemsOutputSchema }),
       system,
@@ -78,6 +78,19 @@ export class ActionItemGeneratorService implements ActionItemGenerator {
         experimental_telemetry: { isEnabled: true, integrations },
       }),
     })
+
+    let output: typeof result.output
+    try {
+      output = result.output
+    } catch (error) {
+      if (NoOutputGeneratedError.isInstance(error)) {
+        throw new Error(
+          `generateActionItems: no output generated (steps: ${result.steps.length}, finishReason: ${result.finishReason})`,
+          { cause: error },
+        )
+      }
+      throw error
+    }
 
     if (!output) {
       throw new Error(

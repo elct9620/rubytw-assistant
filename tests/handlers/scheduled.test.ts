@@ -69,6 +69,16 @@ describe('scheduledHandler', () => {
     ).rejects.toThrow('AI service failed')
 
     expect(flushedBatch.length).toBeGreaterThan(0)
+    const traceEvents = flushedBatch.filter(
+      (e: Record<string, unknown>) => e.type === 'trace-create',
+    ) as Record<string, { output?: unknown; level?: string }>[]
+    const errorTrace = traceEvents.find(
+      (e) => (e.body as Record<string, unknown>)?.level === 'ERROR',
+    )
+    expect(errorTrace).toBeDefined()
+    expect((errorTrace!.body as Record<string, unknown>).output).toMatchObject({
+      error: 'AI service failed',
+    })
   })
 
   it('should re-throw presenter errors after flushing', async () => {

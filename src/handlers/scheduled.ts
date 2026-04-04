@@ -24,6 +24,15 @@ export async function scheduledHandler(
   try {
     const result = await usecase.execute(hours)
     await presenter.present(result)
+  } catch (error) {
+    tracer?.updateTrace({
+      output: {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      },
+      level: 'ERROR',
+    })
+    throw error
   } finally {
     try {
       await tracer?.flush()

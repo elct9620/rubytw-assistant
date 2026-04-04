@@ -135,6 +135,14 @@ export class LangfuseTracer {
     return id
   }
 
+  updateTrace(options: { output?: unknown; level?: string }): void {
+    if (!this._traceId) return
+    this.emit('trace-create', {
+      id: this._traceId,
+      ...options,
+    })
+  }
+
   async flush(): Promise<void> {
     await this.client.flush()
   }

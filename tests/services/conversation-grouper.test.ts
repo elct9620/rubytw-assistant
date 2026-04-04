@@ -12,6 +12,10 @@ vi.mock('ai', () => ({
   Output: {
     object: (opts: unknown) => ({ type: 'object', ...opts }),
   },
+  NoOutputGeneratedError: {
+    isInstance: (error: unknown) =>
+      error instanceof Error && error.name === 'AI_NoOutputGeneratedError',
+  },
   tool: (def: unknown) => def,
   stepCountIs: (n: number) => ({ type: 'stepCount', count: n }),
 }))
@@ -97,6 +101,24 @@ describe('ConversationGrouperService', () => {
     )
   })
 
+  it('should catch NoOutputGeneratedError and throw with diagnostic context', async () => {
+    const noOutputResult = {
+      get output(): never {
+        const err = new Error('No output generated.')
+        err.name = 'AI_NoOutputGeneratedError'
+        throw err
+      },
+      steps: [{}, {}, {}],
+      finishReason: 'tool-calls',
+    }
+    mockGenerateText.mockResolvedValue(noOutputResult)
+    const service = createService()
+
+    await expect(service.groupConversations(['msg'])).rejects.toThrow(
+      /steps: 3.*finishReason: tool-calls/,
+    )
+  })
+
   it('should include memory and github tools', async () => {
     mockGenerateText.mockResolvedValue({
       output: { groups: [] },
@@ -125,7 +147,7 @@ describe('ConversationGrouperService', () => {
         }),
         stopWhen: expect.objectContaining({
           type: 'stepCount',
-          count: 5,
+          count: 30,
         }),
       }),
     )
