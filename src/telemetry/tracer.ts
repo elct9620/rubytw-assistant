@@ -42,7 +42,7 @@ export class LangfuseTracer {
       id: this._traceId,
       name: options.name,
       input: options.input,
-      environment: this.environment,
+      ...(this.environment && { environment: this.environment }),
       ...(options.metadata && { metadata: options.metadata }),
     })
     return this._traceId
