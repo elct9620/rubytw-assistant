@@ -53,7 +53,17 @@ export class KVMemoryStoreAdapter implements MemoryStore {
       )
     }
 
-    const slots = await this.loadSlots()
+    const { value: raw, metadata } = await this.kv.getWithMetadata<
+      StoredSlot[]
+    >(KV_KEY, 'json')
+
+    if (!raw && metadata) {
+      throw new Error(
+        'Memory data missing but metadata exists — refusing to overwrite',
+      )
+    }
+
+    const slots = raw ?? emptySlots(this.entryLimit)
 
     if (content === '') {
       slots[index] = { description: '', content: '' }
@@ -61,7 +71,9 @@ export class KVMemoryStoreAdapter implements MemoryStore {
       slots[index] = { description, content }
     }
 
-    await this.kv.put(KV_KEY, JSON.stringify(slots))
+    await this.kv.put(KV_KEY, JSON.stringify(slots), {
+      metadata: { updatedAt: new Date().toISOString() },
+    })
   }
 
   private async loadSlots(): Promise<StoredSlot[]> {
