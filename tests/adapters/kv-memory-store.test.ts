@@ -127,6 +127,25 @@ describe('KVMemoryStoreAdapter', () => {
       )
     })
 
+    it('should throw when data is missing but metadata exists', async () => {
+      await env.MEMORY_KV.put(KV_KEY, 'null', {
+        metadata: { updatedAt: '2026-04-06T00:00:00Z' },
+      })
+
+      await expect(adapter.update(0, 'test', 'content')).rejects.toThrow(
+        'Memory data missing but metadata exists',
+      )
+    })
+
+    it('should store metadata with updatedAt on update', async () => {
+      await adapter.update(0, 'test', 'content')
+
+      const { metadata } = await env.MEMORY_KV.getWithMetadata(KV_KEY, 'json')
+      expect(metadata).toEqual(
+        expect.objectContaining({ updatedAt: expect.any(String) }),
+      )
+    })
+
     it('should preserve other slots when updating one', async () => {
       await adapter.update(0, 'slot 0', 'content 0')
       await adapter.update(1, 'slot 1', 'content 1')
