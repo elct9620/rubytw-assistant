@@ -1,5 +1,6 @@
 import { injectable, inject } from 'tsyringe'
 import { generateText, NoOutputGeneratedError, Output, stepCountIs } from 'ai'
+import type { Tracer } from '@opentelemetry/api'
 import { z } from 'zod'
 import type {
   ConversationGrouper,
@@ -7,11 +8,9 @@ import type {
   MemoryStore,
 } from '../usecases/ports'
 import type { TopicGroup } from '../entities/topic-group'
-import { TOKENS, type AiGatewayConfig, type LangfuseConfig } from '../tokens'
-import type { RequestContext } from '../context'
+import { TOKENS, type AiGatewayConfig } from '../tokens'
 import { createAITools } from './ai-tools'
 import { createAIModel } from './ai-model'
-import { createTelemetryContext } from '../telemetry/context'
 import GROUP_CONVERSATIONS_PROMPT from '../prompts/group-conversations.md'
 
 const MAX_TOOL_STEPS = 30
@@ -43,9 +42,7 @@ export class ConversationGrouperService implements ConversationGrouper {
     @inject(TOKENS.MemoryDescriptionLimit)
     private memoryDescriptionLimit: number,
     @inject(TOKENS.GitHubSource) private githubSource: GitHubSource,
-    @inject(TOKENS.LangfuseConfig)
-    private langfuseConfig: LangfuseConfig | null,
-    @inject(TOKENS.RequestContext) private ctx: RequestContext,
+    @inject(TOKENS.Tracer) private tracer: Tracer | null,
   ) {}
 
   async groupConversations(messages: string[]): Promise<TopicGroup[]> {
@@ -59,11 +56,6 @@ export class ConversationGrouperService implements ConversationGrouper {
       memoryEntryLimit: this.memoryEntryLimit,
       memoryDescriptionLimit: this.memoryDescriptionLimit,
     })
-    const { integrations } = createTelemetryContext(this.langfuseConfig, {
-      traceId: this.ctx.traceId,
-      agentName: 'conversation-grouper',
-    })
-
     const result = await generateText({
       model: createAIModel(this.aiGatewayConfig),
       output: Output.object({ schema: GroupConversationsOutputSchema }),
@@ -72,8 +64,8 @@ export class ConversationGrouperService implements ConversationGrouper {
       providerOptions: { openai: { reasoningEffort: 'low' } },
       tools,
       stopWhen: stepCountIs(MAX_TOOL_STEPS),
-      ...(integrations && {
-        experimental_telemetry: { isEnabled: true, integrations },
+      ...(this.tracer && {
+        experimental_telemetry: { isEnabled: true, tracer: this.tracer },
       }),
     })
 

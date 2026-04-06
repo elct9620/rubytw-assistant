@@ -1,5 +1,6 @@
 import { injectable, inject } from 'tsyringe'
 import { generateText, NoOutputGeneratedError, Output, stepCountIs } from 'ai'
+import type { Tracer } from '@opentelemetry/api'
 import { z } from 'zod'
 import type {
   ActionItemGenerator,
@@ -8,11 +9,9 @@ import type {
 } from '../usecases/ports'
 import type { ActionItem } from '../entities/action-item'
 import type { TopicGroup } from '../entities/topic-group'
-import { TOKENS, type AiGatewayConfig, type LangfuseConfig } from '../tokens'
-import type { RequestContext } from '../context'
+import { TOKENS, type AiGatewayConfig } from '../tokens'
 import { createAITools } from './ai-tools'
 import { createAIModel } from './ai-model'
-import { createTelemetryContext } from '../telemetry/context'
 import GENERATE_ACTION_ITEMS_PROMPT from '../prompts/generate-action-items.md'
 
 const MAX_TOOL_STEPS = 30
@@ -44,9 +43,7 @@ export class ActionItemGeneratorService implements ActionItemGenerator {
     @inject(TOKENS.MemoryDescriptionLimit)
     private memoryDescriptionLimit: number,
     @inject(TOKENS.GitHubSource) private githubSource: GitHubSource,
-    @inject(TOKENS.LangfuseConfig)
-    private langfuseConfig: LangfuseConfig | null,
-    @inject(TOKENS.RequestContext) private ctx: RequestContext,
+    @inject(TOKENS.Tracer) private tracer: Tracer | null,
   ) {}
 
   async generateActionItems(groups: TopicGroup[]): Promise<ActionItem[]> {
@@ -61,11 +58,6 @@ export class ActionItemGeneratorService implements ActionItemGenerator {
       memoryEntryLimit: this.memoryEntryLimit,
       memoryDescriptionLimit: this.memoryDescriptionLimit,
     })
-    const { integrations } = createTelemetryContext(this.langfuseConfig, {
-      traceId: this.ctx.traceId,
-      agentName: 'action-item-generator',
-    })
-
     const result = await generateText({
       model: createAIModel(this.aiGatewayConfig),
       output: Output.object({ schema: GenerateActionItemsOutputSchema }),
@@ -74,8 +66,8 @@ export class ActionItemGeneratorService implements ActionItemGenerator {
       providerOptions: { openai: { reasoningEffort: 'low' } },
       tools,
       stopWhen: stepCountIs(MAX_TOOL_STEPS),
-      ...(integrations && {
-        experimental_telemetry: { isEnabled: true, integrations },
+      ...(this.tracer && {
+        experimental_telemetry: { isEnabled: true, tracer: this.tracer },
       }),
     })
 

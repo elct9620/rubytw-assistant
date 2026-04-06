@@ -1,19 +1,31 @@
 import type { DependencyContainer } from 'tsyringe'
+import type { TracerProvider } from '@aotoki/edge-otel'
+import { createTracerProvider } from '@aotoki/edge-otel'
+import { langfuseExporter } from '@aotoki/edge-otel/exporters/langfuse'
 import { TOKENS, type LangfuseConfig } from '../tokens'
-import type { RequestContext } from '../context'
-import { createTelemetryContext } from '../telemetry/context'
-import type { LangfuseTracer } from '../telemetry/tracer'
+
+export interface TraceSetup {
+  provider: TracerProvider
+}
 
 export function setupTrace(
   child: DependencyContainer,
-  options: { name: string; input: Record<string, unknown> },
-): LangfuseTracer | undefined {
+  options: { scopeName?: string },
+): TraceSetup | undefined {
   const config = child.resolve<LangfuseConfig | null>(TOKENS.LangfuseConfig)
-  const { tracer } = createTelemetryContext(config)
-  const ctx: RequestContext = {}
-  if (tracer) {
-    ctx.traceId = tracer.createTrace(options)
-  }
-  child.register(TOKENS.RequestContext, { useValue: ctx })
-  return tracer
+  if (!config) return undefined
+
+  const provider = createTracerProvider({
+    ...langfuseExporter({
+      publicKey: config.publicKey,
+      secretKey: config.secretKey,
+      baseUrl: config.baseUrl,
+      environment: config.environment,
+    }),
+  })
+
+  const tracer = provider.getTracer(options.scopeName ?? 'ai')
+  child.register(TOKENS.Tracer, { useValue: tracer })
+
+  return { provider }
 }

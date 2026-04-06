@@ -1,10 +1,44 @@
 import { container } from 'tsyringe'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { http, HttpResponse } from 'msw'
 import { TOKENS } from '../../src/tokens'
 import { GenerateSummary } from '../../src/usecases/generate-summary'
 import { scheduledHandler } from '../../src/handlers/scheduled'
-import { server } from '../msw-server'
+
+const mockSpanEnd = vi.fn()
+const mockRecordException = vi.fn()
+const mockSetStatus = vi.fn()
+const mockSetAttribute = vi.fn()
+const mockForceFlush = vi.fn().mockResolvedValue(undefined)
+
+vi.mock('@aotoki/edge-otel', () => ({
+  createTracerProvider: vi.fn(() => ({
+    getTracer: () => ({
+      startActiveSpan: (
+        _name: string,
+        _opts: unknown,
+        fn: (span: unknown) => unknown,
+      ) =>
+        fn({
+          end: mockSpanEnd,
+          recordException: mockRecordException,
+          setStatus: mockSetStatus,
+          setAttribute: mockSetAttribute,
+        }),
+    }),
+    forceFlush: mockForceFlush,
+  })),
+}))
+
+vi.mock('@aotoki/edge-otel/exporters/langfuse', () => ({
+  langfuseExporter: vi.fn(() => ({
+    endpoint: 'https://mock/otel/v1/traces',
+    headers: {},
+  })),
+}))
+
+vi.mock('@opentelemetry/api', () => ({
+  SpanStatusCode: { OK: 1, ERROR: 2 },
+}))
 
 const mockExecute = vi.fn()
 const mockPresent = vi.fn()
@@ -17,13 +51,17 @@ beforeEach(() => {
     useValue: { present: mockPresent },
   })
   container.register(TOKENS.LangfuseConfig, { useFactory: () => null })
-  container.register(TOKENS.RequestContext, { useFactory: () => ({}) })
   container.register(GenerateSummary, {
     useFactory: () => ({ execute: mockExecute }),
   })
 
   mockExecute.mockReset()
   mockPresent.mockReset()
+  mockSpanEnd.mockClear()
+  mockRecordException.mockClear()
+  mockSetStatus.mockClear()
+  mockSetAttribute.mockClear()
+  mockForceFlush.mockClear()
 })
 
 describe('scheduledHandler', () => {
@@ -39,25 +77,12 @@ describe('scheduledHandler', () => {
     expect(mockPresent).toHaveBeenCalledWith(result)
   })
 
-  it('should flush Langfuse trace even when use case throws', async () => {
-    let flushedBatch: unknown[] = []
-    server.use(
-      http.post(
-        'https://us.cloud.langfuse.com/api/public/ingestion',
-        async ({ request }) => {
-          const body = (await request.json()) as { batch: unknown[] }
-          flushedBatch = body.batch
-          return HttpResponse.json({ successes: [], errors: [] })
-        },
-      ),
-    )
-
+  it('should flush OTel trace even when use case throws', async () => {
     container.register(TOKENS.LangfuseConfig, {
       useFactory: () => ({
         publicKey: 'pk-test',
         secretKey: 'sk-test',
         baseUrl: 'https://us.cloud.langfuse.com',
-        environment: 'test',
       }),
     })
 
@@ -68,20 +93,27 @@ describe('scheduledHandler', () => {
       scheduledHandler(controller as ScheduledController),
     ).rejects.toThrow('AI service failed')
 
-    expect(flushedBatch.length).toBeGreaterThan(0)
-    const traceEvents = flushedBatch.filter(
-      (e: Record<string, unknown>) => e.type === 'trace-create',
-    ) as Record<string, { output?: unknown; level?: string }>[]
-    const errorTrace = traceEvents.find(
-      (e) => (e.body as Record<string, unknown>)?.level === 'ERROR',
+    expect(mockRecordException).toHaveBeenCalled()
+    expect(mockSetStatus).toHaveBeenCalledWith(
+      expect.objectContaining({ code: 2 }),
     )
-    expect(errorTrace).toBeDefined()
-    expect((errorTrace!.body as Record<string, unknown>).output).toMatchObject({
-      error: 'AI service failed',
-    })
+    expect(mockSetAttribute).toHaveBeenCalledWith(
+      'langfuse.trace.output',
+      expect.stringContaining('AI service failed'),
+    )
+    expect(mockSpanEnd).toHaveBeenCalled()
+    expect(mockForceFlush).toHaveBeenCalled()
   })
 
   it('should re-throw presenter errors after flushing', async () => {
+    container.register(TOKENS.LangfuseConfig, {
+      useFactory: () => ({
+        publicKey: 'pk-test',
+        secretKey: 'sk-test',
+        baseUrl: 'https://us.cloud.langfuse.com',
+      }),
+    })
+
     mockExecute.mockResolvedValue({ topicGroups: [], actionItems: [] })
     mockPresent.mockRejectedValue(new Error('Discord API error'))
 
@@ -89,51 +121,17 @@ describe('scheduledHandler', () => {
     await expect(
       scheduledHandler(controller as ScheduledController),
     ).rejects.toThrow('Discord API error')
+
+    expect(mockSpanEnd).toHaveBeenCalled()
+    expect(mockForceFlush).toHaveBeenCalled()
   })
 
-  it('should not mask original error when flush fails', async () => {
-    server.use(
-      http.post('https://us.cloud.langfuse.com/api/public/ingestion', () => {
-        return new HttpResponse(null, { status: 500 })
-      }),
-    )
-
+  it('should flush OTel trace when telemetry is enabled', async () => {
     container.register(TOKENS.LangfuseConfig, {
       useFactory: () => ({
         publicKey: 'pk-test',
         secretKey: 'sk-test',
         baseUrl: 'https://us.cloud.langfuse.com',
-        environment: 'test',
-      }),
-    })
-
-    mockExecute.mockRejectedValue(new Error('AI service failed'))
-
-    const controller = { cron: '0 16 * * *', scheduledTime: Date.now() }
-    await expect(
-      scheduledHandler(controller as ScheduledController),
-    ).rejects.toThrow('AI service failed')
-  })
-
-  it('should flush Langfuse trace when telemetry is enabled', async () => {
-    let flushedBatch: unknown[] = []
-    server.use(
-      http.post(
-        'https://us.cloud.langfuse.com/api/public/ingestion',
-        async ({ request }) => {
-          const body = (await request.json()) as { batch: unknown[] }
-          flushedBatch = body.batch
-          return HttpResponse.json({ successes: [], errors: [] })
-        },
-      ),
-    )
-
-    container.register(TOKENS.LangfuseConfig, {
-      useFactory: () => ({
-        publicKey: 'pk-test',
-        secretKey: 'sk-test',
-        baseUrl: 'https://us.cloud.langfuse.com',
-        environment: 'test',
       }),
     })
 
@@ -144,13 +142,7 @@ describe('scheduledHandler', () => {
     const controller = { cron: '0 16 * * *', scheduledTime: Date.now() }
     await scheduledHandler(controller as ScheduledController)
 
-    expect(flushedBatch.length).toBeGreaterThan(0)
-    const traceEvent = flushedBatch.find(
-      (e: Record<string, unknown>) => e.type === 'trace-create',
-    ) as Record<string, unknown> | undefined
-    expect(traceEvent).toBeDefined()
-    expect((traceEvent!.body as Record<string, unknown>).name).toBe(
-      'generate-summary',
-    )
+    expect(mockSpanEnd).toHaveBeenCalled()
+    expect(mockForceFlush).toHaveBeenCalled()
   })
 })

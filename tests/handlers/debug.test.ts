@@ -1,31 +1,61 @@
 import { container } from 'tsyringe'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { http, HttpResponse } from 'msw'
 import { TOKENS } from '../../src/tokens'
 import { GenerateSummary } from '../../src/usecases/generate-summary'
 import debug from '../../src/handlers/debug'
-import { server } from '../msw-server'
+
+const mockSpanEnd = vi.fn()
+const mockRecordException = vi.fn()
+const mockSetStatus = vi.fn()
+const mockForceFlush = vi.fn().mockResolvedValue(undefined)
+
+vi.mock('@aotoki/edge-otel', () => ({
+  createTracerProvider: vi.fn(() => ({
+    getTracer: () => ({
+      startActiveSpan: (
+        _name: string,
+        _opts: unknown,
+        fn: (span: unknown) => unknown,
+      ) =>
+        fn({
+          end: mockSpanEnd,
+          recordException: mockRecordException,
+          setStatus: mockSetStatus,
+        }),
+    }),
+    forceFlush: mockForceFlush,
+  })),
+}))
+
+vi.mock('@aotoki/edge-otel/exporters/langfuse', () => ({
+  langfuseExporter: vi.fn(() => ({
+    endpoint: 'https://mock/otel/v1/traces',
+    headers: {},
+  })),
+}))
+
+vi.mock('@opentelemetry/api', () => ({
+  SpanStatusCode: { OK: 1, ERROR: 2 },
+}))
 
 const mockExecute = vi.fn()
 
 beforeEach(() => {
   container.clearInstances()
 
-  container.register(TOKENS.ConversationGrouper, {
-    useValue: {},
-  })
-  container.register(TOKENS.ActionItemGenerator, {
-    useValue: {},
-  })
-  container.register(TOKENS.DiscordSource, {
-    useValue: {},
-  })
+  container.register(TOKENS.ConversationGrouper, { useValue: {} })
+  container.register(TOKENS.ActionItemGenerator, { useValue: {} })
+  container.register(TOKENS.DiscordSource, { useValue: {} })
   container.register(TOKENS.LangfuseConfig, { useFactory: () => null })
   container.register(GenerateSummary, {
     useFactory: () => ({ execute: mockExecute }),
   })
 
   mockExecute.mockReset()
+  mockSpanEnd.mockClear()
+  mockRecordException.mockClear()
+  mockSetStatus.mockClear()
+  mockForceFlush.mockClear()
 })
 
 describe('debug handler', () => {
@@ -89,25 +119,12 @@ describe('debug handler', () => {
     expect(body).toEqual({ error: 'Discord API failed' })
   })
 
-  it('should flush Langfuse trace when telemetry is enabled', async () => {
-    let flushedBatch: unknown[] = []
-    server.use(
-      http.post(
-        'https://us.cloud.langfuse.com/api/public/ingestion',
-        async ({ request }) => {
-          const body = (await request.json()) as { batch: unknown[] }
-          flushedBatch = body.batch
-          return HttpResponse.json({ successes: [], errors: [] })
-        },
-      ),
-    )
-
+  it('should flush OTel trace when telemetry is enabled', async () => {
     container.register(TOKENS.LangfuseConfig, {
       useFactory: () => ({
         publicKey: 'pk-test',
         secretKey: 'sk-test',
         baseUrl: 'https://us.cloud.langfuse.com',
-        environment: 'test',
       }),
     })
 
@@ -118,13 +135,7 @@ describe('debug handler', () => {
     })
 
     expect(res.status).toBe(200)
-    expect(flushedBatch.length).toBeGreaterThan(0)
-    const traceEvent = flushedBatch.find(
-      (e: Record<string, unknown>) => e.type === 'trace-create',
-    ) as Record<string, unknown> | undefined
-    expect(traceEvent).toBeDefined()
-    expect((traceEvent!.body as Record<string, unknown>).name).toBe(
-      'generate-summary',
-    )
+    expect(mockSpanEnd).toHaveBeenCalled()
+    expect(mockForceFlush).toHaveBeenCalled()
   })
 })

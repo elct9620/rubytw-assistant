@@ -31,6 +31,9 @@ export const TOKENS = {
   // Langfuse telemetry (optional)
   LangfuseConfig: 'LangfuseConfig',
 
+  // OTel tracer (optional — set per-request when telemetry is enabled)
+  Tracer: 'Tracer',
+
   // Request context
   RequestContext: 'RequestContext',
 

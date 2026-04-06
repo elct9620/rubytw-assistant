@@ -59,6 +59,9 @@ container.register(TOKENS.LangfuseConfig, {
       : null,
 })
 
+// OTel tracer (default: null — no telemetry)
+container.register(TOKENS.Tracer, { useValue: null })
+
 // Request context (default: no trace)
 container.register(TOKENS.RequestContext, {
   useFactory: () => nullContext,

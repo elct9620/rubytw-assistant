@@ -1,3 +1,4 @@
+import { SpanStatusCode, type Tracer } from '@opentelemetry/api'
 import { container } from '../container'
 import { GenerateSummary } from '../usecases/generate-summary'
 import type { SummaryPresenter } from '../usecases/ports'
@@ -12,32 +13,50 @@ export async function scheduledHandler(
   )
 
   const child = container.createChildContainer()
-  const tracer = setupTrace(child, {
-    name: 'generate-summary',
-    input: { cron: controller.cron },
-  })
+  const trace = setupTrace(child, {})
 
   const usecase = child.resolve(GenerateSummary)
   const presenter = child.resolve<SummaryPresenter>(TOKENS.SummaryPresenter)
   const hours = child.resolve<number>(TOKENS.SummaryHours)
 
-  try {
+  const run = async () => {
     const result = await usecase.execute(hours)
     await presenter.present(result)
-  } catch (error) {
-    tracer?.updateTrace({
-      output: {
-        error: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : undefined,
+  }
+
+  if (trace) {
+    const tracer = child.resolve<Tracer>(TOKENS.Tracer)
+    const traceInput = { cron: controller.cron }
+    await tracer.startActiveSpan(
+      'generate-summary',
+      {
+        attributes: {
+          ...traceInput,
+          'langfuse.trace.input': JSON.stringify(traceInput),
+        },
       },
-      level: 'ERROR',
-    })
-    throw error
-  } finally {
-    try {
-      await tracer?.flush()
-    } catch (flushError) {
-      console.error('Failed to flush telemetry trace:', flushError)
-    }
+      async (span) => {
+        try {
+          await run()
+        } catch (error) {
+          const err = error instanceof Error ? error : new Error(String(error))
+          span.recordException(err)
+          span.setStatus({
+            code: SpanStatusCode.ERROR,
+            message: err.message,
+          })
+          span.setAttribute(
+            'langfuse.trace.output',
+            JSON.stringify({ error: err.message, stack: err.stack }),
+          )
+          throw error
+        } finally {
+          span.end()
+          await trace.provider.forceFlush()
+        }
+      },
+    )
+  } else {
+    await run()
   }
 }

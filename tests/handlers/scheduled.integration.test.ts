@@ -49,6 +49,8 @@ function registerStubPorts() {
     },
   })
 
+  container.register(TOKENS.LangfuseConfig, { useFactory: () => null })
+
   container.register(TOKENS.SummaryPresenter, {
     useValue: {
       present: vi.fn().mockImplementation(async (result: SummaryResult) => {
