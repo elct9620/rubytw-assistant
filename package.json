@@ -1,6 +1,7 @@
 {
   "name": "rubytw-assistant",
   "type": "module",
+  "packageManager": "pnpm@10.28.0",
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy --minify",
