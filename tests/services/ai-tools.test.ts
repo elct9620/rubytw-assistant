@@ -228,17 +228,15 @@ describe('createAITools', () => {
       const tools = createTools({
         memoryStore: {
           list: vi.fn().mockResolvedValue([]),
-          read: vi
-            .fn()
-            .mockImplementation((indices: number[]) =>
-              Promise.resolve(
-                indices.map((i) => ({
-                  index: i,
-                  description: '',
-                  content: '',
-                })),
-              ),
+          read: vi.fn().mockImplementation((indices: number[]) =>
+            Promise.resolve(
+              indices.map((i) => ({
+                index: i,
+                description: '',
+                content: '',
+              })),
             ),
+          ),
           update: vi
             .fn()
             .mockRejectedValue(new Error('Index 99 out of range (0..31)')),
