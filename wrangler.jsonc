@@ -21,7 +21,7 @@
     "MEMORY_DESCRIPTION_LIMIT": "128",
     "GITHUB_ORG": "rubytaiwan",
     "GITHUB_PROJECT_NUMBER": "1",
-    "DEBUG": "false",
+    "DEBUG_MODE": "false",
     "LANGFUSE_BASE_URL": "https://us.cloud.langfuse.com",
   },
   "kv_namespaces": [

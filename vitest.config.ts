@@ -9,7 +9,7 @@ export default defineConfig({
     cloudflareTest({
       wrangler: { configPath: './wrangler.jsonc' },
       miniflare: {
-        bindings: { DEBUG: 'true' },
+        bindings: { DEBUG_MODE: 'true' },
       },
     }),
   ],
