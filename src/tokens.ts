@@ -8,12 +8,13 @@ export interface AiGatewayConfig {
 }
 
 /**
- * Factory that returns a fresh ToolSet per invocation. A fresh set is
- * required because the memory tools enforce a per-run "must read before
+ * Factory-injection type. Resolving the matching token gives a zero-arg
+ * function that returns a fresh ToolSet per call. A new instance per
+ * call is required because the memory tools enforce a "must read before
  * update" rule via a closure-scoped Set, which must not leak across
- * service calls.
+ * service invocations.
  */
-export type CreateAITools = () => ToolSet
+export type AIToolsFactory = () => ToolSet
 
 export interface LangfuseConfig {
   publicKey: string
@@ -53,6 +54,7 @@ export const TOKENS = {
   DiscordNotifier: 'DiscordNotifier',
   SummaryPresenter: 'SummaryPresenter',
 
-  // AI tooling factory
-  CreateAITools: 'CreateAITools',
+  // Factory-injection tokens — resolve to a callable that produces a
+  // fresh instance per invocation (not the instance itself).
+  AIToolsFactory: 'AIToolsFactory',
 } as const

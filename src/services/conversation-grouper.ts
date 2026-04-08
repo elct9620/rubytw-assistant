@@ -3,7 +3,7 @@ import type { Tracer } from '@opentelemetry/api'
 import { z } from 'zod'
 import type { ConversationGrouper } from '../usecases/ports'
 import type { TopicGroup } from '../entities/topic-group'
-import { TOKENS, type AiGatewayConfig, type CreateAITools } from '../tokens'
+import { TOKENS, type AiGatewayConfig, type AIToolsFactory } from '../tokens'
 import { runStructuredAI } from './run-structured-ai'
 import GROUP_CONVERSATIONS_PROMPT from '../prompts/group-conversations.md'
 
@@ -30,7 +30,7 @@ export class ConversationGrouperService implements ConversationGrouper {
   constructor(
     @inject(TOKENS.AiGatewayConfig) private aiGatewayConfig: AiGatewayConfig,
     @inject(TOKENS.MemoryEntryLimit) private memoryEntryLimit: number,
-    @inject(TOKENS.CreateAITools) private createTools: CreateAITools,
+    @inject(TOKENS.AIToolsFactory) private toolsFactory: AIToolsFactory,
     @inject(TOKENS.Tracer) private tracer: Tracer | null,
   ) {}
 
@@ -39,7 +39,7 @@ export class ConversationGrouperService implements ConversationGrouper {
       '{{memoryEntryLimit}}',
       String(this.memoryEntryLimit),
     )
-    const tools = this.createTools()
+    const tools = this.toolsFactory()
 
     const output = await runStructuredAI({
       operation: 'groupConversations',

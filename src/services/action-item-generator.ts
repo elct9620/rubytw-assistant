@@ -4,7 +4,7 @@ import { z } from 'zod'
 import type { ActionItemGenerator } from '../usecases/ports'
 import type { ActionItem } from '../entities/action-item'
 import type { TopicGroup } from '../entities/topic-group'
-import { TOKENS, type AiGatewayConfig, type CreateAITools } from '../tokens'
+import { TOKENS, type AiGatewayConfig, type AIToolsFactory } from '../tokens'
 import { runStructuredAI } from './run-structured-ai'
 import GENERATE_ACTION_ITEMS_PROMPT from '../prompts/generate-action-items.md'
 
@@ -31,7 +31,7 @@ export class ActionItemGeneratorService implements ActionItemGenerator {
   constructor(
     @inject(TOKENS.AiGatewayConfig) private aiGatewayConfig: AiGatewayConfig,
     @inject(TOKENS.MemoryEntryLimit) private memoryEntryLimit: number,
-    @inject(TOKENS.CreateAITools) private createTools: CreateAITools,
+    @inject(TOKENS.AIToolsFactory) private toolsFactory: AIToolsFactory,
     @inject(TOKENS.Tracer) private tracer: Tracer | null,
   ) {}
 
@@ -41,7 +41,7 @@ export class ActionItemGeneratorService implements ActionItemGenerator {
       '{{today}}',
       today,
     ).replace('{{memoryEntryLimit}}', String(this.memoryEntryLimit))
-    const tools = this.createTools()
+    const tools = this.toolsFactory()
 
     const output = await runStructuredAI({
       operation: 'generateActionItems',

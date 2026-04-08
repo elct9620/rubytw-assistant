@@ -5,7 +5,7 @@ import { Octokit } from '@octokit/core'
 import { createAppAuth } from '@octokit/auth-app'
 import { TOKENS } from './tokens'
 import { KVMemoryStoreAdapter } from './adapters/kv-memory-store'
-import { createAITools } from './services/ai-tools'
+import { createAITools, type AIToolsDeps } from './services/ai-tools'
 import { ConversationGrouperService } from './services/conversation-grouper'
 import { ActionItemGeneratorService } from './services/action-item-generator'
 import { DiscordNotifierAdapter } from './adapters/discord-notifier'
@@ -70,17 +70,21 @@ container.register(TOKENS.SummaryPresenter, {
   useClass: DiscordSummaryPresenter,
 })
 
-// AI tooling factory — returns a fresh ToolSet per call so the memory
-// tools' per-run "read before update" Set does not leak between service
-// invocations.
-container.register(TOKENS.CreateAITools, {
-  useFactory: (c) => () =>
-    createAITools({
+// Factory injection for AI tools. Resolve deps once when the token is
+// resolved, then hand out a closure that produces a fresh ToolSet on
+// every call — the memory tools rely on a closure-scoped Set to enforce
+// "must read before update", and that state must not leak across
+// service invocations.
+container.register(TOKENS.AIToolsFactory, {
+  useFactory: (c) => {
+    const deps: AIToolsDeps = {
       memoryStore: c.resolve(TOKENS.MemoryStore),
       githubSource: c.resolve(TOKENS.GitHubSource),
       memoryEntryLimit: c.resolve(TOKENS.MemoryEntryLimit),
       memoryDescriptionLimit: c.resolve(TOKENS.MemoryDescriptionLimit),
-    }),
+    }
+    return () => createAITools(deps)
+  },
 })
 
 // Port → Service mappings (orchestration)
