@@ -26,22 +26,28 @@ export interface TelemetryTestHarness {
 /**
  * Shared OTel telemetry mock harness for handler tests. Must be invoked
  * inside `vi.hoisted(...)` so that the returned modules are available
- * when the top-level `vi.mock(...)` factories run.
+ * when the top-level `vi.mock(...)` factories run. Because `vi.hoisted`
+ * runs before imports are resolved, the factory uses a dynamic `import()`
+ * to pull this helper in.
  *
  * Usage:
  *
- *   const telemetry = vi.hoisted(() => {
- *     // inline factory — vi.hoisted cannot import from other files
- *     // because mocks are hoisted above imports.
+ *   const telemetry = await vi.hoisted(async () => {
  *     const { createTelemetryMocks } = await import(
  *       '../helpers/telemetry-mocks'
  *     )
  *     return createTelemetryMocks()
  *   })
  *
- * Because `vi.hoisted` runs before imports are resolved, in practice
- * both handler tests construct the mocks inline via a thin wrapper.
- * See the handler tests for the exact pattern.
+ *   vi.mock('@aotoki/edge-otel', () => telemetry.edgeOtelModule)
+ *   vi.mock(
+ *     '@aotoki/edge-otel/exporters/langfuse',
+ *     () => telemetry.langfuseExporterModule,
+ *   )
+ *   vi.mock('@opentelemetry/api', () => telemetry.openTelemetryApiModule)
+ *
+ * See tests/handlers/scheduled.test.ts and tests/handlers/debug.test.ts
+ * for the complete wiring.
  */
 export function createTelemetryMocks(): TelemetryTestHarness {
   const spanEnd = vi.fn()
