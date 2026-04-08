@@ -1,4 +1,5 @@
 import type { SummaryResult } from '../usecases/ports'
+import type { ResultClassification } from './telemetry-setup'
 
 /**
  * Reduce a SummaryResult to a small object suitable for telemetry
@@ -24,4 +25,18 @@ export function summarizeResult(
         reason: result.reason,
       }
   }
+}
+
+/**
+ * Flag fallback results as WARNING so Langfuse/OTel viewers can surface
+ * degraded runs at a glance. Success and empty results are normal and
+ * return undefined (no classification).
+ */
+export function classifySummaryResult(
+  result: SummaryResult,
+): ResultClassification | undefined {
+  if (result.kind === 'fallback') {
+    return { level: 'WARNING', message: result.reason }
+  }
+  return undefined
 }

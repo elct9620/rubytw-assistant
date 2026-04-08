@@ -31,10 +31,25 @@ export function setupTrace(
   return { provider }
 }
 
+/**
+ * Classification a handler can return to mark a successful-but-degraded
+ * result on the root span. WARNING becomes a Langfuse WARNING observation
+ * (span status stays OK); ERROR additionally sets OTel span status ERROR.
+ */
+export interface ResultClassification {
+  level: 'WARNING' | 'ERROR'
+  message: string
+}
+
 export interface RunWithTraceOptions<T> {
   spanName: string
   input: unknown
   summarizeOutput: (result: T) => unknown
+  /**
+   * Inspect the resolved result and optionally flag it as degraded. Called
+   * only on the success path — exceptions are still recorded as ERROR.
+   */
+  classifyResult?: (result: T) => ResultClassification | undefined
   fn: () => Promise<T>
 }
 
@@ -47,7 +62,13 @@ export interface RunWithTraceOptions<T> {
 export async function runWithTrace<T>(
   child: DependencyContainer,
   trace: TraceSetup | undefined,
-  { spanName, input, summarizeOutput, fn }: RunWithTraceOptions<T>,
+  {
+    spanName,
+    input,
+    summarizeOutput,
+    classifyResult,
+    fn,
+  }: RunWithTraceOptions<T>,
 ): Promise<T> {
   if (!trace) {
     return fn()
@@ -68,6 +89,20 @@ export async function runWithTrace<T>(
           'langfuse.observation.output',
           JSON.stringify(summarizeOutput(result)),
         )
+        const classification = classifyResult?.(result)
+        if (classification) {
+          span.setAttribute('langfuse.observation.level', classification.level)
+          span.setAttribute(
+            'langfuse.observation.status_message',
+            classification.message,
+          )
+          if (classification.level === 'ERROR') {
+            span.setStatus({
+              code: SpanStatusCode.ERROR,
+              message: classification.message,
+            })
+          }
+        }
         return result
       } catch (error) {
         const err = error instanceof Error ? error : new Error(String(error))

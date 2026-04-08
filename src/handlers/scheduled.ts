@@ -3,7 +3,7 @@ import { GenerateSummary } from '../usecases/generate-summary'
 import type { SummaryPresenter } from '../usecases/ports'
 import { TOKENS } from '../tokens'
 import { runWithTrace, setupTrace } from './telemetry-setup'
-import { summarizeResult } from './summarize-result'
+import { classifySummaryResult, summarizeResult } from './summarize-result'
 
 export async function scheduledHandler(
   controller: ScheduledController,
@@ -23,6 +23,7 @@ export async function scheduledHandler(
     spanName: 'generate-summary',
     input: { cron: controller.cron, hours },
     summarizeOutput: summarizeResult,
+    classifyResult: classifySummaryResult,
     fn: async () => {
       const result = await usecase.execute(hours)
       await presenter.present(result)

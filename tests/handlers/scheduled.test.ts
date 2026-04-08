@@ -158,6 +158,38 @@ describe('scheduledHandler', () => {
     )
   })
 
+  it('should flag fallback results as WARNING on the root span', async () => {
+    container.register(TOKENS.LangfuseConfig, {
+      useFactory: () => ({
+        publicKey: 'pk-test',
+        secretKey: 'sk-test',
+        baseUrl: 'https://us.cloud.langfuse.com',
+      }),
+    })
+
+    mockExecute.mockResolvedValue({
+      kind: 'fallback',
+      rawMessages: ['msg-1'],
+      reason: 'AI service down',
+    })
+    mockPresent.mockResolvedValue(undefined)
+
+    const controller = { cron: '0 16 * * *', scheduledTime: Date.now() }
+    await scheduledHandler(controller as ScheduledController)
+
+    expect(mockSetAttribute).toHaveBeenCalledWith(
+      'langfuse.observation.level',
+      'WARNING',
+    )
+    expect(mockSetAttribute).toHaveBeenCalledWith(
+      'langfuse.observation.status_message',
+      'AI service down',
+    )
+    // span status stays OK for WARNING — only ERROR-level classifications
+    // call setStatus(ERROR)
+    expect(mockSetStatus).not.toHaveBeenCalled()
+  })
+
   it('should set langfuse.observation.output with summary stats on success', async () => {
     container.register(TOKENS.LangfuseConfig, {
       useFactory: () => ({
