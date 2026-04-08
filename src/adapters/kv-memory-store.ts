@@ -11,6 +11,10 @@ interface StoredSlot {
   content: string
 }
 
+interface SlotsMetadata {
+  updatedAt: string
+}
+
 export const KV_KEY = 'memory:slots'
 
 function emptySlots(count: number): StoredSlot[] {
@@ -71,15 +75,18 @@ export class KVMemoryStoreAdapter implements MemoryStore {
       slots[index] = { description, content }
     }
 
+    const nextMetadata: SlotsMetadata = {
+      updatedAt: new Date().toISOString(),
+    }
     await this.kv.put(KV_KEY, JSON.stringify(slots), {
-      metadata: { updatedAt: new Date().toISOString() },
+      metadata: nextMetadata,
     })
   }
 
   private async loadSlots(): Promise<{
     value: StoredSlot[] | null
-    metadata: unknown
+    metadata: SlotsMetadata | null
   }> {
-    return this.kv.getWithMetadata<StoredSlot[]>(KV_KEY, 'json')
+    return this.kv.getWithMetadata<StoredSlot[], SlotsMetadata>(KV_KEY, 'json')
   }
 }
