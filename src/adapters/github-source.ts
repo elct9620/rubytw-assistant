@@ -87,16 +87,18 @@ function extractStatus(fieldValues: FieldValueNode[]): string | null {
 
 export function formatIssueToXml(issue: FormattedIssue): string {
   const parts = [
-    `<issue number="${issue.number}" state="${issue.state}" url="${issue.url}">`,
+    `<issue number="${issue.number}" state="${escapeXml(issue.state)}" url="${escapeXml(issue.url)}">`,
     `  <title>${escapeXml(issue.title)}</title>`,
   ]
 
   if (issue.labels.length > 0) {
-    parts.push(`  <labels>${issue.labels.join(', ')}</labels>`)
+    const labels = issue.labels.map(escapeXml).join(', ')
+    parts.push(`  <labels>${labels}</labels>`)
   }
 
   if (issue.assignees.length > 0) {
-    parts.push(`  <assignees>${issue.assignees.join(', ')}</assignees>`)
+    const assignees = issue.assignees.map(escapeXml).join(', ')
+    parts.push(`  <assignees>${assignees}</assignees>`)
   }
 
   if (issue.status) {

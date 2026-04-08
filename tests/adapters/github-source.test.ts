@@ -247,4 +247,22 @@ describe('formatIssueToXml', () => {
       '<title>Fix &lt;script&gt; &amp; &quot;quotes&quot;</title>',
     )
   })
+
+  it('should escape XML special characters in labels, assignees, and url', () => {
+    const xml = formatIssueToXml({
+      title: 'Test',
+      number: 1,
+      state: 'OPEN',
+      url: 'https://example.com/?a=1&b="2"',
+      labels: ['bug <hot>', 'needs "triage"'],
+      assignees: ['alice&bob'],
+      status: null,
+    })
+
+    expect(xml).toContain('url="https://example.com/?a=1&amp;b=&quot;2&quot;"')
+    expect(xml).toContain(
+      '<labels>bug &lt;hot&gt;, needs &quot;triage&quot;</labels>',
+    )
+    expect(xml).toContain('<assignees>alice&amp;bob</assignees>')
+  })
 })
