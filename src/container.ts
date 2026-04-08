@@ -10,7 +10,8 @@ import { ActionItemGeneratorService } from './services/action-item-generator'
 import { DiscordNotifierAdapter } from './adapters/discord-notifier'
 import { DiscordSourceAdapter } from './adapters/discord-source'
 import { DiscordSummaryPresenter } from './adapters/discord-summary-presenter'
-import { GitHubSourceAdapter, ensurePkcs8 } from './adapters/github-source'
+import { GitHubSourceAdapter } from './adapters/github-source'
+import { ensurePkcs8 } from './adapters/github-key'
 import { GenerateSummary } from './usecases/generate-summary'
 
 // Env bindings

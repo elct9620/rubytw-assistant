@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { ensurePkcs8 } from '../../src/adapters/github-source'
+import { ensurePkcs8 } from '../../src/adapters/github-key'
 import { createPrivateKey, generateKeyPairSync } from 'node:crypto'
 
 function generatePkcs1Key(): string {

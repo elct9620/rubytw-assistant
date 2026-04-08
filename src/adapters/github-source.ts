@@ -1,4 +1,3 @@
-import { createPrivateKey } from 'node:crypto'
 import type { Octokit } from '@octokit/core'
 import type { GitHubSource, IssueFilter } from '../usecases/ports'
 import { escapeXml } from './shared'
@@ -106,17 +105,6 @@ export function formatIssueToXml(issue: FormattedIssue): string {
 
   parts.push('</issue>')
   return parts.join('\n')
-}
-
-export function ensurePkcs8(privateKey: string): string {
-  if (!privateKey.includes('-----BEGIN RSA PRIVATE KEY-----')) {
-    return privateKey
-  }
-
-  return createPrivateKey(privateKey).export({
-    type: 'pkcs8',
-    format: 'pem',
-  }) as string
 }
 
 export class GitHubSourceAdapter implements GitHubSource {
