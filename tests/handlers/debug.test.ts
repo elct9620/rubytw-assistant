@@ -4,32 +4,27 @@ import { TOKENS } from '../../src/tokens'
 import { GenerateSummary } from '../../src/usecases/generate-summary'
 import debug from '../../src/handlers/debug'
 
-const mockSpanEnd = vi.fn()
-const mockRecordException = vi.fn()
-const mockSetStatus = vi.fn()
-const mockSetAttribute = vi.fn()
-const mockForceFlush = vi.fn().mockResolvedValue(undefined)
-const mockStartActiveSpan = vi.fn()
+const telemetry = await vi.hoisted(async () => {
+  const { createTelemetryMocks } = await import('../helpers/telemetry-mocks')
+  return createTelemetryMocks()
+})
 
-vi.mock('@aotoki/edge-otel', () => ({
-  createTracerProvider: vi.fn(() => ({
-    getTracer: () => ({
-      startActiveSpan: mockStartActiveSpan,
-    }),
+vi.mock('@aotoki/edge-otel', () => telemetry.edgeOtelModule)
+vi.mock(
+  '@aotoki/edge-otel/exporters/langfuse',
+  () => telemetry.langfuseExporterModule,
+)
+vi.mock('@opentelemetry/api', () => telemetry.openTelemetryApiModule)
+
+const {
+  mocks: {
+    spanEnd: mockSpanEnd,
+    recordException: mockRecordException,
+    setAttribute: mockSetAttribute,
     forceFlush: mockForceFlush,
-  })),
-}))
-
-vi.mock('@aotoki/edge-otel/exporters/langfuse', () => ({
-  langfuseExporter: vi.fn(() => ({
-    endpoint: 'https://mock/otel/v1/traces',
-    headers: {},
-  })),
-}))
-
-vi.mock('@opentelemetry/api', () => ({
-  SpanStatusCode: { OK: 1, ERROR: 2 },
-}))
+    startActiveSpan: mockStartActiveSpan,
+  },
+} = telemetry
 
 const mockExecute = vi.fn()
 
@@ -45,25 +40,7 @@ beforeEach(() => {
   })
 
   mockExecute.mockReset()
-  mockSpanEnd.mockClear()
-  mockRecordException.mockClear()
-  mockSetStatus.mockClear()
-  mockSetAttribute.mockClear()
-  mockForceFlush.mockClear()
-  mockStartActiveSpan.mockReset()
-  mockStartActiveSpan.mockImplementation(
-    (
-      _name: string,
-      _opts: unknown,
-      fn: (span: unknown) => unknown | Promise<unknown>,
-    ) =>
-      fn({
-        end: mockSpanEnd,
-        recordException: mockRecordException,
-        setStatus: mockSetStatus,
-        setAttribute: mockSetAttribute,
-      }),
-  )
+  telemetry.resetAll()
 })
 
 describe('debug handler', () => {

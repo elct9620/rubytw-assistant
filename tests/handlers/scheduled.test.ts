@@ -4,33 +4,28 @@ import { TOKENS } from '../../src/tokens'
 import { GenerateSummary } from '../../src/usecases/generate-summary'
 import { scheduledHandler } from '../../src/handlers/scheduled'
 
-const mockSpanEnd = vi.fn()
-const mockRecordException = vi.fn()
-const mockSetStatus = vi.fn()
-const mockSetAttribute = vi.fn()
-const mockForceFlush = vi.fn().mockResolvedValue(undefined)
+const telemetry = await vi.hoisted(async () => {
+  const { createTelemetryMocks } = await import('../helpers/telemetry-mocks')
+  return createTelemetryMocks()
+})
 
-const mockStartActiveSpan = vi.fn()
+vi.mock('@aotoki/edge-otel', () => telemetry.edgeOtelModule)
+vi.mock(
+  '@aotoki/edge-otel/exporters/langfuse',
+  () => telemetry.langfuseExporterModule,
+)
+vi.mock('@opentelemetry/api', () => telemetry.openTelemetryApiModule)
 
-vi.mock('@aotoki/edge-otel', () => ({
-  createTracerProvider: vi.fn(() => ({
-    getTracer: () => ({
-      startActiveSpan: mockStartActiveSpan,
-    }),
+const {
+  mocks: {
+    spanEnd: mockSpanEnd,
+    recordException: mockRecordException,
+    setStatus: mockSetStatus,
+    setAttribute: mockSetAttribute,
     forceFlush: mockForceFlush,
-  })),
-}))
-
-vi.mock('@aotoki/edge-otel/exporters/langfuse', () => ({
-  langfuseExporter: vi.fn(() => ({
-    endpoint: 'https://mock/otel/v1/traces',
-    headers: {},
-  })),
-}))
-
-vi.mock('@opentelemetry/api', () => ({
-  SpanStatusCode: { OK: 1, ERROR: 2 },
-}))
+    startActiveSpan: mockStartActiveSpan,
+  },
+} = telemetry
 
 const mockExecute = vi.fn()
 const mockPresent = vi.fn()
@@ -49,25 +44,7 @@ beforeEach(() => {
 
   mockExecute.mockReset()
   mockPresent.mockReset()
-  mockSpanEnd.mockClear()
-  mockRecordException.mockClear()
-  mockSetStatus.mockClear()
-  mockSetAttribute.mockClear()
-  mockForceFlush.mockClear()
-  mockStartActiveSpan.mockReset()
-  mockStartActiveSpan.mockImplementation(
-    (
-      _name: string,
-      _opts: unknown,
-      fn: (span: unknown) => unknown | Promise<unknown>,
-    ) =>
-      fn({
-        end: mockSpanEnd,
-        recordException: mockRecordException,
-        setStatus: mockSetStatus,
-        setAttribute: mockSetAttribute,
-      }),
-  )
+  telemetry.resetAll()
 })
 
 describe('scheduledHandler', () => {
