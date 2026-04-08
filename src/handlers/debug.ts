@@ -42,7 +42,6 @@ debug.get('/summary', async (c) => {
               actionItemCount: result.actionItems.length,
             }),
           )
-          span.setStatus({ code: SpanStatusCode.OK })
           return c.json(result)
         } catch (error) {
           const err = error instanceof Error ? error : new Error(String(error))
@@ -50,7 +49,7 @@ debug.get('/summary', async (c) => {
           span.setStatus({ code: SpanStatusCode.ERROR, message: err.message })
           span.setAttribute(
             'langfuse.observation.output',
-            JSON.stringify({ error: err.message }),
+            JSON.stringify({ error: err.message, stack: err.stack }),
           )
           return c.json({ error: err.message }, 500)
         } finally {
