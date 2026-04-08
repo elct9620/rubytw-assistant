@@ -45,14 +45,13 @@ container.register(TOKENS.GitHubInstallationId, {
   useValue: env.GITHUB_INSTALLATION_ID,
 })
 
-// Langfuse telemetry (optional — keys may not exist in env)
-const langfuseEnv = env as unknown as Record<string, string | undefined>
+// Langfuse telemetry (optional — keys may be empty strings in local dev)
 container.register(TOKENS.LangfuseConfig, {
   useFactory: () =>
-    langfuseEnv.LANGFUSE_PUBLIC_KEY && langfuseEnv.LANGFUSE_SECRET_KEY
+    env.LANGFUSE_PUBLIC_KEY && env.LANGFUSE_SECRET_KEY
       ? {
-          publicKey: langfuseEnv.LANGFUSE_PUBLIC_KEY,
-          secretKey: langfuseEnv.LANGFUSE_SECRET_KEY,
+          publicKey: env.LANGFUSE_PUBLIC_KEY,
+          secretKey: env.LANGFUSE_SECRET_KEY,
           baseUrl: env.LANGFUSE_BASE_URL,
           environment: env.ENVIRONMENT,
         }
