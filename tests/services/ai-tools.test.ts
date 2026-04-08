@@ -6,6 +6,7 @@ import {
   KVMemoryStoreAdapter,
   KV_KEY,
 } from '../../src/adapters/kv-memory-store'
+import { createStubGitHubSource } from './stubs'
 
 vi.mock('ai', () => ({
   tool: (def: unknown) => def,
@@ -25,15 +26,6 @@ const DESCRIPTION_LIMIT = 128
 
 function createMemoryStore(): KVMemoryStoreAdapter {
   return new KVMemoryStoreAdapter(env.MEMORY_KV, ENTRY_LIMIT, DESCRIPTION_LIMIT)
-}
-
-function createStubGitHubSource(
-  overrides?: Partial<GitHubSource>,
-): GitHubSource {
-  return {
-    getIssues: vi.fn().mockResolvedValue([]),
-    ...overrides,
-  }
 }
 
 function createTools(overrides?: {
