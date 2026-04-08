@@ -1,15 +1,10 @@
 import { injectable, inject } from 'tsyringe'
 import type { Tracer } from '@opentelemetry/api'
 import { z } from 'zod'
-import type {
-  ActionItemGenerator,
-  GitHubSource,
-  MemoryStore,
-} from '../usecases/ports'
+import type { ActionItemGenerator } from '../usecases/ports'
 import type { ActionItem } from '../entities/action-item'
 import type { TopicGroup } from '../entities/topic-group'
-import { TOKENS, type AiGatewayConfig } from '../tokens'
-import { createAITools } from './ai-tools'
+import { TOKENS, type AiGatewayConfig, type CreateAITools } from '../tokens'
 import { runStructuredAI } from './run-structured-ai'
 import GENERATE_ACTION_ITEMS_PROMPT from '../prompts/generate-action-items.md'
 
@@ -35,11 +30,8 @@ const GenerateActionItemsOutputSchema = z.object({
 export class ActionItemGeneratorService implements ActionItemGenerator {
   constructor(
     @inject(TOKENS.AiGatewayConfig) private aiGatewayConfig: AiGatewayConfig,
-    @inject(TOKENS.MemoryStore) private memoryStore: MemoryStore,
     @inject(TOKENS.MemoryEntryLimit) private memoryEntryLimit: number,
-    @inject(TOKENS.MemoryDescriptionLimit)
-    private memoryDescriptionLimit: number,
-    @inject(TOKENS.GitHubSource) private githubSource: GitHubSource,
+    @inject(TOKENS.CreateAITools) private createTools: CreateAITools,
     @inject(TOKENS.Tracer) private tracer: Tracer | null,
   ) {}
 
@@ -49,12 +41,7 @@ export class ActionItemGeneratorService implements ActionItemGenerator {
       '{{today}}',
       today,
     ).replace('{{memoryEntryLimit}}', String(this.memoryEntryLimit))
-    const tools = createAITools({
-      memoryStore: this.memoryStore,
-      githubSource: this.githubSource,
-      memoryEntryLimit: this.memoryEntryLimit,
-      memoryDescriptionLimit: this.memoryDescriptionLimit,
-    })
+    const tools = this.createTools()
 
     const output = await runStructuredAI({
       operation: 'generateActionItems',

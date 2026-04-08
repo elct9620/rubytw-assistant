@@ -5,6 +5,7 @@ import { Octokit } from '@octokit/core'
 import { createAppAuth } from '@octokit/auth-app'
 import { TOKENS } from './tokens'
 import { KVMemoryStoreAdapter } from './adapters/kv-memory-store'
+import { createAITools } from './services/ai-tools'
 import { ConversationGrouperService } from './services/conversation-grouper'
 import { ActionItemGeneratorService } from './services/action-item-generator'
 import { DiscordNotifierAdapter } from './adapters/discord-notifier'
@@ -67,6 +68,19 @@ container.register(TOKENS.DiscordNotifier, { useClass: DiscordNotifierAdapter })
 container.register(TOKENS.DiscordSource, { useClass: DiscordSourceAdapter })
 container.register(TOKENS.SummaryPresenter, {
   useClass: DiscordSummaryPresenter,
+})
+
+// AI tooling factory — returns a fresh ToolSet per call so the memory
+// tools' per-run "read before update" Set does not leak between service
+// invocations.
+container.register(TOKENS.CreateAITools, {
+  useFactory: (c) => () =>
+    createAITools({
+      memoryStore: c.resolve(TOKENS.MemoryStore),
+      githubSource: c.resolve(TOKENS.GitHubSource),
+      memoryEntryLimit: c.resolve(TOKENS.MemoryEntryLimit),
+      memoryDescriptionLimit: c.resolve(TOKENS.MemoryDescriptionLimit),
+    }),
 })
 
 // Port → Service mappings (orchestration)

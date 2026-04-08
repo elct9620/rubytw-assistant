@@ -1,6 +1,7 @@
 import { env } from 'cloudflare:workers'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { ConversationGrouperService } from '../../src/services/conversation-grouper'
+import { createAITools } from '../../src/services/ai-tools'
 import GROUP_CONVERSATIONS_PROMPT from '../../src/prompts/group-conversations.md'
 import { createStubGitHubSource } from './stubs'
 import { KVMemoryStoreAdapter } from '../../src/adapters/kv-memory-store'
@@ -20,6 +21,8 @@ vi.mock('ai', () => ({
 }))
 
 function createService(): ConversationGrouperService {
+  const memoryStore = new KVMemoryStoreAdapter(env.MEMORY_KV, 32, 128)
+  const githubSource = createStubGitHubSource()
   return new ConversationGrouperService(
     {
       accountId: 'test-account-id',
@@ -27,10 +30,14 @@ function createService(): ConversationGrouperService {
       apiKey: 'test-token',
       modelId: 'openai/gpt-4.1-mini',
     },
-    new KVMemoryStoreAdapter(env.MEMORY_KV, 32, 128),
     32,
-    128,
-    createStubGitHubSource(),
+    () =>
+      createAITools({
+        memoryStore,
+        githubSource,
+        memoryEntryLimit: 32,
+        memoryDescriptionLimit: 128,
+      }),
     null,
   )
 }
