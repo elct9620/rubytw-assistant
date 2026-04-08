@@ -109,6 +109,10 @@ export function formatIssueToXml(issue: FormattedIssue): string {
   return parts.join('\n')
 }
 
+// Registered in the DI container via `useFactory` so Octokit can be
+// wrapped with the GitHub App auth strategy. Intentionally not marked
+// `@injectable()` — tsyringe never resolves this adapter's constructor
+// directly.
 export class GitHubSourceAdapter implements GitHubSource {
   constructor(
     private octokit: Octokit,
