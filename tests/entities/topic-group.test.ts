@@ -13,7 +13,7 @@ function buildGroup(overrides?: Partial<TopicGroup>): TopicGroup {
 }
 
 describe('isActionable', () => {
-  it('should return true when community-related and not small talk', () => {
+  it('should return true when community-related, not small talk, and context retained', () => {
     expect(isActionable(buildGroup())).toBe(true)
   })
 
@@ -25,13 +25,13 @@ describe('isActionable', () => {
     expect(isActionable(buildGroup({ smallTalk: 'yes' }))).toBe(false)
   })
 
+  it('should return false when context is lost', () => {
+    expect(isActionable(buildGroup({ lostContext: 'yes' }))).toBe(false)
+  })
+
   it('should return false when not community-related and small talk', () => {
     expect(
       isActionable(buildGroup({ communityRelated: 'no', smallTalk: 'yes' })),
     ).toBe(false)
-  })
-
-  it('should return true regardless of lost-context tag', () => {
-    expect(isActionable(buildGroup({ lostContext: 'yes' }))).toBe(true)
   })
 })

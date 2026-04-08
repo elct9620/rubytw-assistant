@@ -9,5 +9,9 @@ export interface TopicGroup {
 }
 
 export function isActionable(group: TopicGroup): boolean {
-  return group.communityRelated === 'yes' && group.smallTalk === 'no'
+  return (
+    group.communityRelated === 'yes' &&
+    group.smallTalk === 'no' &&
+    group.lostContext === 'no'
+  )
 }
