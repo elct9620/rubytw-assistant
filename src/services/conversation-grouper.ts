@@ -1,5 +1,4 @@
 import { injectable, inject } from 'tsyringe'
-import { generateText, NoOutputGeneratedError, Output, stepCountIs } from 'ai'
 import type { Tracer } from '@opentelemetry/api'
 import { z } from 'zod'
 import type {
@@ -10,10 +9,8 @@ import type {
 import type { TopicGroup } from '../entities/topic-group'
 import { TOKENS, type AiGatewayConfig } from '../tokens'
 import { createAITools } from './ai-tools'
-import { createAIModel } from './ai-model'
+import { runStructuredAI } from './run-structured-ai'
 import GROUP_CONVERSATIONS_PROMPT from '../prompts/group-conversations.md'
-
-const MAX_TOOL_STEPS = 30
 
 const TopicGroupSchema = z.object({
   topic: z.string().describe('topic title'),
@@ -56,37 +53,16 @@ export class ConversationGrouperService implements ConversationGrouper {
       memoryEntryLimit: this.memoryEntryLimit,
       memoryDescriptionLimit: this.memoryDescriptionLimit,
     })
-    const result = await generateText({
-      model: createAIModel(this.aiGatewayConfig),
-      output: Output.object({ schema: GroupConversationsOutputSchema }),
+
+    const output = await runStructuredAI({
+      operation: 'groupConversations',
+      config: this.aiGatewayConfig,
       system,
       prompt: messages.join('\n'),
-      providerOptions: { openai: { reasoningEffort: 'low' } },
+      schema: GroupConversationsOutputSchema,
       tools,
-      stopWhen: stepCountIs(MAX_TOOL_STEPS),
-      ...(this.tracer && {
-        experimental_telemetry: { isEnabled: true, tracer: this.tracer },
-      }),
+      tracer: this.tracer,
     })
-
-    let output: typeof result.output
-    try {
-      output = result.output
-    } catch (error) {
-      if (NoOutputGeneratedError.isInstance(error)) {
-        throw new Error(
-          `groupConversations: no output generated (steps: ${result.steps.length}, finishReason: ${result.finishReason})`,
-          { cause: error },
-        )
-      }
-      throw error
-    }
-
-    if (!output) {
-      throw new Error(
-        'AI service returned no structured output for groupConversations',
-      )
-    }
 
     return output.groups
   }

@@ -1,5 +1,4 @@
 import { injectable, inject } from 'tsyringe'
-import { generateText, NoOutputGeneratedError, Output, stepCountIs } from 'ai'
 import type { Tracer } from '@opentelemetry/api'
 import { z } from 'zod'
 import type {
@@ -11,10 +10,8 @@ import type { ActionItem } from '../entities/action-item'
 import type { TopicGroup } from '../entities/topic-group'
 import { TOKENS, type AiGatewayConfig } from '../tokens'
 import { createAITools } from './ai-tools'
-import { createAIModel } from './ai-model'
+import { runStructuredAI } from './run-structured-ai'
 import GENERATE_ACTION_ITEMS_PROMPT from '../prompts/generate-action-items.md'
-
-const MAX_TOOL_STEPS = 30
 
 const ActionItemSchema = z.object({
   status: z
@@ -58,37 +55,16 @@ export class ActionItemGeneratorService implements ActionItemGenerator {
       memoryEntryLimit: this.memoryEntryLimit,
       memoryDescriptionLimit: this.memoryDescriptionLimit,
     })
-    const result = await generateText({
-      model: createAIModel(this.aiGatewayConfig),
-      output: Output.object({ schema: GenerateActionItemsOutputSchema }),
+
+    const output = await runStructuredAI({
+      operation: 'generateActionItems',
+      config: this.aiGatewayConfig,
       system,
       prompt: JSON.stringify(groups),
-      providerOptions: { openai: { reasoningEffort: 'low' } },
+      schema: GenerateActionItemsOutputSchema,
       tools,
-      stopWhen: stepCountIs(MAX_TOOL_STEPS),
-      ...(this.tracer && {
-        experimental_telemetry: { isEnabled: true, tracer: this.tracer },
-      }),
+      tracer: this.tracer,
     })
-
-    let output: typeof result.output
-    try {
-      output = result.output
-    } catch (error) {
-      if (NoOutputGeneratedError.isInstance(error)) {
-        throw new Error(
-          `generateActionItems: no output generated (steps: ${result.steps.length}, finishReason: ${result.finishReason})`,
-          { cause: error },
-        )
-      }
-      throw error
-    }
-
-    if (!output) {
-      throw new Error(
-        'AI service returned no structured output for generateActionItems',
-      )
-    }
 
     return output.items
   }
