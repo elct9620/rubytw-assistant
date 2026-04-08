@@ -8,7 +8,7 @@ const app = new Hono<{ Bindings: Env }>()
 
 app.route('/', health)
 
-if ((env.DEBUG_MODE as string) === 'true') {
+if (env.DEBUG_MODE === 'true') {
   const debug = (await import('./handlers/debug')).default
   app.route('/debug', debug)
 }
