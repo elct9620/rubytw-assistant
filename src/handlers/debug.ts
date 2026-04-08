@@ -20,40 +20,39 @@ debug.get('/summary', async (c) => {
   const usecase = child.resolve(GenerateSummary)
   const hours = Number(c.req.query('hours')) || Number(c.env.SUMMARY_HOURS)
 
-  const run = async () => {
-    try {
-      const result = await usecase.execute(hours)
-      return c.json(result)
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Unknown error'
-      return c.json({ error: message }, 500)
-    }
-  }
-
   if (trace) {
     const tracer = child.resolve<Tracer>(TOKENS.Tracer)
-    const traceInput = { channelId, debug: true }
+    // Use `langfuse.observation.*` so the root observation's input/output is
+    // rendered in the Langfuse v4 Fast UI. See scheduled.ts for the rationale.
+    const observationInput = { channelId, hours, debug: true }
     return tracer.startActiveSpan(
       'generate-summary',
       {
         attributes: {
-          channelId,
-          debug: 'true',
-          'langfuse.trace.input': JSON.stringify(traceInput),
+          'langfuse.observation.input': JSON.stringify(observationInput),
         },
       },
       async (span) => {
         try {
-          const response = await run()
+          const result = await usecase.execute(hours)
+          span.setAttribute(
+            'langfuse.observation.output',
+            JSON.stringify({
+              topicGroupCount: result.topicGroups.length,
+              actionItemCount: result.actionItems.length,
+            }),
+          )
           span.setStatus({ code: SpanStatusCode.OK })
-          return response
+          return c.json(result)
         } catch (error) {
-          span.recordException(error as Error)
-          span.setStatus({
-            code: SpanStatusCode.ERROR,
-            message: (error as Error).message,
-          })
-          throw error
+          const err = error instanceof Error ? error : new Error(String(error))
+          span.recordException(err)
+          span.setStatus({ code: SpanStatusCode.ERROR, message: err.message })
+          span.setAttribute(
+            'langfuse.observation.output',
+            JSON.stringify({ error: err.message }),
+          )
+          return c.json({ error: err.message }, 500)
         } finally {
           span.end()
           await trace.provider.forceFlush()
@@ -62,7 +61,13 @@ debug.get('/summary', async (c) => {
     )
   }
 
-  return run()
+  try {
+    const result = await usecase.execute(hours)
+    return c.json(result)
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error'
+    return c.json({ error: message }, 500)
+  }
 })
 
 export default debug
