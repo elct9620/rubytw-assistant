@@ -52,7 +52,8 @@ function createMemoryTools({
       }),
       execute: async ({ indices }) => {
         try {
-          const entries = await memoryStore.read(indices)
+          const uniqueIndices = Array.from(new Set(indices))
+          const entries = await memoryStore.read(uniqueIndices)
           for (const entry of entries) readIndices.add(entry.index)
           return { entries }
         } catch {
