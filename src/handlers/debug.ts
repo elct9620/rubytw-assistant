@@ -7,6 +7,19 @@ import { runWithTrace, setupTrace } from './telemetry-setup'
 
 const debug = new Hono<{ Bindings: Env }>()
 
+// Defence in depth: debug endpoints are developer-only. Even when
+// DEBUG_MODE is accidentally enabled in production, reject requests that
+// do not originate from localhost (wrangler dev serves on localhost).
+const LOCAL_HOSTNAMES = new Set(['localhost', '127.0.0.1', '::1'])
+
+debug.use('*', async (c, next) => {
+  const { hostname } = new URL(c.req.url)
+  if (!LOCAL_HOSTNAMES.has(hostname)) {
+    return c.notFound()
+  }
+  return next()
+})
+
 debug.get('/summary', async (c) => {
   const channelId = c.req.query('channel_id')
   if (!channelId) {

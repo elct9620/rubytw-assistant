@@ -44,6 +44,30 @@ beforeEach(() => {
 })
 
 describe('debug handler', () => {
+  it('should return 404 when request does not originate from localhost', async () => {
+    const res = await debug.request(
+      'https://rubytw-assistant.example.workers.dev/summary?channel_id=ch-1',
+      undefined,
+      { SUMMARY_HOURS: '24' },
+    )
+
+    expect(res.status).toBe(404)
+    expect(mockExecute).not.toHaveBeenCalled()
+  })
+
+  it('should accept requests on 127.0.0.1', async () => {
+    mockExecute.mockResolvedValue({ topicGroups: [], actionItems: [] })
+
+    const res = await debug.request(
+      'http://127.0.0.1:8787/summary?channel_id=ch-1',
+      undefined,
+      { SUMMARY_HOURS: '24' },
+    )
+
+    expect(res.status).toBe(200)
+    expect(mockExecute).toHaveBeenCalled()
+  })
+
   it('should return 400 when channel_id is missing', async () => {
     const res = await debug.request('/summary')
 
