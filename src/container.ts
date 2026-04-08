@@ -4,7 +4,6 @@ import { env } from 'cloudflare:workers'
 import { Octokit } from '@octokit/core'
 import { createAppAuth } from '@octokit/auth-app'
 import { TOKENS } from './tokens'
-import { nullContext } from './context'
 import { KVMemoryStoreAdapter } from './adapters/kv-memory-store'
 import { ConversationGrouperService } from './services/conversation-grouper'
 import { ActionItemGeneratorService } from './services/action-item-generator'
@@ -61,11 +60,6 @@ container.register(TOKENS.LangfuseConfig, {
 
 // OTel tracer (default: null — no telemetry)
 container.register(TOKENS.Tracer, { useValue: null })
-
-// Request context (default: no trace)
-container.register(TOKENS.RequestContext, {
-  useFactory: () => nullContext,
-})
 
 // Port → Adapter mappings (infrastructure)
 container.register(TOKENS.MemoryStore, { useClass: KVMemoryStoreAdapter })

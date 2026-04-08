@@ -34,9 +34,6 @@ export const TOKENS = {
   // OTel tracer (optional — set per-request when telemetry is enabled)
   Tracer: 'Tracer',
 
-  // Request context
-  RequestContext: 'RequestContext',
-
   // Port interfaces
   MemoryStore: 'MemoryStore',
   GitHubSource: 'GitHubSource',

@@ -3,7 +3,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { ConversationGrouperService } from '../../src/services/conversation-grouper'
 import GROUP_CONVERSATIONS_PROMPT from '../../src/prompts/group-conversations.md'
 import { createStubGitHubSource } from './stubs'
-import { nullContext } from '../../src/context'
 import { KVMemoryStoreAdapter } from '../../src/adapters/kv-memory-store'
 
 const mockGenerateText = vi.fn()
@@ -33,7 +32,6 @@ function createService(): ConversationGrouperService {
     128,
     createStubGitHubSource(),
     null,
-    nullContext,
   )
 }
 

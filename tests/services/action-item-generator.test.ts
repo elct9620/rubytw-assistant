@@ -3,7 +3,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { ActionItemGeneratorService } from '../../src/services/action-item-generator'
 import GENERATE_ACTION_ITEMS_PROMPT from '../../src/prompts/generate-action-items.md'
 import { createStubGitHubSource } from './stubs'
-import { nullContext } from '../../src/context'
 import { KVMemoryStoreAdapter } from '../../src/adapters/kv-memory-store'
 
 const mockGenerateText = vi.fn()
@@ -33,7 +32,6 @@ function createService(): ActionItemGeneratorService {
     128,
     createStubGitHubSource(),
     null,
-    nullContext,
   )
 }
 
