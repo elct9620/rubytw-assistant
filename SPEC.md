@@ -83,12 +83,13 @@ A development-only HTTP endpoint that triggers the same AI summary pipeline as F
 
 **Constraints:**
 
-| Aspect          | Decision                                                                                                             |
-| --------------- | -------------------------------------------------------------------------------------------------------------------- |
-| Availability    | Development environment only; the endpoint does not exist in production                                              |
-| Authentication  | None; environment isolation is the sole access control mechanism                                                     |
-| Result delivery | HTTP response body containing pipeline intermediate results (topic groups and action items); no Discord message sent |
-| Prerequisites   | Development environment must have access to the same Discord Bot Token and AI Service as production                  |
+| Aspect          | Decision                                                                                                              |
+| --------------- | --------------------------------------------------------------------------------------------------------------------- |
+| Availability    | Development environment only; the endpoint does not exist in production                                               |
+| Network origin  | Only requests from localhost are accepted; non-local requests are rejected even if the endpoint happens to be mounted |
+| Authentication  | None; environment isolation and localhost restriction are the sole access control mechanisms                          |
+| Result delivery | HTTP response body containing pipeline intermediate results (topic groups and action items); no Discord message sent  |
+| Prerequisites   | Development environment must have access to the same Discord Bot Token and AI Service as production                   |
 
 **Parameters:**
 
