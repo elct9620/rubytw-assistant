@@ -118,7 +118,7 @@ describe('scheduledHandler', () => {
       }),
     })
 
-    const result = { topicGroups: [], actionItems: [] }
+    const result = { kind: 'empty' }
     mockExecute.mockResolvedValue(result)
     mockPresent.mockResolvedValue(undefined)
 
@@ -138,7 +138,7 @@ describe('scheduledHandler', () => {
       }),
     })
 
-    mockExecute.mockResolvedValue({ topicGroups: [], actionItems: [] })
+    mockExecute.mockResolvedValue({ kind: 'empty' })
     mockPresent.mockResolvedValue(undefined)
 
     const controller = { cron: '0 16 * * *', scheduledTime: Date.now() }
@@ -168,6 +168,7 @@ describe('scheduledHandler', () => {
     })
 
     mockExecute.mockResolvedValue({
+      kind: 'success',
       topicGroups: [{}, {}, {}],
       actionItems: [{}, {}],
     })
@@ -178,7 +179,11 @@ describe('scheduledHandler', () => {
 
     expect(mockSetAttribute).toHaveBeenCalledWith(
       'langfuse.observation.output',
-      JSON.stringify({ topicGroupCount: 3, actionItemCount: 2 }),
+      JSON.stringify({
+        kind: 'success',
+        topicGroupCount: 3,
+        actionItemCount: 2,
+      }),
     )
   })
 })

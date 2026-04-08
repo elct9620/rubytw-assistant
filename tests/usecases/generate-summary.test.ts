@@ -57,7 +57,7 @@ function createStubDeps(
 }
 
 describe('GenerateSummary', () => {
-  it('should run two-phase pipeline and return result', async () => {
+  it('should run two-phase pipeline and return success result', async () => {
     const deps = createStubDeps()
     const usecase = new GenerateSummary(deps)
 
@@ -72,6 +72,7 @@ describe('GenerateSummary', () => {
       actionableGroup,
     ])
     expect(result).toEqual({
+      kind: 'success',
       topicGroups: [actionableGroup, smallTalkGroup],
       actionItems: [sampleActionItem],
     })
@@ -108,11 +109,11 @@ describe('GenerateSummary', () => {
 
     const result = await usecase.execute(24)
 
-    expect(result).toEqual({ topicGroups: [], actionItems: [] })
+    expect(result).toEqual({ kind: 'empty' })
     expect(deps.conversationGrouper.groupConversations).not.toHaveBeenCalled()
   })
 
-  it('should return empty action items when all groups are filtered out', async () => {
+  it('should return success with empty action items when all groups are filtered out', async () => {
     const deps = createStubDeps({
       conversationGrouper: {
         groupConversations: vi
@@ -124,8 +125,63 @@ describe('GenerateSummary', () => {
 
     const result = await usecase.execute(24)
 
-    expect(result.topicGroups).toEqual([smallTalkGroup, nonCommunityGroup])
-    expect(result.actionItems).toEqual([])
+    expect(result).toEqual({
+      kind: 'success',
+      topicGroups: [smallTalkGroup, nonCommunityGroup],
+      actionItems: [],
+    })
     expect(deps.actionItemGenerator.generateActionItems).not.toHaveBeenCalled()
+  })
+
+  it('should fall back to raw messages when conversation grouping fails', async () => {
+    const deps = createStubDeps({
+      conversationGrouper: {
+        groupConversations: vi
+          .fn()
+          .mockRejectedValue(new Error('grouper down')),
+      },
+    })
+    const usecase = new GenerateSummary(deps)
+
+    const result = await usecase.execute(24)
+
+    expect(result).toEqual({
+      kind: 'fallback',
+      rawMessages: ['msg-1', 'msg-2'],
+      reason: 'grouper down',
+    })
+    expect(deps.actionItemGenerator.generateActionItems).not.toHaveBeenCalled()
+  })
+
+  it('should fall back to raw messages when action item generation fails', async () => {
+    const deps = createStubDeps({
+      actionItemGenerator: {
+        generateActionItems: vi
+          .fn()
+          .mockRejectedValue(new Error('generator down')),
+      },
+    })
+    const usecase = new GenerateSummary(deps)
+
+    const result = await usecase.execute(24)
+
+    expect(result).toEqual({
+      kind: 'fallback',
+      rawMessages: ['msg-1', 'msg-2'],
+      reason: 'generator down',
+    })
+  })
+
+  it('should propagate Discord collection errors without fallback', async () => {
+    const deps = createStubDeps({
+      discord: {
+        getChannelMessages: vi
+          .fn()
+          .mockRejectedValue(new Error('discord down')),
+      },
+    })
+    const usecase = new GenerateSummary(deps)
+
+    await expect(usecase.execute(24)).rejects.toThrow('discord down')
   })
 })

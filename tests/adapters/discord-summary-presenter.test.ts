@@ -45,6 +45,7 @@ describe('DiscordSummaryPresenter', () => {
     const presenter = new DiscordSummaryPresenter(notifier, 'channel-123')
 
     const result: SummaryResult = {
+      kind: 'success',
       topicGroups: [actionableGroup],
       actionItems: [sampleActionItem],
     }
@@ -62,11 +63,24 @@ describe('DiscordSummaryPresenter', () => {
     const presenter = new DiscordSummaryPresenter(notifier, 'channel-123')
 
     const result: SummaryResult = {
+      kind: 'success',
       topicGroups: [actionableGroup],
       actionItems: [],
     }
 
     await presenter.present(result)
+
+    expect(notifier.sendMessage).toHaveBeenCalledWith(
+      'channel-123',
+      '本次摘要期間內無待辦事項。',
+    )
+  })
+
+  it('should send no-action-items notice for empty result', async () => {
+    const notifier = createMockNotifier()
+    const presenter = new DiscordSummaryPresenter(notifier, 'channel-123')
+
+    await presenter.present({ kind: 'empty' })
 
     expect(notifier.sendMessage).toHaveBeenCalledWith(
       'channel-123',
@@ -86,6 +100,7 @@ describe('DiscordSummaryPresenter', () => {
     }))
 
     const result: SummaryResult = {
+      kind: 'success',
       topicGroups: [actionableGroup],
       actionItems: manyItems,
     }
@@ -114,6 +129,7 @@ describe('DiscordSummaryPresenter', () => {
     expect(formatActionItems(longItems).length).toBeGreaterThan(2000)
 
     const result: SummaryResult = {
+      kind: 'success',
       topicGroups: [actionableGroup],
       actionItems: longItems,
     }
@@ -121,6 +137,65 @@ describe('DiscordSummaryPresenter', () => {
     await presenter.present(result)
 
     expect(notifier.sendMessage.mock.calls.length).toBeGreaterThan(1)
+    for (const call of notifier.sendMessage.mock.calls) {
+      expect((call as [string, string])[1].length).toBeLessThanOrEqual(2000)
+    }
+  })
+
+  it('should send error notice and raw messages on fallback', async () => {
+    const notifier = createMockNotifier()
+    const presenter = new DiscordSummaryPresenter(notifier, 'channel-123')
+
+    await presenter.present({
+      kind: 'fallback',
+      rawMessages: ['<msg>one</msg>', '<msg>two</msg>'],
+      reason: 'AI service down',
+    })
+
+    expect(notifier.sendMessage).toHaveBeenCalledTimes(2)
+    const [firstCall, secondCall] = notifier.sendMessage.mock.calls as [
+      [string, string],
+      [string, string],
+    ]
+    expect(firstCall[1]).toContain('AI 分析失敗')
+    expect(firstCall[1]).toContain('AI service down')
+    expect(secondCall[1]).toBe('<msg>one</msg>\n<msg>two</msg>')
+  })
+
+  it('should send only the error notice when fallback has no raw messages', async () => {
+    const notifier = createMockNotifier()
+    const presenter = new DiscordSummaryPresenter(notifier, 'channel-123')
+
+    await presenter.present({
+      kind: 'fallback',
+      rawMessages: [],
+      reason: 'AI service down',
+    })
+
+    expect(notifier.sendMessage).toHaveBeenCalledOnce()
+    expect(notifier.sendMessage.mock.calls[0]?.[1]).toContain('AI 分析失敗')
+  })
+
+  it('should chunk long raw messages on fallback', async () => {
+    const notifier = createMockNotifier()
+    const presenter = new DiscordSummaryPresenter(notifier, 'channel-123')
+
+    const longMessages = Array.from(
+      { length: 30 },
+      (_, i) => `<msg>${i}: ${'內容'.repeat(80)}</msg>`,
+    )
+
+    // Precondition: joined body exceeds Discord limit
+    expect(longMessages.join('\n').length).toBeGreaterThan(2000)
+
+    await presenter.present({
+      kind: 'fallback',
+      rawMessages: longMessages,
+      reason: 'down',
+    })
+
+    // 1 notice + 2+ chunks
+    expect(notifier.sendMessage.mock.calls.length).toBeGreaterThan(2)
     for (const call of notifier.sendMessage.mock.calls) {
       expect((call as [string, string])[1].length).toBeLessThanOrEqual(2000)
     }
@@ -141,6 +216,7 @@ describe('DiscordSummaryPresenter', () => {
     expect(formatActionItems([oversizedItem]).length).toBeGreaterThan(2000)
 
     await presenter.present({
+      kind: 'success',
       topicGroups: [actionableGroup],
       actionItems: [oversizedItem],
     })
@@ -173,6 +249,7 @@ describe('DiscordSummaryPresenter DI integration', () => {
     const presenter = child.resolve(DiscordSummaryPresenter)
 
     const result: SummaryResult = {
+      kind: 'success',
       topicGroups: [actionableGroup],
       actionItems: [sampleActionItem],
     }
@@ -213,6 +290,7 @@ describe('DiscordSummaryPresenter DI integration', () => {
     expect(formatActionItems(longItems).length).toBeGreaterThan(2000)
 
     await presenter.present({
+      kind: 'success',
       topicGroups: [actionableGroup],
       actionItems: longItems,
     })

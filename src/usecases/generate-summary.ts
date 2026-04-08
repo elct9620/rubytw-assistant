@@ -19,20 +19,29 @@ export class GenerateSummary {
     const messages = await this.deps.discord.getChannelMessages(hours)
 
     if (messages.length === 0) {
-      return { topicGroups: [], actionItems: [] }
+      return { kind: 'empty' }
     }
 
-    const groups =
-      await this.deps.conversationGrouper.groupConversations(messages)
-    const actionableGroups = groups.filter(isActionable)
+    try {
+      const groups =
+        await this.deps.conversationGrouper.groupConversations(messages)
+      const actionableGroups = groups.filter(isActionable)
 
-    if (actionableGroups.length === 0) {
-      return { topicGroups: groups, actionItems: [] }
+      if (actionableGroups.length === 0) {
+        return { kind: 'success', topicGroups: groups, actionItems: [] }
+      }
+
+      const actionItems =
+        await this.deps.actionItemGenerator.generateActionItems(
+          actionableGroups,
+        )
+
+      return { kind: 'success', topicGroups: groups, actionItems }
+    } catch (error) {
+      const reason =
+        error instanceof Error ? error.message : 'AI pipeline failed'
+      console.error('AI pipeline failed, falling back to raw messages:', error)
+      return { kind: 'fallback', rawMessages: messages, reason }
     }
-
-    const actionItems =
-      await this.deps.actionItemGenerator.generateActionItems(actionableGroups)
-
-    return { topicGroups: groups, actionItems }
   }
 }

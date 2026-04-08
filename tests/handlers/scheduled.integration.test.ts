@@ -86,6 +86,9 @@ describe('scheduled pipeline integration', () => {
 
     expect(presentedResults).toHaveLength(1)
     const result = presentedResults[0]
+    if (result.kind !== 'success') {
+      throw new Error(`expected success result, got ${result.kind}`)
+    }
     expect(result.topicGroups).toHaveLength(1)
     expect(result.topicGroups[0].topic).toBe('官網改版')
     expect(result.actionItems).toHaveLength(1)
@@ -108,9 +111,7 @@ describe('scheduled pipeline integration', () => {
     await scheduledHandler(controller)
 
     expect(presentedResults).toHaveLength(1)
-    const result = presentedResults[0]
-    expect(result.topicGroups).toEqual([])
-    expect(result.actionItems).toEqual([])
+    expect(presentedResults[0]).toEqual({ kind: 'empty' })
   })
 
   it('should skip action item generation when all groups are non-actionable', async () => {
@@ -143,6 +144,10 @@ describe('scheduled pipeline integration', () => {
 
     expect(generateActionItems).not.toHaveBeenCalled()
     expect(presentedResults).toHaveLength(1)
-    expect(presentedResults[0].actionItems).toEqual([])
+    const result = presentedResults[0]
+    if (result.kind !== 'success') {
+      throw new Error(`expected success result, got ${result.kind}`)
+    }
+    expect(result.actionItems).toEqual([])
   })
 })

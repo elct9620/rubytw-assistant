@@ -2,8 +2,8 @@ import { Hono } from 'hono'
 import { container } from '../container'
 import { TOKENS } from '../tokens'
 import { GenerateSummary } from '../usecases/generate-summary'
-import type { SummaryResult } from '../usecases/ports'
 import { runWithTrace, setupTrace } from './telemetry-setup'
+import { summarizeResult } from './summarize-result'
 
 const debug = new Hono<{ Bindings: Env }>()
 
@@ -37,10 +37,7 @@ debug.get('/summary', async (c) => {
     const result = await runWithTrace(child, trace, {
       spanName: 'generate-summary',
       input: { channelId, hours, debug: true },
-      summarizeOutput: (r: SummaryResult) => ({
-        topicGroupCount: r.topicGroups.length,
-        actionItemCount: r.actionItems.length,
-      }),
+      summarizeOutput: summarizeResult,
       fn: () => usecase.execute(hours),
     })
     return c.json(result)

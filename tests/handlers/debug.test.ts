@@ -188,6 +188,7 @@ describe('debug handler', () => {
     })
 
     mockExecute.mockResolvedValue({
+      kind: 'success',
       topicGroups: [{}, {}],
       actionItems: [{}],
     })
@@ -198,7 +199,11 @@ describe('debug handler', () => {
 
     expect(mockSetAttribute).toHaveBeenCalledWith(
       'langfuse.observation.output',
-      JSON.stringify({ topicGroupCount: 2, actionItemCount: 1 }),
+      JSON.stringify({
+        kind: 'success',
+        topicGroupCount: 2,
+        actionItemCount: 1,
+      }),
     )
   })
 

@@ -25,10 +25,23 @@ export interface DiscordNotifier {
   sendMessage(channelId: string, content: string): Promise<void>
 }
 
-export interface SummaryResult {
+export interface SummarySuccess {
+  kind: 'success'
   topicGroups: TopicGroup[]
   actionItems: ActionItem[]
 }
+
+export interface SummaryEmpty {
+  kind: 'empty'
+}
+
+export interface SummaryFallback {
+  kind: 'fallback'
+  rawMessages: string[]
+  reason: string
+}
+
+export type SummaryResult = SummarySuccess | SummaryEmpty | SummaryFallback
 
 export interface SummaryPresenter {
   present(result: SummaryResult): Promise<void>
