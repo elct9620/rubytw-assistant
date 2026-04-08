@@ -65,7 +65,7 @@ The system collects discussion messages from a designated Discord channel over a
 
 ### 2. Discord Interaction Commands (Deferred)
 
-Operators issue query commands via Slash Commands in Discord. The system retrieves data through the GitHub App and responds. This feature is outside the current target scope; only the Discord Interaction Webhook verification (required for the platform integration) is implemented now. Command behaviors will be defined in a future specification iteration.
+Operators issue query commands via Slash Commands in Discord. The system retrieves data through the GitHub App and responds. This feature is awaiting design and no part of it is in the current implementation scope; both the Discord Interaction Webhook handling and the command behaviors will be defined in a future specification iteration.
 
 ### 3. GitHub App Integration
 
@@ -163,11 +163,7 @@ A development-only HTTP endpoint that triggers the same AI summary pipeline as F
 
 ### Discord Interaction Commands (Deferred)
 
-| State                                | Action                   | Result                                              |
-| ------------------------------------ | ------------------------ | --------------------------------------------------- |
-| Discord Interaction Webhook received | Verify request signature | Process command if valid; reject request if invalid |
-
-Command behavior definitions are deferred until Feature 2 is specified. Only webhook signature verification is in the current scope.
+Discord Interaction Webhook handling and command behaviors are awaiting design. No behaviors are defined in the current scope; this section will be populated when Feature 2 is specified.
 
 ### GitHub App Integration
 
@@ -179,13 +175,12 @@ Command behavior definitions are deferred until Feature 2 is specified. Only web
 
 ### GitHub Tool Query
 
-| State                             | Action                                                                   | Result                                                                                               |
-| --------------------------------- | ------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------- |
-| AI invokes GitHub Tool            | Query Project V2 items; filter to Issues only (exclude PRs, DraftIssues) | Return Issue list with: title, number, state, url, labels, assignees, project status field, due date |
-| AI specifies state filter         | Apply state filter (OPEN or CLOSED) to Issue list                        | Return only Issues matching the specified state                                                      |
-| AI specifies due date range       | Apply due date range filter (from/to) to Issue list                      | Return only Issues with due date within the specified range; Issues without due date are excluded    |
-| AI omits all filters              | Return all Issues regardless of state or due date                        | AI determines relevance based on state and due date fields in the returned data                      |
-| Project has more items than limit | Return at most 50 Issues per query                                       | AI works with available data; may miss items beyond the limit                                        |
+| State                             | Action                                                                   | Result                                                                                     |
+| --------------------------------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------ |
+| AI invokes GitHub Tool            | Query Project V2 items; filter to Issues only (exclude PRs, DraftIssues) | Return Issue list with: title, number, state, url, labels, assignees, project status field |
+| AI specifies state filter         | Apply state filter (OPEN or CLOSED) to Issue list                        | Return only Issues matching the specified state                                            |
+| AI omits the state filter         | Return all Issues regardless of state                                    | AI determines relevance based on state and project status fields in the returned data      |
+| Project has more items than limit | Return at most 50 Issues per query                                       | AI works with available data; may miss items beyond the limit                              |
 
 ### Memory Tool Interface
 
@@ -239,14 +234,14 @@ When the AI pipeline fails after all retries, the system sends a fallback messag
 | Action Item        | Phase 2 output; a structured to-do extracted from a group, containing status, assignee, task description, and reason                                                                      |
 | Action Item Status | Classification label for action items: to-do, in-progress, done, stalled, or discussion                                                                                                   |
 | Memory Tool        | An AI-accessible tool set (`list_memories`, `read_memories`, `update_memory`) for index-based context memory with description and content fields, retaining information across executions |
-| GitHub Tool        | An AI-accessible query tool that retrieves Issues from GitHub Projects V2 with optional state and due date filters via GitHub App                                                         |
+| GitHub Tool        | An AI-accessible query tool that retrieves Issues from GitHub Projects V2 with an optional state filter via GitHub App                                                                    |
 | Schedule           | The mechanism that triggers the summary generation pipeline on a timed basis, driven by platform scheduling                                                                               |
 
 ## Contracts
 
 | Interaction Point           | Contract                                                                                                                                                                                                                              |
 | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Discord Interaction Webhook | System receives HTTP POST requests, verifies Ed25519 signature, processes commands, returns JSON response                                                                                                                             |
+| Discord Interaction Webhook | _(Deferred)_ Awaiting design for Feature 2; no contract defined in the current scope                                                                                                                                                  |
 | GitHub API                  | System makes read-only REST/GraphQL API calls using GitHub App Installation Token; also serves as the backend for AI GitHub Tool                                                                                                      |
 | Discord Bot API             | System sends messages to designated channel and reads channel message history via Bot Token                                                                                                                                           |
 | AI Service                  | System makes two separate AI service calls: Phase 1 receives message list and produces groups; Phase 2 receives groups and produces action item list. Each phase is an independent request-response cycle.                            |
