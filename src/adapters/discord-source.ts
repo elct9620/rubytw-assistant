@@ -1,6 +1,7 @@
 import { injectable, inject } from 'tsyringe'
 import type { DiscordSource } from '../usecases/ports'
 import { assertDiscordResponse, escapeXml } from './shared'
+import { withRetry } from '../services/retry'
 import { TOKENS } from '../tokens'
 
 const DISCORD_EPOCH = 1420070400000n
@@ -108,14 +109,25 @@ export class DiscordSourceAdapter implements DiscordSource {
 
   private async fetchMessages(after: string): Promise<DiscordMessage[]> {
     const url = `https://discord.com/api/v10/channels/${this.channelId}/messages?after=${after}&limit=${MAX_MESSAGES_PER_REQUEST}`
-    const response = await fetch(url, {
-      headers: {
-        Authorization: `Bot ${this.botToken}`,
+
+    return withRetry(
+      async () => {
+        const response = await fetch(url, {
+          headers: {
+            Authorization: `Bot ${this.botToken}`,
+          },
+        })
+        await assertDiscordResponse(response)
+        return (await response.json()) as DiscordMessage[]
       },
-    })
-
-    await assertDiscordResponse(response)
-
-    return (await response.json()) as DiscordMessage[]
+      {
+        onRetry: (error, attempt) => {
+          console.warn(
+            `Discord fetchMessages retry ${attempt}:`,
+            error instanceof Error ? error.message : error,
+          )
+        },
+      },
+    )
   }
 }

@@ -3,6 +3,7 @@ import type { ToolSet } from 'ai'
 import type { Tracer } from '@opentelemetry/api'
 import type { z } from 'zod'
 import { createAIModel } from './ai-model'
+import { withRetry } from './retry'
 import type { AiGatewayConfig } from '../tokens'
 
 export const MAX_TOOL_STEPS = 30
@@ -34,6 +35,37 @@ export interface RunStructuredAIOptions<S extends z.ZodTypeAny> {
  * two services parallel structurally.
  */
 export async function runStructuredAI<S extends z.ZodTypeAny>({
+  operation,
+  config,
+  system,
+  prompt,
+  schema,
+  tools,
+  tracer,
+}: RunStructuredAIOptions<S>): Promise<z.infer<S>> {
+  return withRetry(
+    () =>
+      generateOnce({
+        operation,
+        config,
+        system,
+        prompt,
+        schema,
+        tools,
+        tracer,
+      }),
+    {
+      onRetry: (error, attempt) => {
+        console.warn(
+          `runStructuredAI(${operation}) retry ${attempt}:`,
+          error instanceof Error ? error.message : error,
+        )
+      },
+    },
+  )
+}
+
+async function generateOnce<S extends z.ZodTypeAny>({
   operation,
   config,
   system,
