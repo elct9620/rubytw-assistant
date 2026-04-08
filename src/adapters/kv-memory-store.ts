@@ -44,6 +44,12 @@ export class KVMemoryStoreAdapter implements MemoryStore {
     })
   }
 
+  /**
+   * Read-modify-write on a single KV key. KV has no transactions, so
+   * concurrent writers can overwrite each other. This assumes a
+   * single-writer model — the only writers today are the daily cron
+   * and the developer-only debug endpoint, which never run in parallel.
+   */
   async update(
     index: number,
     description: string,
