@@ -1,7 +1,7 @@
 import { SpanStatusCode, type Tracer } from '@opentelemetry/api'
 import { container } from '../container'
 import { GenerateSummary } from '../usecases/generate-summary'
-import type { SummaryPresenter } from '../usecases/ports'
+import type { SummaryPresenter, SummaryResult } from '../usecases/ports'
 import { TOKENS } from '../tokens'
 import { setupTrace } from './telemetry-setup'
 
@@ -19,25 +19,35 @@ export async function scheduledHandler(
   const presenter = child.resolve<SummaryPresenter>(TOKENS.SummaryPresenter)
   const hours = child.resolve<number>(TOKENS.SummaryHours)
 
-  const run = async () => {
+  const run = async (): Promise<SummaryResult> => {
     const result = await usecase.execute(hours)
     await presenter.present(result)
+    return result
   }
 
   if (trace) {
     const tracer = child.resolve<Tracer>(TOKENS.Tracer)
-    const traceInput = { cron: controller.cron }
+    // Use `langfuse.observation.*` (not `langfuse.trace.*`) so that the root
+    // observation's input/output is rendered in the v4 Fast UI. Trace-level
+    // attributes are deprecated in v4 and only kept for legacy evaluators.
+    const observationInput = { cron: controller.cron, hours }
     await tracer.startActiveSpan(
       'generate-summary',
       {
         attributes: {
-          ...traceInput,
-          'langfuse.trace.input': JSON.stringify(traceInput),
+          'langfuse.observation.input': JSON.stringify(observationInput),
         },
       },
       async (span) => {
         try {
-          await run()
+          const result = await run()
+          span.setAttribute(
+            'langfuse.observation.output',
+            JSON.stringify({
+              topicGroupCount: result.topicGroups.length,
+              actionItemCount: result.actionItems.length,
+            }),
+          )
         } catch (error) {
           const err = error instanceof Error ? error : new Error(String(error))
           span.recordException(err)
@@ -46,7 +56,7 @@ export async function scheduledHandler(
             message: err.message,
           })
           span.setAttribute(
-            'langfuse.trace.output',
+            'langfuse.observation.output',
             JSON.stringify({ error: err.message, stack: err.stack }),
           )
           throw error

@@ -10,20 +10,12 @@ const mockSetStatus = vi.fn()
 const mockSetAttribute = vi.fn()
 const mockForceFlush = vi.fn().mockResolvedValue(undefined)
 
+const mockStartActiveSpan = vi.fn()
+
 vi.mock('@aotoki/edge-otel', () => ({
   createTracerProvider: vi.fn(() => ({
     getTracer: () => ({
-      startActiveSpan: (
-        _name: string,
-        _opts: unknown,
-        fn: (span: unknown) => unknown,
-      ) =>
-        fn({
-          end: mockSpanEnd,
-          recordException: mockRecordException,
-          setStatus: mockSetStatus,
-          setAttribute: mockSetAttribute,
-        }),
+      startActiveSpan: mockStartActiveSpan,
     }),
     forceFlush: mockForceFlush,
   })),
@@ -62,6 +54,20 @@ beforeEach(() => {
   mockSetStatus.mockClear()
   mockSetAttribute.mockClear()
   mockForceFlush.mockClear()
+  mockStartActiveSpan.mockReset()
+  mockStartActiveSpan.mockImplementation(
+    (
+      _name: string,
+      _opts: unknown,
+      fn: (span: unknown) => unknown | Promise<unknown>,
+    ) =>
+      fn({
+        end: mockSpanEnd,
+        recordException: mockRecordException,
+        setStatus: mockSetStatus,
+        setAttribute: mockSetAttribute,
+      }),
+  )
 })
 
 describe('scheduledHandler', () => {
@@ -98,7 +104,7 @@ describe('scheduledHandler', () => {
       expect.objectContaining({ code: 2 }),
     )
     expect(mockSetAttribute).toHaveBeenCalledWith(
-      'langfuse.trace.output',
+      'langfuse.observation.output',
       expect.stringContaining('AI service failed'),
     )
     expect(mockSpanEnd).toHaveBeenCalled()
@@ -144,5 +150,58 @@ describe('scheduledHandler', () => {
 
     expect(mockSpanEnd).toHaveBeenCalled()
     expect(mockForceFlush).toHaveBeenCalled()
+  })
+
+  it('should set langfuse.observation.input on root span when telemetry is enabled', async () => {
+    container.register(TOKENS.LangfuseConfig, {
+      useFactory: () => ({
+        publicKey: 'pk-test',
+        secretKey: 'sk-test',
+        baseUrl: 'https://us.cloud.langfuse.com',
+      }),
+    })
+
+    mockExecute.mockResolvedValue({ topicGroups: [], actionItems: [] })
+    mockPresent.mockResolvedValue(undefined)
+
+    const controller = { cron: '0 16 * * *', scheduledTime: Date.now() }
+    await scheduledHandler(controller as ScheduledController)
+
+    expect(mockStartActiveSpan).toHaveBeenCalledWith(
+      'generate-summary',
+      expect.objectContaining({
+        attributes: expect.objectContaining({
+          'langfuse.observation.input': JSON.stringify({
+            cron: '0 16 * * *',
+            hours: 12,
+          }),
+        }),
+      }),
+      expect.any(Function),
+    )
+  })
+
+  it('should set langfuse.observation.output with summary stats on success', async () => {
+    container.register(TOKENS.LangfuseConfig, {
+      useFactory: () => ({
+        publicKey: 'pk-test',
+        secretKey: 'sk-test',
+        baseUrl: 'https://us.cloud.langfuse.com',
+      }),
+    })
+
+    mockExecute.mockResolvedValue({
+      topicGroups: [{}, {}, {}],
+      actionItems: [{}, {}],
+    })
+    mockPresent.mockResolvedValue(undefined)
+
+    const controller = { cron: '0 16 * * *', scheduledTime: Date.now() }
+    await scheduledHandler(controller as ScheduledController)
+
+    expect(mockSetAttribute).toHaveBeenCalledWith(
+      'langfuse.observation.output',
+      JSON.stringify({ topicGroupCount: 3, actionItemCount: 2 }),
+    )
   })
 })
