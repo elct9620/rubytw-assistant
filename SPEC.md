@@ -36,12 +36,12 @@ The system collects discussion messages from a designated Discord channel over a
 
 **Processing Pipeline:**
 
-| Phase                          | Input                                                   | Output                                                                                |
-| ------------------------------ | ------------------------------------------------------- | ------------------------------------------------------------------------------------- |
-| Data Collection                | Discord channel message history                         | Time-sorted message list (with author, content, timestamp, attachments, mentions)     |
-| Phase 1: Conversation Grouping | Sorted message list + stored Memory Summary (if exists) | Topic groups, each with a summary and attribute tags (see Attribute Tags below)       |
-| Phase 2: Action Items          | Topic groups + stored Memory Summary (if exists)        | Structured action item list, each with status, assignee, task description, and reason |
-| Phase 3: Memory Summary        | All memory slots (after Phase 2 updates)                | Condensed context summary stored to Memory Summary Store                              |
+| Phase                          | Input                                                   | Output                                                                                      |
+| ------------------------------ | ------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| Data Collection                | Discord channel message history                         | Time-sorted message list (with author, content, timestamp, attachments, mentions)           |
+| Phase 1: Conversation Grouping | Sorted message list + stored Memory Summary (if exists) | Topic groups, each with a summary and attribute tags (see Attribute Tags below)             |
+| Phase 2: Action Items          | Topic groups + stored Memory Summary (if exists)        | Structured action item list, each with status, assignee, task description, and reason       |
+| Phase 3: Memory Summary        | All memory slots as Markdown (after Phase 2 updates)    | Condensed plain-text summary (≤ Memory Summary Length Limit) stored to Memory Summary Store |
 
 **Attribute Tags (closed enumeration):**
 
@@ -107,13 +107,14 @@ A development-only HTTP endpoint that triggers the same AI summary pipeline as F
 
 ## Configuration
 
-| Setting                  | Description                                                    | Default                |
-| ------------------------ | -------------------------------------------------------------- | ---------------------- |
-| Discord Channel ID       | Designated channel for summary delivery and message collection | (required, no default) |
-| Summary Collection Hours | Collect Discord messages from the past N hours                 | 24                     |
-| Summary Item Limit       | Maximum number of action items per summary                     | 30                     |
-| Memory Entry Limit       | Maximum number of memory slots for Memory Tool                 | 32                     |
-| Memory Description Limit | Maximum character length for memory slot description           | 128                    |
+| Setting                     | Description                                                    | Default                |
+| --------------------------- | -------------------------------------------------------------- | ---------------------- |
+| Discord Channel ID          | Designated channel for summary delivery and message collection | (required, no default) |
+| Summary Collection Hours    | Collect Discord messages from the past N hours                 | 24                     |
+| Summary Item Limit          | Maximum number of action items per summary                     | 30                     |
+| Memory Entry Limit          | Maximum number of memory slots for Memory Tool                 | 32                     |
+| Memory Description Limit    | Maximum character length for memory slot description           | 128                    |
+| Memory Summary Length Limit | Maximum character length for Memory Summary output             | 300                    |
 
 ## System Boundary
 
@@ -134,11 +135,22 @@ A development-only HTTP endpoint that triggers the same AI summary pipeline as F
 | Scheduled time reached            | Trigger summary generation pipeline                                     | System begins collecting data                                                      |
 | Discord message history collected | Retrieve messages from designated channel within configured time window | Messages sorted by time; extract author, content, timestamp, attachments, mentions |
 
+#### Memory Summary Injection
+
+At the start of each pipeline run, before Phase 1, the system reads the previously stored Memory Summary and appends it to the end of Phase 1 and Phase 2 system prompts.
+
+| State                           | Action                                                          | Result                                                                 |
+| ------------------------------- | --------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| Data collection complete        | Read stored Memory Summary from Memory Summary Store            | Previously generated summary retrieved                                 |
+| No stored summary exists        | Skip injection                                                  | Phase 1 and Phase 2 system prompts contain no memory context paragraph |
+| Stored summary exists           | Append summary to the end of Phase 1 and Phase 2 system prompts | Both phases begin with historical context awareness                    |
+| Memory Summary Store read fails | Log warning; skip injection                                     | Pipeline continues without injected context (degraded)                 |
+
 #### Phase 1: Conversation Grouping
 
 | State                            | Action                                                                                               | Result                                                                       |
 | -------------------------------- | ---------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| Stored Memory Summary available  | Inject Memory Summary into system prompt as historical context                                       | AI begins grouping with awareness of prior community knowledge and context   |
+| Stored Memory Summary appended   | Memory Summary appended to end of system prompt (see Memory Summary Injection)                       | AI begins grouping with awareness of prior community knowledge and context   |
 | Sorted message list received     | AI identifies existing action items from bot messages (previous summaries)                           | Existing action items considered during grouping to avoid duplication        |
 | Existing action items identified | AI groups messages by topic and context, tagging each group with attribute tags (see Attribute Tags) | Topic group list produced, each with summary and attribute tags              |
 | Grouping complete                | AI may read/update cross-execution context memory via Memory Tool                                    | Memory assists grouping decisions; updated after processing for next run     |
@@ -146,45 +158,38 @@ A development-only HTTP endpoint that triggers the same AI summary pipeline as F
 
 #### Phase 2: Action Item Generation
 
-| State                           | Action                                                                                                      | Result                                                                         |
-| ------------------------------- | ----------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
-| Stored Memory Summary available | Inject Memory Summary into system prompt as historical context                                              | AI begins action item generation with awareness of prior community context     |
-| Topic group list received       | AI filters out groups with `community-related=no`, `small-talk=yes`, or `lost-context=yes`                  | Only community-relevant, actionable groups retained                            |
-| Relevant groups filtered        | AI generates an action item for each group, classified as to-do, in-progress, done, stalled, or discussion  | At most one action item per group, with assignee, task description, and reason |
-| Action items generated          | AI may update memory via Memory Tool; may verify task status via GitHub Tool                                | Memory and GitHub data assist action item status classification                |
-| All action items generated      | Compile into action item list (capped by config), formatted as `- [Status] Description (Assignee) — Reason` | List sent to designated Discord channel for operators to read                  |
+| State                          | Action                                                                                                      | Result                                                                         |
+| ------------------------------ | ----------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| Stored Memory Summary appended | Memory Summary appended to end of system prompt (see Memory Summary Injection)                              | AI begins action item generation with awareness of prior community context     |
+| Topic group list received      | AI filters out groups with `community-related=no`, `small-talk=yes`, or `lost-context=yes`                  | Only community-relevant, actionable groups retained                            |
+| Relevant groups filtered       | AI generates an action item for each group, classified as to-do, in-progress, done, stalled, or discussion  | At most one action item per group, with assignee, task description, and reason |
+| Action items generated         | AI may update memory via Memory Tool; may verify task status via GitHub Tool                                | Memory and GitHub data assist action item status classification                |
+| All action items generated     | Compile into action item list (capped by config), formatted as `- [Status] Description (Assignee) — Reason` | List sent to designated Discord channel for operators to read                  |
 
 #### Phase 3: Memory Summary
 
-| State                            | Action                                             | Result                                                               |
-| -------------------------------- | -------------------------------------------------- | -------------------------------------------------------------------- |
-| Phase 2 complete                 | Read all memory slots from Memory Store            | All slots retrieved with description and content                     |
-| All slots empty                  | Skip summary generation                            | Memory Summary Store not updated; next run has no injected context   |
-| Non-empty slots exist            | Generate condensed summary via independent AI call | Single context paragraph summarizing accumulated knowledge           |
-| Summary generated                | Write summary to Memory Summary Store (KV)         | Summary persisted for next pipeline run                              |
-| Memory Store read fails          | Log warning; skip Memory Summary generation        | Next run continues without injected context (degraded)               |
-| Memory Summary AI call fails     | Log warning; skip Memory Summary generation        | Next run continues without injected context (degraded)               |
-| Memory Summary Store write fails | Log warning                                        | Summary lost; next run continues without injected context (degraded) |
+Phase 3 uses an independent AI call with its own system prompt. All non-empty memory slots are formatted as Markdown and passed as user input. No tools are available to the AI in this phase (no Memory Tool, no GitHub Tool). The output is a single plain-text paragraph capped at Memory Summary Length Limit.
 
-#### Memory Summary Injection
-
-| State                           | Action                                                 | Result                                                                 |
-| ------------------------------- | ------------------------------------------------------ | ---------------------------------------------------------------------- |
-| Pipeline triggered              | Read stored Memory Summary from Memory Summary Store   | Previously generated summary retrieved                                 |
-| No stored summary exists        | Skip injection                                         | Phase 1 and Phase 2 system prompts contain no memory context paragraph |
-| Stored summary exists           | Inject summary into Phase 1 and Phase 2 system prompts | Both phases begin with historical context awareness                    |
-| Memory Summary Store read fails | Log warning; skip injection                            | Pipeline continues without injected context (degraded)                 |
+| State                            | Action                                                                        | Result                                                               |
+| -------------------------------- | ----------------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| Phase 2 complete                 | Read all memory slots from Memory Store                                       | All slots retrieved with description and content                     |
+| All slots empty                  | Skip summary generation                                                       | Memory Summary Store not updated; next run has no injected context   |
+| Non-empty slots exist            | Format slots as Markdown user input; generate summary via independent AI call | Plain-text paragraph (≤ Memory Summary Length Limit) produced        |
+| Summary generated                | Write summary to Memory Summary Store (KV)                                    | Summary persisted for next pipeline run                              |
+| Memory Store read fails          | Log warning; skip Memory Summary generation                                   | Next run continues without injected context (degraded)               |
+| Memory Summary AI call fails     | Log warning; skip Memory Summary generation                                   | Next run continues without injected context (degraded)               |
+| Memory Summary Store write fails | Log warning                                                                   | Summary lost; next run continues without injected context (degraded) |
 
 ### Debug Summary Preview
 
-| State                                                  | Action                                                                    | Result                                                                                           |
-| ------------------------------------------------------ | ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| Debug endpoint receives request with source channel ID | Collect messages from specified channel within time window                | Messages retrieved using same data collection logic as Daily AI Summary                          |
-| Messages collected                                     | Execute full AI pipeline (Conversation Grouping → Action Item Generation) | Topic groups (with summaries and attribute tags) and action items produced                       |
-| Pipeline complete                                      | Return intermediate results in HTTP response                              | Response contains topic groups and action items as structured data; no Discord message sent      |
-| No messages found in time window                       | Skip AI pipeline                                                          | Return empty result indicating no messages found                                                 |
-| Source channel ID is invalid or inaccessible           | Discord API returns error                                                 | Return error indicating the channel could not be accessed                                        |
-| Discord message collection fails                       | Transient or permanent API failure                                        | Return error indicating collection failure with the failure reason; do not retry (debug context) |
+| State                                                  | Action                                                                                                                | Result                                                                                           |
+| ------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| Debug endpoint receives request with source channel ID | Collect messages from specified channel within time window                                                            | Messages retrieved using same data collection logic as Daily AI Summary                          |
+| Messages collected                                     | Execute full AI pipeline (Memory Summary Injection → Conversation Grouping → Action Item Generation → Memory Summary) | Same behavior as Daily AI Summary; topic groups, action items produced, Memory Summary updated   |
+| Pipeline complete                                      | Return intermediate results in HTTP response                                                                          | Response contains topic groups and action items as structured data; no Discord message sent      |
+| No messages found in time window                       | Skip AI pipeline                                                                                                      | Return empty result indicating no messages found                                                 |
+| Source channel ID is invalid or inaccessible           | Discord API returns error                                                                                             | Return error indicating the channel could not be accessed                                        |
+| Discord message collection fails                       | Transient or permanent API failure                                                                                    | Return error indicating collection failure with the failure reason; do not retry (debug context) |
 
 ### Discord Interaction Commands (Deferred)
 
@@ -255,7 +260,7 @@ When the AI pipeline fails after all retries, the system sends a fallback messag
 
 | Term                 | Definition                                                                                                                                                                                |
 | -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Summary              | Structured action item list produced by the three-phase AI pipeline                                                                                                                       |
+| Summary              | Structured action item list produced by the AI pipeline                                                                                                                                   |
 | Operator             | A member of the Ruby Taiwan core team responsible for community operations                                                                                                                |
 | Command              | A query request issued by an operator via Discord Slash Command                                                                                                                           |
 | Group                | Phase 1 output; aggregates contextually related conversation messages into a topic group with summary and attribute tags                                                                  |
