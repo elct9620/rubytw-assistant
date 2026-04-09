@@ -46,8 +46,12 @@ export const TOKENS = {
   // OTel tracer (optional — set per-request when telemetry is enabled)
   Tracer: 'Tracer',
 
+  MemorySummaryLengthLimit: 'MemorySummaryLengthLimit',
+
   // Port interfaces
   MemoryStore: 'MemoryStore',
+  MemorySummaryStore: 'MemorySummaryStore',
+  MemorySummarizer: 'MemorySummarizer',
   GitHubSource: 'GitHubSource',
   DiscordSource: 'DiscordSource',
   ConversationGrouper: 'ConversationGrouper',

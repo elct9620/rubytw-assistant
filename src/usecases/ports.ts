@@ -14,11 +14,17 @@ export interface DiscordSource {
 }
 
 export interface ConversationGrouper {
-  groupConversations(messages: string[]): Promise<TopicGroup[]>
+  groupConversations(
+    messages: string[],
+    memorySummary?: string,
+  ): Promise<TopicGroup[]>
 }
 
 export interface ActionItemGenerator {
-  generateActionItems(groups: TopicGroup[]): Promise<ActionItem[]>
+  generateActionItems(
+    groups: TopicGroup[],
+    memorySummary?: string,
+  ): Promise<ActionItem[]>
 }
 
 export interface DiscordNotifier {
@@ -60,4 +66,13 @@ export interface MemoryStore {
   list(): Promise<MemorySlot[]>
   read(indices: number[]): Promise<MemorySlotDetail[]>
   update(index: number, description: string, content: string): Promise<void>
+}
+
+export interface MemorySummaryStore {
+  read(): Promise<string | null>
+  write(summary: string): Promise<void>
+}
+
+export interface MemorySummarizer {
+  summarize(): Promise<string | null>
 }

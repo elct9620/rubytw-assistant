@@ -5,9 +5,11 @@ import { Octokit } from '@octokit/core'
 import { createAppAuth } from '@octokit/auth-app'
 import { TOKENS } from './tokens'
 import { KVMemoryStoreAdapter } from './adapters/kv-memory-store'
+import { KVMemorySummaryStoreAdapter } from './adapters/kv-memory-summary-store'
 import { createAITools, type AIToolsDeps } from './services/ai-tools'
 import { ConversationGrouperService } from './services/conversation-grouper'
 import { ActionItemGeneratorService } from './services/action-item-generator'
+import { MemorySummarizerService } from './services/memory-summarizer'
 import { DiscordNotifierAdapter } from './adapters/discord-notifier'
 import { DiscordSourceAdapter } from './adapters/discord-source'
 import { DiscordSummaryPresenter } from './adapters/discord-summary-presenter'
@@ -34,6 +36,9 @@ container.register(TOKENS.MemoryEntryLimit, {
 })
 container.register(TOKENS.MemoryDescriptionLimit, {
   useValue: Number(env.MEMORY_DESCRIPTION_LIMIT),
+})
+container.register(TOKENS.MemorySummaryLengthLimit, {
+  useValue: Number(env.MEMORY_SUMMARY_LENGTH_LIMIT),
 })
 container.register(TOKENS.SummaryHours, {
   useValue: Number(env.SUMMARY_HOURS),
@@ -67,6 +72,9 @@ container.register(TOKENS.Tracer, { useValue: null })
 
 // Port → Adapter mappings (infrastructure)
 container.register(TOKENS.MemoryStore, { useClass: KVMemoryStoreAdapter })
+container.register(TOKENS.MemorySummaryStore, {
+  useClass: KVMemorySummaryStoreAdapter,
+})
 container.register(TOKENS.DiscordNotifier, { useClass: DiscordNotifierAdapter })
 container.register(TOKENS.DiscordSource, { useClass: DiscordSourceAdapter })
 container.register(TOKENS.SummaryPresenter, {
@@ -96,6 +104,9 @@ container.register(TOKENS.ConversationGrouper, {
 })
 container.register(TOKENS.ActionItemGenerator, {
   useClass: ActionItemGeneratorService,
+})
+container.register(TOKENS.MemorySummarizer, {
+  useClass: MemorySummarizerService,
 })
 
 // GitHub source — Octokit with App auth strategy
@@ -128,6 +139,8 @@ container.register(GenerateSummary, {
       discord: c.resolve(TOKENS.DiscordSource),
       conversationGrouper: c.resolve(TOKENS.ConversationGrouper),
       actionItemGenerator: c.resolve(TOKENS.ActionItemGenerator),
+      memorySummaryStore: c.resolve(TOKENS.MemorySummaryStore),
+      memorySummarizer: c.resolve(TOKENS.MemorySummarizer),
     }),
 })
 

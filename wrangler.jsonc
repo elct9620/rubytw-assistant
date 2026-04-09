@@ -19,6 +19,7 @@
     "AI_GATEWAY_ID": "rubytw-assistant",
     "MEMORY_ENTRY_LIMIT": "32",
     "MEMORY_DESCRIPTION_LIMIT": "128",
+    "MEMORY_SUMMARY_LENGTH_LIMIT": "300",
     "GITHUB_ORG": "rubytaiwan",
     "GITHUB_PROJECT_NUMBER": "1",
     "DEBUG_MODE": "false",

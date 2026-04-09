@@ -35,12 +35,18 @@ export class ActionItemGeneratorService implements ActionItemGenerator {
     @inject(TOKENS.Tracer) private tracer: Tracer | null,
   ) {}
 
-  async generateActionItems(groups: TopicGroup[]): Promise<ActionItem[]> {
+  async generateActionItems(
+    groups: TopicGroup[],
+    memorySummary?: string,
+  ): Promise<ActionItem[]> {
     const today = new Date().toISOString().slice(0, 10)
-    const system = GENERATE_ACTION_ITEMS_PROMPT.replace(
+    let system = GENERATE_ACTION_ITEMS_PROMPT.replace(
       '{{today}}',
       today,
     ).replace('{{memoryEntryLimit}}', String(this.memoryEntryLimit))
+    if (memorySummary) {
+      system += `\n\n${memorySummary}`
+    }
     const tools = this.toolsFactory()
 
     const output = await runStructuredAI({

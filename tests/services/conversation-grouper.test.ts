@@ -124,6 +124,36 @@ describe('ConversationGrouperService', () => {
     )
   })
 
+  it('should append memory summary to system prompt when provided', async () => {
+    mockGenerateText.mockResolvedValue({
+      output: { groups: [] },
+    })
+    const service = createService()
+
+    await service.groupConversations(['msg'], 'previous context paragraph')
+
+    const call = mockGenerateText.mock.calls[0][0]
+    const expectedBase = GROUP_CONVERSATIONS_PROMPT.replace(
+      '{{memoryEntryLimit}}',
+      '32',
+    )
+    expect(call.system).toBe(expectedBase + '\n\nprevious context paragraph')
+  })
+
+  it('should not append to system prompt when no memory summary', async () => {
+    mockGenerateText.mockResolvedValue({
+      output: { groups: [] },
+    })
+    const service = createService()
+
+    await service.groupConversations(['msg'])
+
+    const call = mockGenerateText.mock.calls[0][0]
+    expect(call.system).toBe(
+      GROUP_CONVERSATIONS_PROMPT.replace('{{memoryEntryLimit}}', '32'),
+    )
+  })
+
   it('should include memory and github tools', async () => {
     mockGenerateText.mockResolvedValue({
       output: { groups: [] },

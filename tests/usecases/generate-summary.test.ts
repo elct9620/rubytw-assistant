@@ -52,6 +52,13 @@ function createStubDeps(
     actionItemGenerator: {
       generateActionItems: vi.fn().mockResolvedValue([sampleActionItem]),
     },
+    memorySummaryStore: {
+      read: vi.fn().mockResolvedValue(null),
+      write: vi.fn().mockResolvedValue(undefined),
+    },
+    memorySummarizer: {
+      summarize: vi.fn().mockResolvedValue(null),
+    },
     ...overrides,
   }
 }
@@ -64,13 +71,14 @@ describe('GenerateSummary', () => {
     const result = await usecase.execute(24)
 
     expect(deps.discord.getChannelMessages).toHaveBeenCalledWith(24)
-    expect(deps.conversationGrouper.groupConversations).toHaveBeenCalledWith([
-      'msg-1',
-      'msg-2',
-    ])
-    expect(deps.actionItemGenerator.generateActionItems).toHaveBeenCalledWith([
-      actionableGroup,
-    ])
+    expect(deps.conversationGrouper.groupConversations).toHaveBeenCalledWith(
+      ['msg-1', 'msg-2'],
+      undefined,
+    )
+    expect(deps.actionItemGenerator.generateActionItems).toHaveBeenCalledWith(
+      [actionableGroup],
+      undefined,
+    )
     expect(result).toEqual({
       kind: 'success',
       topicGroups: [actionableGroup, smallTalkGroup],
@@ -94,9 +102,10 @@ describe('GenerateSummary', () => {
 
     await usecase.execute(12)
 
-    expect(deps.actionItemGenerator.generateActionItems).toHaveBeenCalledWith([
-      actionableGroup,
-    ])
+    expect(deps.actionItemGenerator.generateActionItems).toHaveBeenCalledWith(
+      [actionableGroup],
+      undefined,
+    )
   })
 
   it('should return empty result when no messages found', async () => {
@@ -183,5 +192,142 @@ describe('GenerateSummary', () => {
     const usecase = new GenerateSummary(deps)
 
     await expect(usecase.execute(24)).rejects.toThrow('discord down')
+  })
+
+  it('should inject stored memory summary into Phase 1 and Phase 2', async () => {
+    const deps = createStubDeps({
+      memorySummaryStore: {
+        read: vi.fn().mockResolvedValue('previous summary context'),
+        write: vi.fn().mockResolvedValue(undefined),
+      },
+    })
+    const usecase = new GenerateSummary(deps)
+
+    await usecase.execute(24)
+
+    expect(deps.conversationGrouper.groupConversations).toHaveBeenCalledWith(
+      ['msg-1', 'msg-2'],
+      'previous summary context',
+    )
+    expect(deps.actionItemGenerator.generateActionItems).toHaveBeenCalledWith(
+      [actionableGroup],
+      'previous summary context',
+    )
+  })
+
+  it('should skip injection when no stored summary exists', async () => {
+    const deps = createStubDeps()
+    const usecase = new GenerateSummary(deps)
+
+    await usecase.execute(24)
+
+    expect(deps.conversationGrouper.groupConversations).toHaveBeenCalledWith(
+      ['msg-1', 'msg-2'],
+      undefined,
+    )
+  })
+
+  it('should skip injection when memory summary store read fails', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const deps = createStubDeps({
+      memorySummaryStore: {
+        read: vi.fn().mockRejectedValue(new Error('KV down')),
+        write: vi.fn().mockResolvedValue(undefined),
+      },
+    })
+    const usecase = new GenerateSummary(deps)
+
+    const result = await usecase.execute(24)
+
+    expect(result.kind).toBe('success')
+    expect(deps.conversationGrouper.groupConversations).toHaveBeenCalledWith(
+      ['msg-1', 'msg-2'],
+      undefined,
+    )
+    warnSpy.mockRestore()
+  })
+
+  it('should run Phase 3 and write summary after successful pipeline', async () => {
+    const deps = createStubDeps({
+      memorySummarizer: {
+        summarize: vi.fn().mockResolvedValue('new summary'),
+      },
+    })
+    const usecase = new GenerateSummary(deps)
+
+    await usecase.execute(24)
+
+    expect(deps.memorySummarizer.summarize).toHaveBeenCalled()
+    expect(deps.memorySummaryStore.write).toHaveBeenCalledWith('new summary')
+  })
+
+  it('should skip write when summarizer returns null (all slots empty)', async () => {
+    const deps = createStubDeps({
+      memorySummarizer: {
+        summarize: vi.fn().mockResolvedValue(null),
+      },
+    })
+    const usecase = new GenerateSummary(deps)
+
+    await usecase.execute(24)
+
+    expect(deps.memorySummarizer.summarize).toHaveBeenCalled()
+    expect(deps.memorySummaryStore.write).not.toHaveBeenCalled()
+  })
+
+  it('should continue when Phase 3 summarizer fails', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const deps = createStubDeps({
+      memorySummarizer: {
+        summarize: vi.fn().mockRejectedValue(new Error('AI down')),
+      },
+    })
+    const usecase = new GenerateSummary(deps)
+
+    const result = await usecase.execute(24)
+
+    expect(result.kind).toBe('success')
+    expect(deps.memorySummaryStore.write).not.toHaveBeenCalled()
+    warnSpy.mockRestore()
+  })
+
+  it('should continue when Phase 3 store write fails', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const deps = createStubDeps({
+      memorySummarizer: {
+        summarize: vi.fn().mockResolvedValue('new summary'),
+      },
+      memorySummaryStore: {
+        read: vi.fn().mockResolvedValue(null),
+        write: vi.fn().mockRejectedValue(new Error('KV write failed')),
+      },
+    })
+    const usecase = new GenerateSummary(deps)
+
+    const result = await usecase.execute(24)
+
+    expect(result.kind).toBe('success')
+    warnSpy.mockRestore()
+  })
+
+  it('should run Phase 3 even when all groups are filtered out', async () => {
+    const deps = createStubDeps({
+      conversationGrouper: {
+        groupConversations: vi
+          .fn()
+          .mockResolvedValue([smallTalkGroup, nonCommunityGroup]),
+      },
+      memorySummarizer: {
+        summarize: vi.fn().mockResolvedValue('summary from memory'),
+      },
+    })
+    const usecase = new GenerateSummary(deps)
+
+    await usecase.execute(24)
+
+    expect(deps.memorySummarizer.summarize).toHaveBeenCalled()
+    expect(deps.memorySummaryStore.write).toHaveBeenCalledWith(
+      'summary from memory',
+    )
   })
 })

@@ -160,6 +160,55 @@ describe('ActionItemGeneratorService', () => {
     ).rejects.toThrow(/steps: 2.*finishReason: tool-calls/)
   })
 
+  it('should append memory summary to system prompt when provided', async () => {
+    mockGenerateText.mockResolvedValue({
+      output: { items: [] },
+    })
+    const service = createService()
+
+    await service.generateActionItems(
+      [
+        {
+          topic: 't',
+          summary: 's',
+          communityRelated: 'yes',
+          smallTalk: 'no',
+          lostContext: 'no',
+        },
+      ],
+      'previous context paragraph',
+    )
+
+    const call = mockGenerateText.mock.calls[0][0]
+    expect(call.system).toContain('previous context paragraph')
+    expect(call.system.endsWith('\n\nprevious context paragraph')).toBe(true)
+  })
+
+  it('should not append to system prompt when no memory summary', async () => {
+    mockGenerateText.mockResolvedValue({
+      output: { items: [] },
+    })
+    const service = createService()
+
+    await service.generateActionItems([
+      {
+        topic: 't',
+        summary: 's',
+        communityRelated: 'yes',
+        smallTalk: 'no',
+        lostContext: 'no',
+      },
+    ])
+
+    const today = new Date().toISOString().slice(0, 10)
+    const expectedSystem = GENERATE_ACTION_ITEMS_PROMPT.replace(
+      '{{today}}',
+      today,
+    ).replace('{{memoryEntryLimit}}', '32')
+    const call = mockGenerateText.mock.calls[0][0]
+    expect(call.system).toBe(expectedSystem)
+  })
+
   it('should include memory and github tools', async () => {
     mockGenerateText.mockResolvedValue({
       output: { items: [] },

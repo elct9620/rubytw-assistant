@@ -34,11 +34,17 @@ export class ConversationGrouperService implements ConversationGrouper {
     @inject(TOKENS.Tracer) private tracer: Tracer | null,
   ) {}
 
-  async groupConversations(messages: string[]): Promise<TopicGroup[]> {
-    const system = GROUP_CONVERSATIONS_PROMPT.replace(
+  async groupConversations(
+    messages: string[],
+    memorySummary?: string,
+  ): Promise<TopicGroup[]> {
+    let system = GROUP_CONVERSATIONS_PROMPT.replace(
       '{{memoryEntryLimit}}',
       String(this.memoryEntryLimit),
     )
+    if (memorySummary) {
+      system += `\n\n${memorySummary}`
+    }
     const tools = this.toolsFactory()
 
     const output = await runStructuredAI({
