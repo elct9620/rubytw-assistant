@@ -38,10 +38,11 @@ export class ConversationGrouperService implements ConversationGrouper {
     messages: string[],
     memorySummary?: string,
   ): Promise<TopicGroup[]> {
+    const today = new Date().toISOString().slice(0, 10)
     let system = GROUP_CONVERSATIONS_PROMPT.replace(
       '{{memoryEntryLimit}}',
       String(this.memoryEntryLimit),
-    )
+    ).replace('{{today}}', today)
     if (memorySummary) {
       system += `\n\n# Memory Summary\n\n${memorySummary}`
     }

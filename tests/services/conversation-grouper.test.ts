@@ -65,6 +65,7 @@ describe('ConversationGrouperService', () => {
 
     await service.groupConversations(['msg-1', 'msg-2'])
 
+    const today = new Date().toISOString().slice(0, 10)
     expect(mockGenerateText).toHaveBeenCalledWith(
       expect.objectContaining({
         model: expect.anything(),
@@ -72,7 +73,7 @@ describe('ConversationGrouperService', () => {
         system: GROUP_CONVERSATIONS_PROMPT.replace(
           '{{memoryEntryLimit}}',
           '32',
-        ),
+        ).replace('{{today}}', today),
         prompt: 'msg-1\nmsg-2',
         providerOptions: { openai: { reasoningEffort: 'low' } },
       }),
@@ -133,10 +134,11 @@ describe('ConversationGrouperService', () => {
     await service.groupConversations(['msg'], 'previous context paragraph')
 
     const call = mockGenerateText.mock.calls[0][0]
+    const today = new Date().toISOString().slice(0, 10)
     const expectedBase = GROUP_CONVERSATIONS_PROMPT.replace(
       '{{memoryEntryLimit}}',
       '32',
-    )
+    ).replace('{{today}}', today)
     expect(call.system).toBe(
       expectedBase + '\n\n# Memory Summary\n\nprevious context paragraph',
     )
@@ -151,8 +153,12 @@ describe('ConversationGrouperService', () => {
     await service.groupConversations(['msg'])
 
     const call = mockGenerateText.mock.calls[0][0]
+    const today = new Date().toISOString().slice(0, 10)
     expect(call.system).toBe(
-      GROUP_CONVERSATIONS_PROMPT.replace('{{memoryEntryLimit}}', '32'),
+      GROUP_CONVERSATIONS_PROMPT.replace('{{memoryEntryLimit}}', '32').replace(
+        '{{today}}',
+        today,
+      ),
     )
   })
 

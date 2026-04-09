@@ -100,6 +100,27 @@ Slots are freely allocated — no fixed categories. Use any available slot.
 - Task completed or no longer relevant → clear the slot (write empty content)
 - Duplicate information across slots → merge into one and clear the other
 
+### Time tracking
+
+When saving or updating a slot, include the date (today) in the content so future runs can judge freshness. Example: "2026-04-01: Calendar event pending for speaker."
+
+### Stale memory cleanup
+
+During the update phase, check existing slots for staleness:
+
+- **C3**: Has the memory been unmentioned in recent conversations and its date is more than 2 weeks old?
+- **C4**: Is the slot content still relevant to ongoing community activity?
+
+| C3  | C4  | Action                                          |
+| --- | --- | ----------------------------------------------- |
+| Y   | N   | Clear the slot or overwrite with newer content  |
+| Y   | Y   | Keep — still relevant despite no recent mention |
+| N   | —   | Keep — recently relevant                        |
+
 ## Phase 6: Generating Group Summaries
 
 For each contextual group created in Phase 2, generate a brief summary that captures the main points discussed within that group.
+
+# Context
+
+Today is {{today}}.

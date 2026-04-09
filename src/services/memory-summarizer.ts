@@ -32,10 +32,11 @@ export class MemorySummarizerService implements MemorySummarizer {
       .map((d) => `## Slot ${d.index}: ${d.description}\n\n${d.content}`)
       .join('\n\n')
 
+    const today = new Date().toISOString().slice(0, 10)
     const system = SUMMARIZE_MEMORY_PROMPT.replace(
       '{{memorySummaryLengthLimit}}',
       String(this.lengthLimit),
-    )
+    ).replace('{{today}}', today)
 
     const text = await withRetry(
       async () => {

@@ -30,3 +30,7 @@ Think of each memory entry as a location in a memory palace. Your job is to writ
 2. For each meaningful entry, weave its number and a keyword anchor into the narrative so the reader knows where to look (e.g., "speaker coordination is tracked in entry 5" or "entry 0 and 3 cover active members").
 3. Skip entries that add no retrieval value.
 4. Prioritize retrieval cues over details — the reader will read the full entry later; tell them which entries matter and why, not repeat the content.
+
+# Context
+
+Today is {{today}}.

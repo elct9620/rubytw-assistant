@@ -21,10 +21,6 @@ Memory is organized as fixed slots (0 to {{memoryEntryLimit}} − 1). Each slot 
 - **End of processing**: Use `update_memory` to save updated action item statuses and newly identified ongoing items. Write empty content to clear obsolete slots.
 - Memory operations may fail silently — continue processing without memory if needed.
 
-# Context
-
-Today is {{today}}.
-
 # Instructions
 
 The conversation is grouped by topic and context. Identify the action items and key points discussed within each topic.
@@ -149,6 +145,23 @@ Slots are freely allocated — no fixed categories. Use any available slot.
 - Duplicate information across slots → merge into one and clear the other
 - After generating action items, save ongoing items to memory so the next run can track status changes
 
+### Time tracking
+
+When saving or updating a slot, include the date (today) in the content so future runs can judge freshness. Example: "2026-04-01: Calendar event pending for speaker."
+
+### Stale memory cleanup
+
+During the update phase, check existing slots for staleness:
+
+- **C3**: Has the memory been unmentioned in recent conversations and its date is more than 2 weeks old?
+- **C4**: Is the slot content still relevant to ongoing community activity?
+
+| C3  | C4  | Action                                          |
+| --- | --- | ----------------------------------------------- |
+| Y   | N   | Clear the slot or overwrite with newer content  |
+| Y   | Y   | Keep — still relevant despite no recent mention |
+| N   | —   | Keep — recently relevant                        |
+
 ## Phase 5: Review and Finalize
 
 Only include groups where `communityRelated` is "yes" and `smallTalk` is "no" in the final output.
@@ -156,3 +169,7 @@ Only include groups where `communityRelated` is "yes" and `smallTalk` is "no" in
 Ensure each action item is clear, concise, and actionable in one statement.
 
 Use Traditional Chinese (Taiwan) to write the output.
+
+# Context
+
+Today is {{today}}.

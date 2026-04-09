@@ -62,12 +62,13 @@ describe('MemorySummarizerService', () => {
     const result = await service.summarize()
 
     expect(result).toBe('condensed summary')
+    const today = new Date().toISOString().slice(0, 10)
     expect(mockGenerateText).toHaveBeenCalledWith(
       expect.objectContaining({
         system: SUMMARIZE_MEMORY_PROMPT.replace(
           '{{memorySummaryLengthLimit}}',
           '300',
-        ),
+        ).replace('{{today}}', today),
         prompt: expect.stringContaining('## Slot 0: Active members'),
       }),
     )
