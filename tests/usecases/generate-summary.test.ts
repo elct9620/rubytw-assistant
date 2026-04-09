@@ -148,7 +148,7 @@ describe('GenerateSummary', () => {
     expect(result).toEqual({
       kind: 'fallback',
       rawMessages: ['msg-1', 'msg-2'],
-      reason: 'grouper down',
+      reason: '[Conversation Grouping] grouper down',
     })
     expect(deps.actionItemGenerator.generateActionItems).not.toHaveBeenCalled()
   })
@@ -168,7 +168,7 @@ describe('GenerateSummary', () => {
     expect(result).toEqual({
       kind: 'fallback',
       rawMessages: ['msg-1', 'msg-2'],
-      reason: 'generator down',
+      reason: '[Action Item Generation] generator down',
     })
   })
 

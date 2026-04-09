@@ -32,6 +32,7 @@ export const TOKENS = {
   MemoryEntryLimit: 'MemoryEntryLimit',
   MemoryDescriptionLimit: 'MemoryDescriptionLimit',
   SummaryHours: 'SummaryHours',
+  SummaryItemLimit: 'SummaryItemLimit',
 
   GitHubAppId: 'GitHubAppId',
   GitHubPrivateKey: 'GitHubPrivateKey',

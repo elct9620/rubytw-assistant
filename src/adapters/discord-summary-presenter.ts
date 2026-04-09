@@ -9,7 +9,6 @@ import type {
 import { formatActionItems } from '../entities/action-item'
 import { TOKENS } from '../tokens'
 
-const MAX_ACTION_ITEMS = 30
 const DISCORD_MAX_CONTENT_LENGTH = 2000
 const NO_ACTION_ITEMS_NOTICE = '本次摘要期間內無待辦事項。'
 
@@ -18,6 +17,7 @@ export class DiscordSummaryPresenter implements SummaryPresenter {
   constructor(
     @inject(TOKENS.DiscordNotifier) private notifier: DiscordNotifier,
     @inject(TOKENS.DiscordChannelId) private channelId: string,
+    @inject(TOKENS.SummaryItemLimit) private summaryItemLimit: number,
   ) {}
 
   async present(result: SummaryResult): Promise<void> {
@@ -40,7 +40,7 @@ export class DiscordSummaryPresenter implements SummaryPresenter {
       return
     }
 
-    const capped = result.actionItems.slice(0, MAX_ACTION_ITEMS)
+    const capped = result.actionItems.slice(0, this.summaryItemLimit)
     const body = formatActionItems(capped)
     await this.sendChunked(body)
   }

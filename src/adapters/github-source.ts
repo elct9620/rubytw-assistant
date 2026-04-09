@@ -1,6 +1,7 @@
 import type { Octokit } from '@octokit/core'
 import type { GitHubSource, IssueFilter } from '../usecases/ports'
 import { escapeXml } from './shared'
+import { withRetry } from '../services/retry'
 
 interface ProjectItemNode {
   content: {
@@ -121,11 +122,19 @@ export class GitHubSourceAdapter implements GitHubSource {
   ) {}
 
   async getIssues(filter?: IssueFilter): Promise<string[]> {
-    const result = await this.octokit.graphql<ProjectQueryResult>(
-      PROJECT_ITEMS_QUERY,
+    const result = await withRetry(
+      () =>
+        this.octokit.graphql<ProjectQueryResult>(PROJECT_ITEMS_QUERY, {
+          organization: this.org,
+          number: this.projectNumber,
+        }),
       {
-        organization: this.org,
-        number: this.projectNumber,
+        onRetry: (error, attempt) => {
+          console.warn(
+            `GitHub getIssues retry ${attempt}:`,
+            error instanceof Error ? error.message : error,
+          )
+        },
       },
     )
 

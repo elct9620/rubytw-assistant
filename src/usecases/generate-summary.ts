@@ -6,6 +6,24 @@ import type {
   SummaryResult,
 } from './ports'
 
+class PipelineError extends Error {
+  constructor(
+    readonly phase: string,
+    cause: unknown,
+  ) {
+    const message = cause instanceof Error ? cause.message : 'unknown error'
+    super(`[${phase}] ${message}`, { cause })
+    this.name = 'PipelineError'
+  }
+}
+
+function formatPipelineError(error: unknown): string {
+  if (error instanceof PipelineError) {
+    return error.message
+  }
+  return error instanceof Error ? error.message : 'AI pipeline failed'
+}
+
 export interface GenerateSummaryDeps {
   discord: DiscordSource
   conversationGrouper: ConversationGrouper
@@ -23,23 +41,27 @@ export class GenerateSummary {
     }
 
     try {
-      const groups =
-        await this.deps.conversationGrouper.groupConversations(messages)
+      const groups = await this.deps.conversationGrouper
+        .groupConversations(messages)
+        .catch((error) => {
+          throw new PipelineError('Conversation Grouping', error)
+        })
+
       const actionableGroups = groups.filter(isActionable)
 
       if (actionableGroups.length === 0) {
         return { kind: 'success', topicGroups: groups, actionItems: [] }
       }
 
-      const actionItems =
-        await this.deps.actionItemGenerator.generateActionItems(
-          actionableGroups,
-        )
+      const actionItems = await this.deps.actionItemGenerator
+        .generateActionItems(actionableGroups)
+        .catch((error) => {
+          throw new PipelineError('Action Item Generation', error)
+        })
 
       return { kind: 'success', topicGroups: groups, actionItems }
     } catch (error) {
-      const reason =
-        error instanceof Error ? error.message : 'AI pipeline failed'
+      const reason = formatPipelineError(error)
       console.error('AI pipeline failed, falling back to raw messages:', error)
       return { kind: 'fallback', rawMessages: messages, reason }
     }

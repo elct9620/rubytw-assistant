@@ -42,7 +42,7 @@ beforeEach(() => {
 describe('DiscordSummaryPresenter', () => {
   it('should send formatted action items to the channel', async () => {
     const notifier = createMockNotifier()
-    const presenter = new DiscordSummaryPresenter(notifier, 'channel-123')
+    const presenter = new DiscordSummaryPresenter(notifier, 'channel-123', 30)
 
     const result: SummaryResult = {
       kind: 'success',
@@ -60,7 +60,7 @@ describe('DiscordSummaryPresenter', () => {
 
   it('should send no-action-items notice when action items are empty', async () => {
     const notifier = createMockNotifier()
-    const presenter = new DiscordSummaryPresenter(notifier, 'channel-123')
+    const presenter = new DiscordSummaryPresenter(notifier, 'channel-123', 30)
 
     const result: SummaryResult = {
       kind: 'success',
@@ -78,7 +78,7 @@ describe('DiscordSummaryPresenter', () => {
 
   it('should send no-action-items notice for empty result', async () => {
     const notifier = createMockNotifier()
-    const presenter = new DiscordSummaryPresenter(notifier, 'channel-123')
+    const presenter = new DiscordSummaryPresenter(notifier, 'channel-123', 30)
 
     await presenter.present({ kind: 'empty' })
 
@@ -88,11 +88,11 @@ describe('DiscordSummaryPresenter', () => {
     )
   })
 
-  it('should cap action items at 30', async () => {
+  it('should cap action items at the configured limit', async () => {
     const notifier = createMockNotifier()
-    const presenter = new DiscordSummaryPresenter(notifier, 'channel-123')
+    const presenter = new DiscordSummaryPresenter(notifier, 'channel-123', 5)
 
-    const manyItems: ActionItem[] = Array.from({ length: 35 }, (_, i) => ({
+    const manyItems: ActionItem[] = Array.from({ length: 10 }, (_, i) => ({
       status: 'to-do' as const,
       description: `任務 ${i + 1}`,
       assignee: 'X',
@@ -111,12 +111,12 @@ describe('DiscordSummaryPresenter', () => {
       .map((call) => (call as [string, string])[1])
       .join('\n')
       .split('\n')
-    expect(allLines).toHaveLength(30)
+    expect(allLines).toHaveLength(5)
   })
 
   it('should split into multiple messages when content exceeds 2000 chars', async () => {
     const notifier = createMockNotifier()
-    const presenter = new DiscordSummaryPresenter(notifier, 'channel-123')
+    const presenter = new DiscordSummaryPresenter(notifier, 'channel-123', 30)
 
     const longItems: ActionItem[] = Array.from({ length: 30 }, (_, i) => ({
       status: 'to-do' as const,
@@ -144,7 +144,7 @@ describe('DiscordSummaryPresenter', () => {
 
   it('should send error notice and raw messages on fallback', async () => {
     const notifier = createMockNotifier()
-    const presenter = new DiscordSummaryPresenter(notifier, 'channel-123')
+    const presenter = new DiscordSummaryPresenter(notifier, 'channel-123', 30)
 
     await presenter.present({
       kind: 'fallback',
@@ -164,7 +164,7 @@ describe('DiscordSummaryPresenter', () => {
 
   it('should send only the error notice when fallback has no raw messages', async () => {
     const notifier = createMockNotifier()
-    const presenter = new DiscordSummaryPresenter(notifier, 'channel-123')
+    const presenter = new DiscordSummaryPresenter(notifier, 'channel-123', 30)
 
     await presenter.present({
       kind: 'fallback',
@@ -178,7 +178,7 @@ describe('DiscordSummaryPresenter', () => {
 
   it('should chunk long raw messages on fallback', async () => {
     const notifier = createMockNotifier()
-    const presenter = new DiscordSummaryPresenter(notifier, 'channel-123')
+    const presenter = new DiscordSummaryPresenter(notifier, 'channel-123', 30)
 
     const longMessages = Array.from(
       { length: 30 },
@@ -203,7 +203,7 @@ describe('DiscordSummaryPresenter', () => {
 
   it('should truncate a single action item that exceeds 2000 chars', async () => {
     const notifier = createMockNotifier()
-    const presenter = new DiscordSummaryPresenter(notifier, 'channel-123')
+    const presenter = new DiscordSummaryPresenter(notifier, 'channel-123', 30)
 
     const oversizedItem: ActionItem = {
       status: 'to-do',
@@ -246,6 +246,7 @@ describe('DiscordSummaryPresenter DI integration', () => {
     child.register(TOKENS.DiscordNotifier, {
       useClass: DiscordNotifierAdapter,
     })
+    child.register(TOKENS.SummaryItemLimit, { useValue: 30 })
     const presenter = child.resolve(DiscordSummaryPresenter)
 
     const result: SummaryResult = {
@@ -277,6 +278,7 @@ describe('DiscordSummaryPresenter DI integration', () => {
     child.register(TOKENS.DiscordNotifier, {
       useClass: DiscordNotifierAdapter,
     })
+    child.register(TOKENS.SummaryItemLimit, { useValue: 30 })
     const presenter = child.resolve(DiscordSummaryPresenter)
 
     const longItems: ActionItem[] = Array.from({ length: 30 }, (_, i) => ({

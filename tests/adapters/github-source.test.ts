@@ -149,11 +149,30 @@ describe('GitHubSourceAdapter', () => {
     expect(result[0]).toContain('<title>Real Issue</title>')
   })
 
-  it('should throw error when GraphQL request fails', async () => {
+  it('should throw error after retries when GraphQL request fails', async () => {
     const graphql = vi.fn().mockRejectedValue(new Error('GraphQL error'))
 
     const adapter = createAdapter(graphql)
     await expect(adapter.getIssues()).rejects.toThrow('GraphQL error')
+    expect(graphql).toHaveBeenCalledTimes(3)
+  })
+
+  it('should succeed after transient failure', async () => {
+    const graphql = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('transient'))
+      .mockResolvedValueOnce(
+        makeProjectResponse([
+          { content: makeIssueContent({ title: 'Recovered' }) },
+        ]),
+      )
+
+    const adapter = createAdapter(graphql)
+    const result = await adapter.getIssues()
+
+    expect(graphql).toHaveBeenCalledTimes(2)
+    expect(result).toHaveLength(1)
+    expect(result[0]).toContain('<title>Recovered</title>')
   })
 
   it('should filter issues by state when filter is provided', async () => {

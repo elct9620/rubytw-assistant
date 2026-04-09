@@ -38,6 +38,9 @@ container.register(TOKENS.MemoryDescriptionLimit, {
 container.register(TOKENS.SummaryHours, {
   useValue: Number(env.SUMMARY_HOURS),
 })
+container.register(TOKENS.SummaryItemLimit, {
+  useValue: Number(env.SUMMARY_ITEM_LIMIT),
+})
 container.register(TOKENS.GitHubAppId, { useValue: env.GITHUB_APP_ID })
 container.register(TOKENS.GitHubPrivateKey, {
   useValue: env.GITHUB_PRIVATE_KEY,
