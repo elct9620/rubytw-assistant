@@ -160,6 +160,7 @@ describe('GenerateSummary', () => {
       reason: '[Conversation Grouping] grouper down',
     })
     expect(deps.actionItemGenerator.generateActionItems).not.toHaveBeenCalled()
+    expect(deps.memorySummarizer.summarize).not.toHaveBeenCalled()
   })
 
   it('should fall back to raw messages when action item generation fails', async () => {
@@ -179,6 +180,7 @@ describe('GenerateSummary', () => {
       rawMessages: ['msg-1', 'msg-2'],
       reason: '[Action Item Generation] generator down',
     })
+    expect(deps.memorySummarizer.summarize).not.toHaveBeenCalled()
   })
 
   it('should propagate Discord collection errors without fallback', async () => {

@@ -31,6 +31,7 @@ export const TOKENS = {
   MemoryKv: 'MemoryKv',
   MemoryEntryLimit: 'MemoryEntryLimit',
   MemoryDescriptionLimit: 'MemoryDescriptionLimit',
+  MemorySummaryLengthLimit: 'MemorySummaryLengthLimit',
   SummaryHours: 'SummaryHours',
   SummaryItemLimit: 'SummaryItemLimit',
 
@@ -45,8 +46,6 @@ export const TOKENS = {
 
   // OTel tracer (optional — set per-request when telemetry is enabled)
   Tracer: 'Tracer',
-
-  MemorySummaryLengthLimit: 'MemorySummaryLengthLimit',
 
   // Port interfaces
   MemoryStore: 'MemoryStore',
