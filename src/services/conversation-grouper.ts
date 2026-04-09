@@ -43,7 +43,7 @@ export class ConversationGrouperService implements ConversationGrouper {
       String(this.memoryEntryLimit),
     )
     if (memorySummary) {
-      system += `\n\n${memorySummary}`
+      system += `\n\n# Memory Summary\n\n${memorySummary}`
     }
     const tools = this.toolsFactory()
 

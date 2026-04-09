@@ -181,7 +181,11 @@ describe('ActionItemGeneratorService', () => {
 
     const call = mockGenerateText.mock.calls[0][0]
     expect(call.system).toContain('previous context paragraph')
-    expect(call.system.endsWith('\n\nprevious context paragraph')).toBe(true)
+    expect(
+      call.system.endsWith(
+        '\n\n# Memory Summary\n\nprevious context paragraph',
+      ),
+    ).toBe(true)
   })
 
   it('should not append to system prompt when no memory summary', async () => {

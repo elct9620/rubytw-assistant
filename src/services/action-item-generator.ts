@@ -45,7 +45,7 @@ export class ActionItemGeneratorService implements ActionItemGenerator {
       today,
     ).replace('{{memoryEntryLimit}}', String(this.memoryEntryLimit))
     if (memorySummary) {
-      system += `\n\n${memorySummary}`
+      system += `\n\n# Memory Summary\n\n${memorySummary}`
     }
     const tools = this.toolsFactory()
 

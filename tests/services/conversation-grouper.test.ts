@@ -137,7 +137,9 @@ describe('ConversationGrouperService', () => {
       '{{memoryEntryLimit}}',
       '32',
     )
-    expect(call.system).toBe(expectedBase + '\n\nprevious context paragraph')
+    expect(call.system).toBe(
+      expectedBase + '\n\n# Memory Summary\n\nprevious context paragraph',
+    )
   })
 
   it('should not append to system prompt when no memory summary', async () => {
