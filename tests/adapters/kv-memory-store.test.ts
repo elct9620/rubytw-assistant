@@ -156,5 +156,18 @@ describe('KVMemoryStoreAdapter', () => {
         { index: 1, description: 'slot 1', content: 'content 1' },
       ])
     })
+
+    it('should use write-through cache so sequential updates to different slots are not lost', async () => {
+      await adapter.update(0, 'first', 'first content')
+      await adapter.update(1, 'second', 'second content')
+      await adapter.update(2, 'third', 'third content')
+
+      const entries = await adapter.read([0, 1, 2])
+      expect(entries).toEqual([
+        { index: 0, description: 'first', content: 'first content' },
+        { index: 1, description: 'second', content: 'second content' },
+        { index: 2, description: 'third', content: 'third content' },
+      ])
+    })
   })
 })
