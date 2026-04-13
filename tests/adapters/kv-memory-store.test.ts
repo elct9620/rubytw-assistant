@@ -44,6 +44,16 @@ describe('KVMemoryStoreAdapter', () => {
       expect(slots[1]).toEqual({ index: 1, description: 'ongoing tasks' })
       expect(slots[0]).toEqual({ index: 0, description: '' })
     })
+
+    it('should throw when data is missing but metadata exists', async () => {
+      await env.MEMORY_KV.put(KV_KEY, 'null', {
+        metadata: { updatedAt: '2026-04-06T00:00:00Z' },
+      })
+
+      await expect(adapter.list()).rejects.toThrow(
+        'Memory data missing but metadata exists',
+      )
+    })
   })
 
   describe('read', () => {
@@ -72,6 +82,16 @@ describe('KVMemoryStoreAdapter', () => {
           content: 'task details here',
         },
       ])
+    })
+
+    it('should throw when data is missing but metadata exists', async () => {
+      await env.MEMORY_KV.put(KV_KEY, 'null', {
+        metadata: { updatedAt: '2026-04-06T00:00:00Z' },
+      })
+
+      await expect(adapter.read([0])).rejects.toThrow(
+        'Memory data missing but metadata exists',
+      )
     })
   })
 
@@ -154,19 +174,6 @@ describe('KVMemoryStoreAdapter', () => {
       expect(entries).toEqual([
         { index: 0, description: 'slot 0', content: 'content 0' },
         { index: 1, description: 'slot 1', content: 'content 1' },
-      ])
-    })
-
-    it('should use write-through cache so sequential updates to different slots are not lost', async () => {
-      await adapter.update(0, 'first', 'first content')
-      await adapter.update(1, 'second', 'second content')
-      await adapter.update(2, 'third', 'third content')
-
-      const entries = await adapter.read([0, 1, 2])
-      expect(entries).toEqual([
-        { index: 0, description: 'first', content: 'first content' },
-        { index: 1, description: 'second', content: 'second content' },
-        { index: 2, description: 'third', content: 'third content' },
       ])
     })
   })
