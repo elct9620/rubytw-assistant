@@ -12,9 +12,12 @@ vi.mock('ai', () => ({
   tool: (def: unknown) => def,
 }))
 
+import { z } from 'zod'
+
 interface MockTool {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   execute: (...args: unknown[]) => Promise<Record<string, any>>
+  inputSchema: z.ZodTypeAny
 }
 
 function getTool(tools: Record<string, unknown>, name: string): MockTool {
@@ -31,13 +34,14 @@ function createMemoryStore(): KVMemoryStoreAdapter {
 function createTools(overrides?: {
   memoryStore?: MemoryStore
   githubSource?: GitHubSource
+  issueBodyLengthLimit?: number
 }) {
   return createAITools({
     memoryStore: overrides?.memoryStore ?? createMemoryStore(),
     githubSource: overrides?.githubSource ?? createStubGitHubSource(),
     memoryEntryLimit: ENTRY_LIMIT,
     memoryDescriptionLimit: DESCRIPTION_LIMIT,
-    issueBodyLengthLimit: 500,
+    issueBodyLengthLimit: overrides?.issueBodyLengthLimit ?? 500,
   })
 }
 
@@ -352,6 +356,64 @@ describe('createAITools', () => {
 
       await getTool(tools, 'read_issues').execute({ numbers: [1, 2] })
       expect(readIssues).toHaveBeenCalledWith([1, 2], 500)
+    })
+
+    it('list_issues should pass CLOSED state to source', async () => {
+      const listIssues = vi.fn().mockResolvedValue([])
+      const tools = createTools({
+        githubSource: createStubGitHubSource({ listIssues }),
+      })
+
+      await getTool(tools, 'list_issues').execute({ state: 'CLOSED' })
+      expect(listIssues).toHaveBeenCalledWith('CLOSED')
+    })
+
+    it('list_issues schema should reject invalid state value', () => {
+      const tools = createTools()
+      const schema = getTool(tools, 'list_issues').inputSchema
+      const result = schema.safeParse({ state: 'INVALID' })
+      expect(result.success).toBe(false)
+    })
+
+    it('read_issues schema should reject empty numbers array', () => {
+      const tools = createTools()
+      const schema = getTool(tools, 'read_issues').inputSchema
+      const result = schema.safeParse({ numbers: [] })
+      expect(result.success).toBe(false)
+    })
+
+    it('read_issues schema should reject numbers array with more than 10 items', () => {
+      const tools = createTools()
+      const schema = getTool(tools, 'read_issues').inputSchema
+      const result = schema.safeParse({
+        numbers: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+      })
+      expect(result.success).toBe(false)
+    })
+
+    it('read_issues schema should reject non-positive numbers', () => {
+      const tools = createTools()
+      const schema = getTool(tools, 'read_issues').inputSchema
+      const result = schema.safeParse({ numbers: [-1] })
+      expect(result.success).toBe(false)
+    })
+
+    it('read_issues schema should reject non-integer numbers', () => {
+      const tools = createTools()
+      const schema = getTool(tools, 'read_issues').inputSchema
+      const result = schema.safeParse({ numbers: [1.5] })
+      expect(result.success).toBe(false)
+    })
+
+    it('read_issues should pass custom issueBodyLengthLimit to source', async () => {
+      const readIssues = vi.fn().mockResolvedValue([])
+      const tools = createTools({
+        githubSource: createStubGitHubSource({ readIssues }),
+        issueBodyLengthLimit: 42,
+      })
+
+      await getTool(tools, 'read_issues').execute({ numbers: [1] })
+      expect(readIssues).toHaveBeenCalledWith([1], 42)
     })
   })
 })
