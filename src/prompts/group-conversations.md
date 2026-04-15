@@ -9,7 +9,8 @@ Following tools are available to you:
 - **list_memories**: List all memory slots with their index and description.
 - **read_memories**: Read full content of specific memory slots by index.
 - **update_memory**: Write description and content to a memory slot, or clear it by writing empty content.
-- **github_get_issues**: Query GitHub Projects V2 issues to check task status and relate conversations to existing issues. Filter by state (OPEN/CLOSED) to narrow results.
+- **list_issues**: Discovery entry point — list GitHub Projects V2 issues (number, title, state, labels, assignees, status). Returns up to 50 issues. No body included.
+- **read_issues**: Detail fetch — retrieve full issue details including body for up to 10 specific issue numbers. Body is truncated to the configured limit; do not assume full body access.
 
 Use tools to get necessary information for organizing the conversation effectively.
 
@@ -40,12 +41,13 @@ Identify and group related messages together based on their context and topics d
 
 - Use the following table to decide when to query GitHub:
 
-| Mentions specific task/feature/bug? | Has assignee or deadline? | Action                                                          |
-| ----------------------------------- | ------------------------- | --------------------------------------------------------------- |
-| Y                                   | Y                         | Query `github_get_issues` with state=OPEN to check if tracked   |
-| Y                                   | N                         | Query `github_get_issues` with state=OPEN to find related issue |
-| N                                   | —                         | Skip — no project connection                                    |
+| Mentions specific task/feature/bug? | Has assignee or deadline? | Action                                                                                       |
+| ----------------------------------- | ------------------------- | -------------------------------------------------------------------------------------------- |
+| Y                                   | Y                         | Call `list_issues(state=OPEN)` to discover candidates; call `read_issues` for specific match |
+| Y                                   | N                         | Call `list_issues(state=OPEN)` to find a related issue; call `read_issues` if a number fits  |
+| N                                   | —                         | Skip — no project connection                                                                 |
 
+- When a conversation references a specific issue number, call `read_issues` with that number directly (batch up to 10 numbers per call). Body content is truncated — use it to confirm relevance, not for full detail.
 - GitHub queries may fail silently — continue processing without GitHub data if needed.
 
 > Some messages may have attachments or reactions. You may not get the full context from just the text. Use your best judgment to group related messages.
