@@ -7,6 +7,17 @@ import type {
 import { escapeXml } from './shared'
 import { withRetry } from '../services/retry'
 
+interface IssueNode {
+  __typename: string
+  title: string
+  number: number
+  state: string
+  url: string
+  labels: { nodes: { name: string }[] }
+  assignees: { nodes: { login: string }[] }
+  body: string
+}
+
 interface ProjectItemNode {
   content: {
     __typename: string
@@ -46,6 +57,56 @@ export interface FormattedIssue {
   labels: string[]
   assignees: string[]
   status: string | null
+}
+
+const READ_ISSUES_MAX = 10
+
+function buildReadIssuesQuery(numbers: number[]): string {
+  const issueFragment = `
+    __typename
+    title
+    number
+    state
+    url
+    labels(first: 5) { nodes { name } }
+    assignees(first: 5) { nodes { login } }
+    body
+    projectItems(first: 1) {
+      nodes {
+        fieldValues(first: 8) {
+          nodes {
+            __typename
+            ... on ProjectV2ItemFieldSingleSelectValue {
+              name
+              field { ... on ProjectV2FieldCommon { name } }
+            }
+          }
+        }
+      }
+    }
+  `
+  const aliases = numbers
+    .map((n, i) => `issue${i}: issue(number: ${n}) { ${issueFragment} }`)
+    .join('\n')
+  return `
+    query ($owner: String!, $repo: String!) {
+      repository(owner: $owner, name: $repo) {
+        ${aliases}
+      }
+    }
+  `
+}
+
+interface ReadIssueNode extends IssueNode {
+  projectItems: {
+    nodes: {
+      fieldValues: { nodes: FieldValueNode[] }
+    }[]
+  }
+}
+
+interface ReadIssuesQueryResult {
+  repository: Record<string, ReadIssueNode | null>
 }
 
 const PROJECT_ITEMS_QUERY = `
@@ -123,6 +184,7 @@ export class GitHubSourceAdapter implements GitHubSource {
     private octokit: Octokit,
     private org: string,
     private projectNumber: number,
+    private repo: string = '',
   ) {}
 
   async listIssues(state?: 'OPEN' | 'CLOSED'): Promise<IssueOverview[]> {
@@ -168,8 +230,50 @@ export class GitHubSourceAdapter implements GitHubSource {
     numbers: number[],
     bodyLimit: number,
   ): Promise<IssueDetail[]> {
-    void numbers
-    void bodyLimit
-    throw new Error('not implemented')
+    if (numbers.length > READ_ISSUES_MAX) {
+      throw new Error(
+        `readIssues accepts at most ${READ_ISSUES_MAX} issue numbers, got ${numbers.length}`,
+      )
+    }
+
+    if (numbers.length === 0) {
+      return []
+    }
+
+    const query = buildReadIssuesQuery(numbers)
+    const result = await withRetry(
+      () =>
+        this.octokit.graphql<ReadIssuesQueryResult>(query, {
+          owner: this.org,
+          repo: this.repo,
+        }),
+      {
+        onRetry: (error, attempt) => {
+          console.warn(
+            `GitHub readIssues retry ${attempt}:`,
+            error instanceof Error ? error.message : error,
+          )
+        },
+      },
+    )
+
+    const details: IssueDetail[] = []
+    for (const [, node] of Object.entries(result.repository)) {
+      if (!node || node.__typename !== 'Issue') continue
+      const projectFieldValues =
+        node.projectItems.nodes[0]?.fieldValues.nodes ?? []
+      details.push({
+        title: node.title,
+        number: node.number,
+        state: node.state,
+        url: node.url,
+        labels: node.labels.nodes.map((l) => l.name),
+        assignees: node.assignees.nodes.map((a) => a.login),
+        status: extractStatus(projectFieldValues),
+        body: node.body.slice(0, bodyLimit),
+      })
+    }
+
+    return details
   }
 }

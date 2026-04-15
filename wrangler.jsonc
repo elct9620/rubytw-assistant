@@ -22,6 +22,7 @@
     "MEMORY_SUMMARY_LENGTH_LIMIT": "300",
     "ISSUE_BODY_LENGTH_LIMIT": "500",
     "GITHUB_ORG": "rubytaiwan",
+    "GITHUB_REPO": "conf",
     "GITHUB_PROJECT_NUMBER": "1",
     "DEBUG_MODE": "false",
     "LANGFUSE_BASE_URL": "https://us.cloud.langfuse.com",

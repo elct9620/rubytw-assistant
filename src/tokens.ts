@@ -40,6 +40,7 @@ export const TOKENS = {
   GitHubPrivateKey: 'GitHubPrivateKey',
   GitHubInstallationId: 'GitHubInstallationId',
   GitHubOrg: 'GitHubOrg',
+  GitHubRepo: 'GitHubRepo',
   GitHubProjectNumber: 'GitHubProjectNumber',
 
   // Langfuse telemetry (optional)

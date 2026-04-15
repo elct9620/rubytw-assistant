@@ -114,6 +114,7 @@ container.register(TOKENS.MemorySummarizer, {
 
 // GitHub source — Octokit with App auth strategy
 container.register(TOKENS.GitHubOrg, { useValue: env.GITHUB_ORG })
+container.register(TOKENS.GitHubRepo, { useValue: env.GITHUB_REPO })
 container.register(TOKENS.GitHubProjectNumber, {
   useValue: Number(env.GITHUB_PROJECT_NUMBER),
 })
@@ -131,6 +132,7 @@ container.register(TOKENS.GitHubSource, {
       octokit,
       c.resolve(TOKENS.GitHubOrg),
       c.resolve(TOKENS.GitHubProjectNumber),
+      c.resolve(TOKENS.GitHubRepo),
     )
   },
 })
