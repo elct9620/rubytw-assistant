@@ -1,8 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import {
-  GitHubSourceAdapter,
-  formatIssueToXml,
-} from '../../src/adapters/github-source'
+import { GitHubSourceAdapter } from '../../src/adapters/github-source'
 import type { IssueDetail } from '../../src/usecases/ports'
 
 function makeProjectResponse(
@@ -402,77 +399,5 @@ describe('readIssues', () => {
     expect(result.map((i: IssueDetail) => i.number)).toEqual(
       expect.arrayContaining([1, 3]),
     )
-  })
-})
-
-describe('formatIssueToXml', () => {
-  it('should format issue with all fields', () => {
-    const xml = formatIssueToXml({
-      title: 'Test Issue',
-      number: 10,
-      state: 'OPEN',
-      url: 'https://github.com/rubytw/conf/issues/10',
-      labels: ['bug'],
-      assignees: ['alice'],
-      status: 'Todo',
-    })
-
-    expect(xml).toContain('<issue number="10"')
-    expect(xml).toContain('state="OPEN"')
-    expect(xml).toContain('url="https://github.com/rubytw/conf/issues/10"')
-    expect(xml).toContain('<title>Test Issue</title>')
-    expect(xml).toContain('<labels>bug</labels>')
-    expect(xml).toContain('<assignees>alice</assignees>')
-    expect(xml).toContain('<status>Todo</status>')
-  })
-
-  it('should omit labels, assignees, and status when empty or null', () => {
-    const xml = formatIssueToXml({
-      title: 'No Labels',
-      number: 1,
-      state: 'OPEN',
-      url: 'https://github.com/rubytw/conf/issues/1',
-      labels: [],
-      assignees: [],
-      status: null,
-    })
-
-    expect(xml).not.toContain('<labels>')
-    expect(xml).not.toContain('<assignees>')
-    expect(xml).not.toContain('<status>')
-  })
-
-  it('should escape XML special characters', () => {
-    const xml = formatIssueToXml({
-      title: 'Fix <script> & "quotes"',
-      number: 1,
-      state: 'OPEN',
-      url: 'https://github.com/rubytw/conf/issues/1',
-      labels: [],
-      assignees: [],
-      status: null,
-    })
-
-    expect(xml).toContain(
-      '<title>Fix &lt;script&gt; &amp; &quot;quotes&quot;</title>',
-    )
-  })
-
-  it('should escape XML special characters in labels, assignees, and url', () => {
-    const xml = formatIssueToXml({
-      title: 'Test',
-      number: 1,
-      state: 'OPEN',
-      url: 'https://example.com/?a=1&b="2"',
-      labels: ['bug <hot>', 'needs "triage"'],
-      assignees: ['alice&bob'],
-      status: null,
-    })
-
-    expect(xml).toContain('url="https://example.com/?a=1&amp;b=&quot;2&quot;"')
-    expect(xml).toContain(
-      '<labels>bug &lt;hot&gt;, needs &quot;triage&quot;</labels>',
-    )
-    expect(xml).toContain('<assignees>alice&amp;bob</assignees>')
   })
 })

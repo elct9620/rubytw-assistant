@@ -4,7 +4,6 @@ import type {
   IssueDetail,
   IssueOverview,
 } from '../usecases/ports'
-import { escapeXml } from './shared'
 import { withRetry } from '../services/retry'
 
 interface IssueNode {
@@ -47,16 +46,6 @@ interface ProjectQueryResult {
       }
     }
   }
-}
-
-export interface FormattedIssue {
-  title: string
-  number: number
-  state: string
-  url: string
-  labels: string[]
-  assignees: string[]
-  status: string | null
 }
 
 const READ_ISSUES_MAX = 10
@@ -149,30 +138,6 @@ function extractStatus(fieldValues: FieldValueNode[]): string | null {
       fv.field?.name === 'Status',
   )
   return statusField?.name ?? null
-}
-
-export function formatIssueToXml(issue: FormattedIssue): string {
-  const parts = [
-    `<issue number="${issue.number}" state="${escapeXml(issue.state)}" url="${escapeXml(issue.url)}">`,
-    `  <title>${escapeXml(issue.title)}</title>`,
-  ]
-
-  if (issue.labels.length > 0) {
-    const labels = issue.labels.map(escapeXml).join(', ')
-    parts.push(`  <labels>${labels}</labels>`)
-  }
-
-  if (issue.assignees.length > 0) {
-    const assignees = issue.assignees.map(escapeXml).join(', ')
-    parts.push(`  <assignees>${assignees}</assignees>`)
-  }
-
-  if (issue.status) {
-    parts.push(`  <status>${escapeXml(issue.status)}</status>`)
-  }
-
-  parts.push('</issue>')
-  return parts.join('\n')
 }
 
 // Registered in the DI container via `useFactory` so Octokit can be
