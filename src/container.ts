@@ -40,6 +40,9 @@ container.register(TOKENS.MemoryDescriptionLimit, {
 container.register(TOKENS.MemorySummaryLengthLimit, {
   useValue: Number(env.MEMORY_SUMMARY_LENGTH_LIMIT),
 })
+container.register(TOKENS.IssueBodyLengthLimit, {
+  useValue: Number(env.ISSUE_BODY_LENGTH_LIMIT),
+})
 container.register(TOKENS.SummaryHours, {
   useValue: Number(env.SUMMARY_HOURS),
 })
