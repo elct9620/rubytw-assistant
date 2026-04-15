@@ -3,6 +3,7 @@ import {
   GitHubSourceAdapter,
   formatIssueToXml,
 } from '../../src/adapters/github-source'
+import type { IssueDetail } from '../../src/usecases/ports'
 
 function makeProjectResponse(
   items: {
@@ -53,6 +54,66 @@ function createAdapter(graphql: ReturnType<typeof vi.fn>) {
     'rubytw',
     1,
   )
+}
+
+function createAdapterWithRepo(graphql: ReturnType<typeof vi.fn>) {
+  return new GitHubSourceAdapter(
+    { graphql } as unknown as import('@octokit/core').Octokit,
+    'rubytw',
+    1,
+    'conf',
+  )
+}
+
+function makeReadIssueNode(overrides?: {
+  title?: string
+  number?: number
+  state?: string
+  url?: string
+  labels?: string[]
+  assignees?: string[]
+  body?: string
+  status?: string | null
+}) {
+  const status = overrides?.status ?? null
+  return {
+    __typename: 'Issue',
+    title: overrides?.title ?? 'Test Issue',
+    number: overrides?.number ?? 1,
+    state: overrides?.state ?? 'OPEN',
+    url: overrides?.url ?? 'https://github.com/rubytw/conf/issues/1',
+    labels: {
+      nodes: (overrides?.labels ?? []).map((name) => ({ name })),
+    },
+    assignees: {
+      nodes: (overrides?.assignees ?? []).map((login) => ({ login })),
+    },
+    body: overrides?.body ?? '',
+    projectItems: {
+      nodes:
+        status !== null
+          ? [
+              {
+                fieldValues: {
+                  nodes: [
+                    {
+                      __typename: 'ProjectV2ItemFieldSingleSelectValue',
+                      name: status,
+                      field: { name: 'Status' },
+                    },
+                  ],
+                },
+              },
+            ]
+          : [],
+    },
+  }
+}
+
+function makeReadIssuesResponse(
+  issues: Record<string, ReturnType<typeof makeReadIssueNode> | null>,
+) {
+  return { repository: issues }
 }
 
 describe('GitHubSourceAdapter', () => {
@@ -212,6 +273,135 @@ describe('GitHubSourceAdapter', () => {
     const result = await adapter.listIssues()
 
     expect(result).toHaveLength(2)
+  })
+
+  it('should return at most 50 items (fixed query constraint)', async () => {
+    const items = Array.from({ length: 50 }, (_, i) => ({
+      content: makeIssueContent({ title: `Issue ${i + 1}`, number: i + 1 }),
+    }))
+    const graphql = vi.fn().mockResolvedValue(makeProjectResponse(items))
+
+    const adapter = createAdapter(graphql)
+    const result = await adapter.listIssues()
+
+    expect(result).toHaveLength(50)
+    expect(graphql).toHaveBeenCalledWith(
+      expect.stringContaining('items(first: 50)'),
+      expect.any(Object),
+    )
+  })
+})
+
+describe('readIssues', () => {
+  it('should return issue details for each requested number', async () => {
+    const graphql = vi.fn().mockResolvedValue(
+      makeReadIssuesResponse({
+        issue0: makeReadIssueNode({
+          title: 'First Issue',
+          number: 10,
+          state: 'OPEN',
+          url: 'https://github.com/rubytw/conf/issues/10',
+          labels: ['bug'],
+          assignees: ['alice'],
+          body: 'issue body',
+          status: 'In Progress',
+        }),
+        issue1: makeReadIssueNode({
+          title: 'Second Issue',
+          number: 20,
+          state: 'CLOSED',
+          url: 'https://github.com/rubytw/conf/issues/20',
+          labels: [],
+          assignees: [],
+          body: 'another body',
+          status: null,
+        }),
+      }),
+    )
+
+    const adapter = createAdapterWithRepo(graphql)
+    const result = await adapter.readIssues([10, 20], 1000)
+
+    expect(result).toHaveLength(2)
+    const first = result.find((i: IssueDetail) => i.number === 10)!
+    expect(first).toMatchObject({
+      title: 'First Issue',
+      number: 10,
+      state: 'OPEN',
+      labels: ['bug'],
+      assignees: ['alice'],
+      status: 'In Progress',
+      body: 'issue body',
+    })
+    const second = result.find((i: IssueDetail) => i.number === 20)!
+    expect(second).toMatchObject({ number: 20, status: null })
+  })
+
+  it('should truncate body to bodyLimit characters', async () => {
+    const longBody = 'a'.repeat(200)
+    const graphql = vi.fn().mockResolvedValue(
+      makeReadIssuesResponse({
+        issue0: makeReadIssueNode({ number: 1, body: longBody }),
+      }),
+    )
+
+    const adapter = createAdapterWithRepo(graphql)
+    const result = await adapter.readIssues([1], 100)
+
+    expect(result[0].body).toBe(longBody.slice(0, 100))
+    expect(result[0].body).toHaveLength(100)
+  })
+
+  it('should return body unchanged when within bodyLimit', async () => {
+    const shortBody = 'short body'
+    const graphql = vi.fn().mockResolvedValue(
+      makeReadIssuesResponse({
+        issue0: makeReadIssueNode({ number: 1, body: shortBody }),
+      }),
+    )
+
+    const adapter = createAdapterWithRepo(graphql)
+    const result = await adapter.readIssues([1], 1000)
+
+    expect(result[0].body).toBe(shortBody)
+  })
+
+  it('should throw before any network call when more than 10 numbers are given', async () => {
+    const graphql = vi.fn()
+    const numbers = Array.from({ length: 11 }, (_, i) => i + 1)
+
+    const adapter = createAdapterWithRepo(graphql)
+
+    await expect(adapter.readIssues(numbers, 500)).rejects.toThrow(/at most 10/)
+    expect(graphql).not.toHaveBeenCalled()
+  })
+
+  it('should return empty array without a network call for empty input', async () => {
+    const graphql = vi.fn()
+
+    const adapter = createAdapterWithRepo(graphql)
+    const result = await adapter.readIssues([], 500)
+
+    expect(result).toEqual([])
+    expect(graphql).not.toHaveBeenCalled()
+  })
+
+  it('should omit issues where GraphQL returns null', async () => {
+    const graphql = vi.fn().mockResolvedValue(
+      makeReadIssuesResponse({
+        issue0: makeReadIssueNode({ title: 'Exists', number: 1 }),
+        issue1: null,
+        issue2: makeReadIssueNode({ title: 'Also Exists', number: 3 }),
+      }),
+    )
+
+    const adapter = createAdapterWithRepo(graphql)
+    const result = await adapter.readIssues([1, 2, 3], 500)
+
+    expect(result).toHaveLength(2)
+    expect(result.map((i: IssueDetail) => i.number)).toEqual(
+      expect.arrayContaining([1, 3]),
+    )
   })
 })
 
