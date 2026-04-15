@@ -114,10 +114,7 @@ function createGitHubTools({ githubSource }: AIToolsDeps): ToolSet {
       }),
       execute: async ({ state }) => {
         try {
-          const filter = {
-            ...(state && { state }),
-          }
-          const issues = await githubSource.getIssues(filter)
+          const issues = await githubSource.listIssues(state)
           return { issues, count: issues.length }
         } catch (error) {
           console.warn('GitHub get issues failed', error)

@@ -248,10 +248,20 @@ describe('createAITools', () => {
 
   describe('github tools', () => {
     it('github_get_issues should return issues from source', async () => {
-      const issues = ['<issue number="1">Test</issue>']
+      const issues = [
+        {
+          title: 'Test',
+          number: 1,
+          state: 'OPEN',
+          url: 'u',
+          labels: [],
+          assignees: [],
+          status: null,
+        },
+      ]
       const tools = createTools({
         githubSource: createStubGitHubSource({
-          getIssues: vi.fn().mockResolvedValue(issues),
+          listIssues: vi.fn().mockResolvedValue(issues),
         }),
       })
 
@@ -262,7 +272,7 @@ describe('createAITools', () => {
     it('github_get_issues should return error object on failure', async () => {
       const tools = createTools({
         githubSource: createStubGitHubSource({
-          getIssues: vi.fn().mockRejectedValue(new Error('auth failed')),
+          listIssues: vi.fn().mockRejectedValue(new Error('auth failed')),
         }),
       })
 
@@ -271,28 +281,26 @@ describe('createAITools', () => {
       expect(result.issues).toEqual([])
     })
 
-    it('github_get_issues should pass filter to source', async () => {
-      const getIssues = vi.fn().mockResolvedValue([])
+    it('github_get_issues should pass state to source', async () => {
+      const listIssues = vi.fn().mockResolvedValue([])
       const tools = createTools({
-        githubSource: createStubGitHubSource({ getIssues }),
+        githubSource: createStubGitHubSource({ listIssues }),
       })
 
       await getTool(tools, 'github_get_issues').execute({
         state: 'OPEN',
       })
-      expect(getIssues).toHaveBeenCalledWith({
-        state: 'OPEN',
-      })
+      expect(listIssues).toHaveBeenCalledWith('OPEN')
     })
 
-    it('github_get_issues should pass empty filter when no params given', async () => {
-      const getIssues = vi.fn().mockResolvedValue([])
+    it('github_get_issues should pass undefined when no params given', async () => {
+      const listIssues = vi.fn().mockResolvedValue([])
       const tools = createTools({
-        githubSource: createStubGitHubSource({ getIssues }),
+        githubSource: createStubGitHubSource({ listIssues }),
       })
 
       await getTool(tools, 'github_get_issues').execute({})
-      expect(getIssues).toHaveBeenCalledWith({})
+      expect(listIssues).toHaveBeenCalledWith(undefined)
     })
   })
 })

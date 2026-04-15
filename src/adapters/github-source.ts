@@ -1,5 +1,9 @@
 import type { Octokit } from '@octokit/core'
-import type { GitHubSource, IssueFilter } from '../usecases/ports'
+import type {
+  GitHubSource,
+  IssueDetail,
+  IssueOverview,
+} from '../usecases/ports'
 import { escapeXml } from './shared'
 import { withRetry } from '../services/retry'
 
@@ -121,7 +125,7 @@ export class GitHubSourceAdapter implements GitHubSource {
     private projectNumber: number,
   ) {}
 
-  async getIssues(filter?: IssueFilter): Promise<string[]> {
+  async listIssues(state?: 'OPEN' | 'CLOSED'): Promise<IssueOverview[]> {
     const result = await withRetry(
       () =>
         this.octokit.graphql<ProjectQueryResult>(PROJECT_ITEMS_QUERY, {
@@ -131,7 +135,7 @@ export class GitHubSourceAdapter implements GitHubSource {
       {
         onRetry: (error, attempt) => {
           console.warn(
-            `GitHub getIssues retry ${attempt}:`,
+            `GitHub listIssues retry ${attempt}:`,
             error instanceof Error ? error.message : error,
           )
         },
@@ -155,9 +159,17 @@ export class GitHubSourceAdapter implements GitHubSource {
         }
       })
       .filter((issue) => {
-        if (filter?.state && issue.state !== filter.state) return false
+        if (state && issue.state !== state) return false
         return true
       })
-      .map(formatIssueToXml)
+  }
+
+  async readIssues(
+    numbers: number[],
+    bodyLimit: number,
+  ): Promise<IssueDetail[]> {
+    void numbers
+    void bodyLimit
+    throw new Error('not implemented')
   }
 }

@@ -5,7 +5,8 @@ export function createStubGitHubSource(
   overrides?: Partial<GitHubSource>,
 ): GitHubSource {
   return {
-    getIssues: vi.fn().mockResolvedValue([]),
+    listIssues: vi.fn().mockResolvedValue([]),
+    readIssues: vi.fn().mockResolvedValue([]),
     ...overrides,
   }
 }

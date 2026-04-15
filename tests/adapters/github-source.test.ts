@@ -82,22 +82,24 @@ describe('GitHubSourceAdapter', () => {
     )
 
     const adapter = createAdapter(graphql)
-    const result = await adapter.getIssues()
+    const result = await adapter.listIssues()
 
     expect(result).toHaveLength(1)
-    expect(result[0]).toContain('<issue number="42"')
-    expect(result[0]).toContain('state="OPEN"')
-    expect(result[0]).toContain('<title>更新官網</title>')
-    expect(result[0]).toContain('<labels>bug, enhancement</labels>')
-    expect(result[0]).toContain('<assignees>alice, bob</assignees>')
-    expect(result[0]).toContain('<status>In Progress</status>')
+    expect(result[0]).toMatchObject({
+      number: 42,
+      state: 'OPEN',
+      title: '更新官網',
+      labels: ['bug', 'enhancement'],
+      assignees: ['alice', 'bob'],
+      status: 'In Progress',
+    })
   })
 
   it('should pass correct variables to GraphQL query', async () => {
     const graphql = vi.fn().mockResolvedValue(makeProjectResponse([]))
 
     const adapter = createAdapter(graphql)
-    await adapter.getIssues()
+    await adapter.listIssues()
 
     expect(graphql).toHaveBeenCalledWith(
       expect.any(String),
@@ -112,7 +114,7 @@ describe('GitHubSourceAdapter', () => {
     const graphql = vi.fn().mockResolvedValue(makeProjectResponse([]))
 
     const adapter = createAdapter(graphql)
-    const result = await adapter.getIssues()
+    const result = await adapter.listIssues()
 
     expect(result).toEqual([])
   })
@@ -143,17 +145,17 @@ describe('GitHubSourceAdapter', () => {
     )
 
     const adapter = createAdapter(graphql)
-    const result = await adapter.getIssues()
+    const result = await adapter.listIssues()
 
     expect(result).toHaveLength(1)
-    expect(result[0]).toContain('<title>Real Issue</title>')
+    expect(result[0]).toMatchObject({ title: 'Real Issue' })
   })
 
   it('should throw error after retries when GraphQL request fails', async () => {
     const graphql = vi.fn().mockRejectedValue(new Error('GraphQL error'))
 
     const adapter = createAdapter(graphql)
-    await expect(adapter.getIssues()).rejects.toThrow('GraphQL error')
+    await expect(adapter.listIssues()).rejects.toThrow('GraphQL error')
     expect(graphql).toHaveBeenCalledTimes(3)
   })
 
@@ -168,11 +170,11 @@ describe('GitHubSourceAdapter', () => {
       )
 
     const adapter = createAdapter(graphql)
-    const result = await adapter.getIssues()
+    const result = await adapter.listIssues()
 
     expect(graphql).toHaveBeenCalledTimes(2)
     expect(result).toHaveLength(1)
-    expect(result[0]).toContain('<title>Recovered</title>')
+    expect(result[0]).toMatchObject({ title: 'Recovered' })
   })
 
   it('should filter issues by state when filter is provided', async () => {
@@ -188,11 +190,10 @@ describe('GitHubSourceAdapter', () => {
     )
 
     const adapter = createAdapter(graphql)
-    const result = await adapter.getIssues({ state: 'OPEN' })
+    const result = await adapter.listIssues('OPEN')
 
     expect(result).toHaveLength(1)
-    expect(result[0]).toContain('state="OPEN"')
-    expect(result[0]).toContain('<title>Open Issue</title>')
+    expect(result[0]).toMatchObject({ state: 'OPEN', title: 'Open Issue' })
   })
 
   it('should return all issues when no filter is provided', async () => {
@@ -208,7 +209,7 @@ describe('GitHubSourceAdapter', () => {
     )
 
     const adapter = createAdapter(graphql)
-    const result = await adapter.getIssues()
+    const result = await adapter.listIssues()
 
     expect(result).toHaveLength(2)
   })

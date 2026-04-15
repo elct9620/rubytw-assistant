@@ -1,12 +1,23 @@
 import type { TopicGroup } from '../entities/topic-group'
 import type { ActionItem } from '../entities/action-item'
 
-export interface IssueFilter {
-  state?: 'OPEN' | 'CLOSED'
+export interface IssueOverview {
+  title: string
+  number: number
+  state: string
+  url: string
+  labels: string[]
+  assignees: string[]
+  status: string | null
+}
+
+export interface IssueDetail extends IssueOverview {
+  body: string
 }
 
 export interface GitHubSource {
-  getIssues(filter?: IssueFilter): Promise<string[]>
+  listIssues(state?: 'OPEN' | 'CLOSED'): Promise<IssueOverview[]>
+  readIssues(numbers: number[], bodyLimit: number): Promise<IssueDetail[]>
 }
 
 export interface DiscordSource {
