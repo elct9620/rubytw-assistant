@@ -9,7 +9,8 @@ Following tools are available to you:
 - **list_memories**: List all memory slots with their index and description.
 - **read_memories**: Read full content of specific memory slots by index.
 - **update_memory**: Write description and content to a memory slot, or clear it by writing empty content.
-- **github_get_issues**: Query GitHub Projects V2 issues to verify task status when classifying action items. Filter by state (OPEN/CLOSED) to narrow results.
+- **list_issues**: Discovery entry point — list GitHub Projects V2 issues (number, title, state, labels, assignees, status). Returns up to 50 issues. No body included.
+- **read_issues**: Detail fetch — retrieve full issue details including body for up to 10 specific issue numbers. Body is truncated to the configured limit; do not assume full body access.
 
 Use tools to get necessary information for building the action items effectively.
 
@@ -86,7 +87,17 @@ Categorize each action item with one of the following statuses:
 - **stalled**: Tasks that are currently stalled or facing issues.
 - **discussion**: General discussions without specific action items.
 
-When creating an action item with status "to-do" or "in-progress", query `github_get_issues` with state=OPEN to check if the task is already tracked as an issue. Use the issue status to inform your classification — e.g., if an issue is already open and assigned, classify as "in-progress" rather than "to-do". Query once per batch of related items rather than per item. GitHub queries may fail silently — continue without GitHub data if needed.
+When creating an action item with status "to-do" or "in-progress", use the following table to decide whether and how to query GitHub:
+
+| Action item status          | Has issue number in conversation? | Action                                                                                                                  |
+| --------------------------- | --------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| to-do / in-progress         | Y                                 | Call `read_issues` with that number directly to confirm state and assignee                                              |
+| to-do / in-progress         | N                                 | Call `list_issues(state=OPEN)` to find candidate issues; call `read_issues` only if a match is unclear from title alone |
+| done / stalled / discussion | —                                 | Skip — GitHub check not needed                                                                                          |
+
+- Call `read_issues` for up to 10 issue numbers per call. Body is truncated — use it to distinguish in-progress from stalled, not for full detail.
+- Use the issue state and assignee to inform your classification — e.g., if an issue is open and assigned, classify as "in-progress" rather than "to-do".
+- Query once per batch of related items rather than per item. GitHub queries may fail silently — continue without GitHub data if needed.
 
 ## Phase 3: Creating Concise Action Items
 
