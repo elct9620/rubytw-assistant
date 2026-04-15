@@ -216,7 +216,7 @@ Discord Interaction Webhook handling and command behaviors are awaiting design. 
 
 ### GitHub Tool Query
 
-GitHub Tool provides two operations: `list_issues` returns an Issue overview for discovery; `read_issues` returns full details including body for specific Issues. AI typically calls `list_issues` first to find candidates, then `read_issues` to inspect selected Issues.
+GitHub Tool provides two operations: `list_issues` is the discovery entry point and returns an Issue overview; `read_issues` is the detail-fetch entry point and returns full details including body for Issues the AI has already identified by number.
 
 #### List Issues
 
@@ -229,12 +229,12 @@ GitHub Tool provides two operations: `list_issues` returns an Issue overview for
 
 #### Read Issues
 
-| State                                       | Action                                                                          | Result                                                                                |
-| ------------------------------------------- | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
-| AI invokes `read_issues` with number list   | Fetch each specified Issue's details                                            | Return Issue details with: title, number, state, url, labels, assignees, status, body |
-| Issue body exceeds Issue Body Length Limit  | Truncate body to the configured character limit                                 | AI receives a truncated body; remaining content is not returned                       |
-| Input contains more numbers than limit      | Accept at most 10 Issue numbers per call (fixed design constraint)              | Request with more than 10 numbers is rejected before fetching                         |
-| Requested number is missing or inaccessible | Skip that number (does not exist, not an Issue, or outside the Project's scope) | Result omits the skipped number; remaining Issues returned normally                   |
+| State                                       | Action                                                                          | Result                                                                                              |
+| ------------------------------------------- | ------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| AI invokes `read_issues` with number list   | Fetch each specified Issue's details                                            | Return Issue details with: title, number, state, url, labels, assignees, project status field, body |
+| Issue body exceeds Issue Body Length Limit  | Truncate body to the configured character limit                                 | AI receives the leading portion of the body up to the limit; trailing content is not returned       |
+| Input contains more numbers than limit      | Accept at most 10 Issue numbers per call (fixed design constraint)              | Request with more than 10 numbers is rejected before fetching                                       |
+| Requested number is missing or inaccessible | Skip that number (does not exist, not an Issue, or outside the Project's scope) | Result omits the skipped number; remaining Issues returned normally                                 |
 
 ### Memory Tool Interface
 
