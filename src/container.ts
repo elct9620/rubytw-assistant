@@ -96,6 +96,7 @@ container.register(TOKENS.AIToolsFactory, {
       githubSource: c.resolve(TOKENS.GitHubSource),
       memoryEntryLimit: c.resolve(TOKENS.MemoryEntryLimit),
       memoryDescriptionLimit: c.resolve(TOKENS.MemoryDescriptionLimit),
+      issueBodyLengthLimit: c.resolve(TOKENS.IssueBodyLengthLimit),
     }
     return () => createAITools(deps)
   },

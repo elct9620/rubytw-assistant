@@ -8,6 +8,7 @@ export interface AIToolsDeps {
   githubSource: GitHubSource
   memoryEntryLimit: number
   memoryDescriptionLimit: number
+  issueBodyLengthLimit: number
 }
 
 export function createAITools(deps: AIToolsDeps): ToolSet {
@@ -101,11 +102,14 @@ function createMemoryTools({
   }
 }
 
-function createGitHubTools({ githubSource }: AIToolsDeps): ToolSet {
+function createGitHubTools({
+  githubSource,
+  issueBodyLengthLimit,
+}: AIToolsDeps): ToolSet {
   return {
-    github_get_issues: tool({
+    list_issues: tool({
       description:
-        'Query GitHub Projects V2 issues to check task status and relate conversations to existing issues. Returns all issues by default; use filters to narrow results.',
+        'Discovery entry point: list GitHub Projects V2 issues with their overview (number, title, state, labels, assignees, status). Returns up to 50 issues. Use this first to find relevant issue numbers before fetching details.',
       inputSchema: z.object({
         state: z
           .enum(['OPEN', 'CLOSED'])
@@ -117,7 +121,30 @@ function createGitHubTools({ githubSource }: AIToolsDeps): ToolSet {
           const issues = await githubSource.listIssues(state)
           return { issues, count: issues.length }
         } catch (error) {
-          console.warn('GitHub get issues failed', error)
+          console.warn('GitHub list issues failed', error)
+          return { issues: [], count: 0, error: 'query failed' }
+        }
+      },
+    }),
+    read_issues: tool({
+      description:
+        'Detail fetch: retrieve full issue details (body, comments) for up to 10 specific issue numbers. Use after list_issues to get complete information for issues of interest.',
+      inputSchema: z.object({
+        numbers: z
+          .array(z.number().int().positive())
+          .min(1)
+          .max(10)
+          .describe('Issue numbers to fetch (1–10 items)'),
+      }),
+      execute: async ({ numbers }) => {
+        try {
+          const issues = await githubSource.readIssues(
+            numbers,
+            issueBodyLengthLimit,
+          )
+          return { issues, count: issues.length }
+        } catch (error) {
+          console.warn('GitHub read issues failed', error)
           return { issues: [], count: 0, error: 'query failed' }
         }
       },

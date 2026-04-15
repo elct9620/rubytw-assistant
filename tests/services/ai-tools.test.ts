@@ -37,6 +37,7 @@ function createTools(overrides?: {
     githubSource: overrides?.githubSource ?? createStubGitHubSource(),
     memoryEntryLimit: ENTRY_LIMIT,
     memoryDescriptionLimit: DESCRIPTION_LIMIT,
+    issueBodyLengthLimit: 500,
   })
 }
 
@@ -52,7 +53,8 @@ describe('createAITools', () => {
         'list_memories',
         'read_memories',
         'update_memory',
-        'github_get_issues',
+        'list_issues',
+        'read_issues',
       ]),
     )
   })
@@ -247,7 +249,7 @@ describe('createAITools', () => {
   })
 
   describe('github tools', () => {
-    it('github_get_issues should return issues from source', async () => {
+    it('list_issues should return issues from source', async () => {
       const issues = [
         {
           title: 'Test',
@@ -265,42 +267,91 @@ describe('createAITools', () => {
         }),
       })
 
-      const result = await getTool(tools, 'github_get_issues').execute({})
+      const result = await getTool(tools, 'list_issues').execute({})
       expect(result).toEqual({ issues, count: 1 })
     })
 
-    it('github_get_issues should return error object on failure', async () => {
+    it('list_issues should return error object on failure', async () => {
       const tools = createTools({
         githubSource: createStubGitHubSource({
           listIssues: vi.fn().mockRejectedValue(new Error('auth failed')),
         }),
       })
 
-      const result = await getTool(tools, 'github_get_issues').execute({})
+      const result = await getTool(tools, 'list_issues').execute({})
       expect(result.error).toBe('query failed')
       expect(result.issues).toEqual([])
     })
 
-    it('github_get_issues should pass state to source', async () => {
+    it('list_issues should pass state to source', async () => {
       const listIssues = vi.fn().mockResolvedValue([])
       const tools = createTools({
         githubSource: createStubGitHubSource({ listIssues }),
       })
 
-      await getTool(tools, 'github_get_issues').execute({
+      await getTool(tools, 'list_issues').execute({
         state: 'OPEN',
       })
       expect(listIssues).toHaveBeenCalledWith('OPEN')
     })
 
-    it('github_get_issues should pass undefined when no params given', async () => {
+    it('list_issues should pass undefined when no params given', async () => {
       const listIssues = vi.fn().mockResolvedValue([])
       const tools = createTools({
         githubSource: createStubGitHubSource({ listIssues }),
       })
 
-      await getTool(tools, 'github_get_issues').execute({})
+      await getTool(tools, 'list_issues').execute({})
       expect(listIssues).toHaveBeenCalledWith(undefined)
+    })
+
+    it('read_issues should return issue details from source', async () => {
+      const issues = [
+        {
+          number: 1,
+          title: 'Test',
+          state: 'OPEN',
+          url: 'u',
+          body: 'body text',
+          labels: [],
+          assignees: [],
+          status: null,
+        },
+      ]
+      const tools = createTools({
+        githubSource: createStubGitHubSource({
+          readIssues: vi.fn().mockResolvedValue(issues),
+        }),
+      })
+
+      const result = await getTool(tools, 'read_issues').execute({
+        numbers: [1],
+      })
+      expect(result).toEqual({ issues, count: 1 })
+    })
+
+    it('read_issues should return error object on failure', async () => {
+      const tools = createTools({
+        githubSource: createStubGitHubSource({
+          readIssues: vi.fn().mockRejectedValue(new Error('auth failed')),
+        }),
+      })
+
+      const result = await getTool(tools, 'read_issues').execute({
+        numbers: [1],
+      })
+      expect(result.error).toBe('query failed')
+      expect(result.issues).toEqual([])
+    })
+
+    it('read_issues should pass numbers and body limit to source', async () => {
+      const readIssues = vi.fn().mockResolvedValue([])
+      const tools = createTools({
+        githubSource: createStubGitHubSource({ readIssues }),
+      })
+
+      await getTool(tools, 'read_issues').execute({ numbers: [1, 2] })
+      expect(readIssues).toHaveBeenCalledWith([1, 2], 500)
     })
   })
 })

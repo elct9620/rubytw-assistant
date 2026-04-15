@@ -37,6 +37,7 @@ function createService(): ConversationGrouperService {
         githubSource,
         memoryEntryLimit: 32,
         memoryDescriptionLimit: 128,
+        issueBodyLengthLimit: 500,
       }),
     null,
   )
@@ -184,8 +185,11 @@ describe('ConversationGrouperService', () => {
               'Write description and content',
             ),
           }),
-          github_get_issues: expect.objectContaining({
+          list_issues: expect.objectContaining({
             description: expect.stringContaining('GitHub Projects V2 issues'),
+          }),
+          read_issues: expect.objectContaining({
+            description: expect.stringContaining('full issue details'),
           }),
         }),
         stopWhen: expect.objectContaining({

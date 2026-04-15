@@ -37,6 +37,7 @@ function createService(): ActionItemGeneratorService {
         githubSource,
         memoryEntryLimit: 32,
         memoryDescriptionLimit: 128,
+        issueBodyLengthLimit: 500,
       }),
     null,
   )
@@ -235,7 +236,8 @@ describe('ActionItemGeneratorService', () => {
           list_memories: expect.anything(),
           read_memories: expect.anything(),
           update_memory: expect.anything(),
-          github_get_issues: expect.anything(),
+          list_issues: expect.anything(),
+          read_issues: expect.anything(),
         }),
         stopWhen: expect.objectContaining({ type: 'stepCount', count: 30 }),
       }),
