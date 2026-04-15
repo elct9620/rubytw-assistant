@@ -53,10 +53,10 @@ The system collects discussion messages from a designated Discord channel over a
 
 **AI Available Tools:**
 
-| Tool        | Capability                                                                                               | Purpose                                                                |
-| ----------- | -------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| Memory Tool | Read/write index-based context memory with description and content fields (entry count capped by config) | Retain important context across executions, avoid redundant processing |
-| GitHub Tool | Query Issues from GitHub Projects V2 with optional state filter (see GitHub Tool Query below)            | Verify task status, relate conversations to existing issues            |
+| Tool        | Capability                                                                                                                                       | Purpose                                                                |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------- |
+| Memory Tool | Read/write index-based context memory with description and content fields (entry count capped by config)                                         | Retain important context across executions, avoid redundant processing |
+| GitHub Tool | List Issues from GitHub Projects V2 with optional state filter, then read specified Issues' details including body (see GitHub Tool Query below) | Verify task status, relate conversations to existing issues            |
 
 **User Journey:**
 
@@ -115,6 +115,7 @@ A development-only HTTP endpoint that triggers the same AI summary pipeline as F
 | Memory Entry Limit          | Maximum number of memory slots for Memory Tool                 | 32                     |
 | Memory Description Limit    | Maximum character length for memory slot description           | 128                    |
 | Memory Summary Length Limit | Maximum character length for Memory Summary output             | 300                    |
+| Issue Body Length Limit     | Maximum character length for Issue body in read_issues result  | 500                    |
 
 ## System Boundary
 
@@ -215,12 +216,25 @@ Discord Interaction Webhook handling and command behaviors are awaiting design. 
 
 ### GitHub Tool Query
 
+GitHub Tool provides two operations: `list_issues` returns an Issue overview for discovery; `read_issues` returns full details including body for specific Issues. AI typically calls `list_issues` first to find candidates, then `read_issues` to inspect selected Issues.
+
+#### List Issues
+
 | State                             | Action                                                                         | Result                                                                                     |
 | --------------------------------- | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------ |
-| AI invokes GitHub Tool            | Query Project V2 items; filter to Issues only (exclude PRs, DraftIssues)       | Return Issue list with: title, number, state, url, labels, assignees, project status field |
+| AI invokes `list_issues`          | Query Project V2 items; filter to Issues only (exclude PRs, DraftIssues)       | Return Issue list with: title, number, state, url, labels, assignees, project status field |
 | AI specifies state filter         | Apply state filter (OPEN or CLOSED) to Issue list                              | Return only Issues matching the specified state                                            |
 | AI omits the state filter         | Return all Issues regardless of state                                          | AI determines relevance based on state and project status fields in the returned data      |
 | Project has more items than limit | Return at most 50 Issues per query (fixed design constraint, not configurable) | AI works with available data; may miss items beyond the limit                              |
+
+#### Read Issues
+
+| State                                       | Action                                                                          | Result                                                                                |
+| ------------------------------------------- | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| AI invokes `read_issues` with number list   | Fetch each specified Issue's details                                            | Return Issue details with: title, number, state, url, labels, assignees, status, body |
+| Issue body exceeds Issue Body Length Limit  | Truncate body to the configured character limit                                 | AI receives a truncated body; remaining content is not returned                       |
+| Input contains more numbers than limit      | Accept at most 10 Issue numbers per call (fixed design constraint)              | Request with more than 10 numbers is rejected before fetching                         |
+| Requested number is missing or inaccessible | Skip that number (does not exist, not an Issue, or outside the Project's scope) | Result omits the skipped number; remaining Issues returned normally                   |
 
 ### Memory Tool Interface
 
@@ -268,19 +282,19 @@ When the AI pipeline fails after all retries, the system sends a plain text fall
 
 ## Terminology
 
-| Term                 | Definition                                                                                                                                                                                |
-| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Summary              | Structured action item list produced by the AI pipeline                                                                                                                                   |
-| Operator             | A member of the Ruby Taiwan core team responsible for community operations                                                                                                                |
-| Command              | A query request issued by an operator via Discord Slash Command                                                                                                                           |
-| Group                | Phase 1 output; aggregates contextually related conversation messages into a topic group with summary and attribute tags                                                                  |
-| Action Item          | Phase 2 output; a structured to-do extracted from a group, containing status, assignee, and task description                                                                              |
-| Action Item Status   | Classification label for action items: to-do, in-progress, done, stalled, or discussion                                                                                                   |
-| Memory Tool          | An AI-accessible tool set (`list_memories`, `read_memories`, `update_memory`) for index-based context memory with description and content fields, retaining information across executions |
-| GitHub Tool          | An AI-accessible query tool that retrieves Issues from GitHub Projects V2 with an optional state filter via GitHub App                                                                    |
-| Memory Summary       | Phase 3 output; a condensed context paragraph generated from all memory slots after Phase 2, stored in Memory Summary Store for injection into subsequent pipeline runs                   |
-| Memory Summary Store | Persistent KV store holding a single condensed summary string, written after each pipeline run and read at the start of the next run                                                      |
-| Schedule             | The mechanism that triggers the summary generation pipeline on a timed basis, driven by platform scheduling                                                                               |
+| Term                 | Definition                                                                                                                                                                                                                                                         |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Summary              | Structured action item list produced by the AI pipeline                                                                                                                                                                                                            |
+| Operator             | A member of the Ruby Taiwan core team responsible for community operations                                                                                                                                                                                         |
+| Command              | A query request issued by an operator via Discord Slash Command                                                                                                                                                                                                    |
+| Group                | Phase 1 output; aggregates contextually related conversation messages into a topic group with summary and attribute tags                                                                                                                                           |
+| Action Item          | Phase 2 output; a structured to-do extracted from a group, containing status, assignee, and task description                                                                                                                                                       |
+| Action Item Status   | Classification label for action items: to-do, in-progress, done, stalled, or discussion                                                                                                                                                                            |
+| Memory Tool          | An AI-accessible tool set (`list_memories`, `read_memories`, `update_memory`) for index-based context memory with description and content fields, retaining information across executions                                                                          |
+| GitHub Tool          | An AI-accessible tool set (`list_issues`, `read_issues`) that retrieves Issues from GitHub Projects V2 via GitHub App: `list_issues` returns an overview with optional state filter; `read_issues` returns full details including body for specified Issue numbers |
+| Memory Summary       | Phase 3 output; a condensed context paragraph generated from all memory slots after Phase 2, stored in Memory Summary Store for injection into subsequent pipeline runs                                                                                            |
+| Memory Summary Store | Persistent KV store holding a single condensed summary string, written after each pipeline run and read at the start of the next run                                                                                                                               |
+| Schedule             | The mechanism that triggers the summary generation pipeline on a timed basis, driven by platform scheduling                                                                                                                                                        |
 
 ## Contracts
 
