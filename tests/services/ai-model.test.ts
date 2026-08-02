@@ -19,11 +19,11 @@ describe('createAIModel', () => {
       accountId: 'test-account',
       gatewayId: 'test-gateway',
       apiKey: 'test-key',
-      modelId: 'gpt-5.4-nano',
+      modelId: 'test-model',
     })
 
     expect(mockCreateOpenAI).toHaveBeenCalled()
-    expect(mockOpenAIProvider).toHaveBeenCalledWith('gpt-5.4-nano')
+    expect(mockOpenAIProvider).toHaveBeenCalledWith('test-model')
     expect(mockAiGateway).toHaveBeenCalledWith('mock-model')
     expect(model).toBe('mock-model')
   })
