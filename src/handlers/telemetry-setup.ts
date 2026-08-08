@@ -31,7 +31,14 @@ export function setupTrace(
   options: { scopeName?: string },
 ): TraceSetup | undefined {
   const config = child.resolve<LangfuseConfig | null>(TOKENS.LangfuseConfig)
-  if (!config) return undefined
+  if (!config) {
+    // Traces that never leave look the same as traces that were never
+    // started, so say which one this is.
+    console.warn(
+      'telemetry disabled: LANGFUSE_PUBLIC_KEY and LANGFUSE_SECRET_KEY are required',
+    )
+    return undefined
+  }
 
   ensureContextManager()
 
@@ -148,7 +155,15 @@ export async function runWithTrace<T>(
         throw error
       } finally {
         span.end()
-        await trace.provider.forceFlush()
+        // A rejected flush inside `finally` would replace whatever error the
+        // handler was already throwing, so telemetry trouble must never
+        // escape — but it does have to be visible, since OTel discards
+        // exporter failures through a no-op `diag` logger by default.
+        try {
+          await trace.provider.forceFlush()
+        } catch (error) {
+          console.warn('telemetry flush failed:', error)
+        }
       }
     },
   )
