@@ -13,7 +13,7 @@ export async function scheduledHandler(
   )
 
   const child = container.createChildContainer()
-  const trace = setupTrace(child, {})
+  const trace = setupTrace(child)
 
   const usecase = child.resolve(GenerateSummary)
   const presenter = child.resolve<SummaryPresenter>(TOKENS.SummaryPresenter)

@@ -28,7 +28,7 @@ debug.get('/summary', async (c) => {
 
   const child = container.createChildContainer()
   child.register(TOKENS.DiscordChannelId, { useValue: channelId })
-  const trace = setupTrace(child, {})
+  const trace = setupTrace(child)
 
   const usecase = child.resolve(GenerateSummary)
   const hours = Number(c.req.query('hours')) || Number(c.env.SUMMARY_HOURS)

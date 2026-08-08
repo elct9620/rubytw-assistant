@@ -24,7 +24,7 @@ describe('setupTrace', () => {
     const child = container.createChildContainer()
     child.register(TOKENS.LangfuseConfig, { useFactory: () => null })
 
-    expect(setupTrace(child, {})).toBeUndefined()
+    expect(setupTrace(child)).toBeUndefined()
     // Silently skipping telemetry is indistinguishable from telemetry that
     // ran and reported nothing, which is the harder failure to diagnose.
     expect(warnings.length).toBeGreaterThan(0)
@@ -37,7 +37,7 @@ describe('setupTrace', () => {
       useFactory: () => LANGFUSE_TEST_CONFIG,
     })
 
-    const trace = setupTrace(child, {})
+    const trace = setupTrace(child)
     await runWithTrace(trace, {
       spanName: 'root',
       input: {},
@@ -62,7 +62,7 @@ describe('setupTrace', () => {
       useFactory: () => LANGFUSE_TEST_CONFIG,
     })
 
-    const trace = setupTrace(child, {})
+    const trace = setupTrace(child)
     await runWithTrace(trace, {
       spanName: 'root',
       input: {},
@@ -102,7 +102,7 @@ describe('setupTrace', () => {
       child.register(TOKENS.LangfuseConfig, {
         useFactory: () => LANGFUSE_TEST_CONFIG,
       })
-      return { child, trace: setupTrace(child, {}) }
+      return { child, trace: setupTrace(child) }
     }
 
     it('should report the failure', async () => {

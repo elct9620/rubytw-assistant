@@ -32,10 +32,7 @@ function ensureContextManager(): void {
   contextManagerRegistered = true
 }
 
-export function setupTrace(
-  child: DependencyContainer,
-  options: { scopeName?: string },
-): TraceSetup | undefined {
+export function setupTrace(child: DependencyContainer): TraceSetup | undefined {
   const config = child.resolve<LangfuseConfig | null>(TOKENS.LangfuseConfig)
   if (!config) {
     // Traces that never leave look the same as traces that were never
@@ -71,7 +68,9 @@ export function setupTrace(
     ],
   })
 
-  const tracer = provider.getTracer(options.scopeName ?? 'ai')
+  // `ai` is the scope the AI SDK's own spans are recorded under, which is
+  // what Langfuse shows as `metadata.scope.name`.
+  const tracer = provider.getTracer('ai')
   child.register(TOKENS.Telemetry, {
     useValue: new LangfuseVercelAiSdkIntegration({ tracer }),
   })
