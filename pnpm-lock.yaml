@@ -50,9 +50,6 @@ importers:
       tsyringe:
         specifier: ^4.10.0
         version: 4.10.0
-      workers-ai-provider:
-        specifier: 3.1.8
-        version: 3.1.8(@ai-sdk/provider@3.0.8)(ai@6.0.140(zod@4.3.6))
       zod:
         specifier: ^4.3.6
         version: 4.3.6
@@ -1949,12 +1946,6 @@ packages:
     engines: {node: '>=16'}
     hasBin: true
 
-  workers-ai-provider@3.1.8:
-    resolution: {integrity: sha512-zVT4MeAKE+9XhrB2+jyhcsmCq/1klDcTr7uDkNnnz9RLOi7J86+RWXOuCdOPd/jOJmDFdbjj+n8PmQ7DyP/stA==}
-    peerDependencies:
-      '@ai-sdk/provider': ^3.0.0
-      ai: ^6.0.0
-
   wrangler@4.77.0:
     resolution: {integrity: sha512-E2Gm69+K++BFd3QvoWjC290RPQj1vDOUotA++sNHmtKPb7EP6C8Qv+1D5Ii73tfZtyNgakpqHlh8lBBbVWTKAQ==}
     engines: {node: '>=20.3.0'}
@@ -3797,11 +3788,6 @@ snapshots:
       '@cloudflare/workerd-linux-64': 1.20260317.1
       '@cloudflare/workerd-linux-arm64': 1.20260317.1
       '@cloudflare/workerd-windows-64': 1.20260317.1
-
-  workers-ai-provider@3.1.8(@ai-sdk/provider@3.0.8)(ai@6.0.140(zod@4.3.6)):
-    dependencies:
-      '@ai-sdk/provider': 3.0.8
-      ai: 6.0.140(zod@4.3.6)
 
   wrangler@4.77.0:
     dependencies:
