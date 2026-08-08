@@ -81,7 +81,12 @@ async function generateOnce<S extends z.ZodTypeAny>({
     providerOptions: { openai: { reasoningEffort: 'low' } },
     tools,
     stopWhen: isStepCount(MAX_TOOL_STEPS),
-    ...(telemetry && { telemetry: { integrations: telemetry } }),
+    // `@ai-sdk/otel` fixes the span name to `${operation} ${model}`, so this
+    // surfaces as `gen_ai.agent.name` rather than in the observation title —
+    // enough to tell the three AI steps apart by attribute and filter.
+    ...(telemetry && {
+      telemetry: { integrations: telemetry, functionId: operation },
+    }),
   })
 
   let output: typeof result.output

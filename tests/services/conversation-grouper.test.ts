@@ -20,7 +20,9 @@ vi.mock('ai', () => ({
   isStepCount: (n: number) => ({ type: 'stepCount', count: n }),
 }))
 
-function createService(): ConversationGrouperService {
+function createService(
+  telemetry: ConstructorParameters<typeof ConversationGrouperService>[3] = null,
+): ConversationGrouperService {
   const memoryStore = new KVMemoryStoreAdapter(env.MEMORY_KV, 32, 128)
   const githubSource = createStubGitHubSource()
   return new ConversationGrouperService(
@@ -39,7 +41,7 @@ function createService(): ConversationGrouperService {
         memoryDescriptionLimit: 128,
         issueBodyLengthLimit: 500,
       }),
-    null,
+    telemetry,
   )
 }
 
@@ -198,5 +200,19 @@ describe('ConversationGrouperService', () => {
         }),
       }),
     )
+  })
+
+  it('should identify the call it belongs to', async () => {
+    mockGenerateText.mockResolvedValue({ output: { groups: [] } })
+    const telemetry = {} as NonNullable<
+      ConstructorParameters<typeof ConversationGrouperService>[3]
+    >
+
+    await createService(telemetry).groupConversations(['msg'])
+
+    expect(mockGenerateText.mock.calls[0][0].telemetry).toEqual({
+      integrations: telemetry,
+      functionId: 'groupConversations',
+    })
   })
 })

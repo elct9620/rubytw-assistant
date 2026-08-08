@@ -46,7 +46,10 @@ export class MemorySummarizerService implements MemorySummarizer {
           prompt: markdown,
           providerOptions: { openai: { reasoningEffort: 'low' } },
           ...(this.telemetry && {
-            telemetry: { integrations: this.telemetry },
+            telemetry: {
+              integrations: this.telemetry,
+              functionId: 'summarizeMemory',
+            },
           }),
         })
         return result.text
