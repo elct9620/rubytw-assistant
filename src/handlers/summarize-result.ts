@@ -36,7 +36,7 @@ export function classifySummaryResult(
   result: SummaryResult,
 ): ResultClassification | undefined {
   if (result.kind === 'fallback') {
-    return { level: 'WARNING', message: result.reason }
+    return { level: 'WARNING', statusMessage: result.reason }
   }
   return undefined
 }

@@ -19,7 +19,7 @@ export async function scheduledHandler(
   const presenter = child.resolve<SummaryPresenter>(TOKENS.SummaryPresenter)
   const hours = child.resolve<number>(TOKENS.SummaryHours)
 
-  await runWithTrace(child, trace, {
+  await runWithTrace(trace, {
     spanName: 'generate-summary',
     input: { cron: controller.cron, hours },
     summarizeOutput: summarizeResult,

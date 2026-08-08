@@ -16,7 +16,6 @@ export interface CapturedSpan {
   parentSpanId?: string
   attributes: Record<string, unknown>
   status: { code?: number; message?: string }
-  eventNames: string[]
 }
 
 interface OtlpAnyValue {
@@ -38,7 +37,6 @@ interface OtlpSpan {
   parentSpanId?: string
   attributes?: OtlpKeyValue[]
   status?: { code?: number; message?: string }
-  events?: { name: string }[]
 }
 
 interface OtlpPayload {
@@ -90,7 +88,6 @@ export function captureLangfuseSpans(): {
               parentSpanId: span.parentSpanId,
               attributes: readAttributes(span.attributes),
               status: span.status ?? {},
-              eventNames: (span.events ?? []).map((event) => event.name),
             })
           }
         }

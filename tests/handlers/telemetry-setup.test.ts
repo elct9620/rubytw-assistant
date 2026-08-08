@@ -38,7 +38,7 @@ describe('setupTrace', () => {
     })
 
     const trace = setupTrace(child, {})
-    await runWithTrace(child, trace, {
+    await runWithTrace(trace, {
       spanName: 'root',
       input: {},
       summarizeOutput: () => ({}),
@@ -64,7 +64,7 @@ describe('setupTrace', () => {
     })
 
     const trace = setupTrace(child, {})
-    await runWithTrace(child, trace, {
+    await runWithTrace(trace, {
       spanName: 'root',
       input: {},
       summarizeOutput: () => ({}),
@@ -110,9 +110,9 @@ describe('setupTrace', () => {
     it('should report the failure', async () => {
       rejectExports()
       const warnings = spyOnWarn()
-      const { child, trace } = traced()
+      const { trace } = traced()
 
-      await runWithTrace(child, trace, {
+      await runWithTrace(trace, {
         spanName: 'root',
         input: {},
         summarizeOutput: () => ({}),
@@ -128,10 +128,10 @@ describe('setupTrace', () => {
     it('should not swallow the error the handler was already throwing', async () => {
       rejectExports()
       spyOnWarn()
-      const { child, trace } = traced()
+      const { trace } = traced()
 
       await expect(
-        runWithTrace(child, trace, {
+        runWithTrace(trace, {
           spanName: 'root',
           input: {},
           summarizeOutput: () => ({}),

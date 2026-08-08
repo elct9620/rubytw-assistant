@@ -184,10 +184,7 @@ describe('debug handler', () => {
 
     expect(res.status).toBe(500)
     const span = langfuse.find('generate-summary')
-    expect(span?.attributes['langfuse.observation.output']).toContain(
-      'Discord API failed',
-    )
-    expect(span?.eventNames).toContain('exception')
     expect(span?.status.code).toBe(2)
+    expect(span?.status.message).toBe('Discord API failed')
   })
 })

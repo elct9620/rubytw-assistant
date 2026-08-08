@@ -1,6 +1,11 @@
 import type { DependencyContainer } from 'tsyringe'
 import { LangfuseSpanProcessor } from '@langfuse/otel'
-import { context, SpanStatusCode, type Tracer } from '@opentelemetry/api'
+import {
+  setLangfuseTracerProvider,
+  startActiveObservation,
+  type ObservationLevel,
+} from '@langfuse/tracing'
+import { context } from '@opentelemetry/api'
 import { BasicTracerProvider } from '@opentelemetry/sdk-trace-base'
 import { TOKENS, type LangfuseConfig } from '../tokens'
 import { WorkerContextManager } from './worker-context-manager'
@@ -68,17 +73,21 @@ export function setupTrace(
   const tracer = provider.getTracer(options.scopeName ?? 'ai')
   child.register(TOKENS.Tracer, { useValue: tracer })
 
+  // `startActiveObservation` reads the provider from this module-level slot
+  // rather than from an argument, so the per-invocation provider has to be
+  // handed over before any observation starts.
+  setLangfuseTracerProvider(provider)
+
   return { provider }
 }
 
 /**
  * Classification a handler can return to mark a successful-but-degraded
- * result on the root span. WARNING becomes a Langfuse WARNING observation
- * (span status stays OK); ERROR additionally sets OTel span status ERROR.
+ * result on the root observation.
  */
 export interface ResultClassification {
-  level: 'WARNING' | 'ERROR'
-  message: string
+  level: ObservationLevel
+  statusMessage: string
 }
 
 export interface RunWithTraceOptions<T> {
@@ -87,20 +96,19 @@ export interface RunWithTraceOptions<T> {
   summarizeOutput: (result: T) => unknown
   /**
    * Inspect the resolved result and optionally flag it as degraded. Called
-   * only on the success path — exceptions are still recorded as ERROR.
+   * only on the success path — exceptions are recorded by Langfuse itself.
    */
   classifyResult?: (result: T) => ResultClassification | undefined
   fn: () => Promise<T>
 }
 
 /**
- * Execute `fn` inside a root OTel span when telemetry is active, otherwise
- * just run it directly. Sets `langfuse.observation.input`/`output` attributes
- * on the root span so Langfuse v4 Fast UI can render them, records exceptions,
- * and flushes the provider in `finally`.
+ * Execute `fn` as the root Langfuse observation when telemetry is active,
+ * otherwise just run it directly. Recording exceptions and ending the
+ * observation belong to `startActiveObservation`; what is left here is the
+ * flush every Worker invocation owes before it terminates.
  */
 export async function runWithTrace<T>(
-  child: DependencyContainer,
   trace: TraceSetup | undefined,
   {
     spanName,
@@ -114,57 +122,25 @@ export async function runWithTrace<T>(
     return fn()
   }
 
-  const tracer = child.resolve<Tracer>(TOKENS.Tracer)
-  return tracer.startActiveSpan(
-    spanName,
-    {
-      attributes: {
-        'langfuse.observation.input': JSON.stringify(input),
-      },
-    },
-    async (span) => {
-      try {
-        const result = await fn()
-        span.setAttribute(
-          'langfuse.observation.output',
-          JSON.stringify(summarizeOutput(result)),
-        )
-        const classification = classifyResult?.(result)
-        if (classification) {
-          span.setAttribute('langfuse.observation.level', classification.level)
-          span.setAttribute(
-            'langfuse.observation.status_message',
-            classification.message,
-          )
-          if (classification.level === 'ERROR') {
-            span.setStatus({
-              code: SpanStatusCode.ERROR,
-              message: classification.message,
-            })
-          }
-        }
-        return result
-      } catch (error) {
-        const err = error instanceof Error ? error : new Error(String(error))
-        span.recordException(err)
-        span.setStatus({ code: SpanStatusCode.ERROR, message: err.message })
-        span.setAttribute(
-          'langfuse.observation.output',
-          JSON.stringify({ error: err.message, stack: err.stack }),
-        )
-        throw error
-      } finally {
-        span.end()
-        // A rejected flush inside `finally` would replace whatever error the
-        // handler was already throwing, so telemetry trouble must never
-        // escape — but it does have to be visible, since OTel discards
-        // exporter failures through a no-op `diag` logger by default.
-        try {
-          await trace.provider.forceFlush()
-        } catch (error) {
-          console.warn('telemetry flush failed:', error)
-        }
-      }
-    },
-  )
+  try {
+    return await startActiveObservation(spanName, async (span) => {
+      span.update({ input })
+      const result = await fn()
+      span.update({
+        output: summarizeOutput(result),
+        ...classifyResult?.(result),
+      })
+      return result
+    })
+  } finally {
+    // A rejected flush inside `finally` would replace whatever error the
+    // handler was already throwing, so telemetry trouble must never escape —
+    // but it does have to be visible, since OTel discards exporter failures
+    // through a no-op `diag` logger by default.
+    try {
+      await trace.provider.forceFlush()
+    } catch (error) {
+      console.warn('telemetry flush failed:', error)
+    }
+  }
 }

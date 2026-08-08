@@ -34,7 +34,7 @@ debug.get('/summary', async (c) => {
   const hours = Number(c.req.query('hours')) || Number(c.env.SUMMARY_HOURS)
 
   try {
-    const result = await runWithTrace(child, trace, {
+    const result = await runWithTrace(trace, {
       spanName: 'generate-summary',
       input: { channelId, hours, debug: true },
       summarizeOutput: summarizeResult,

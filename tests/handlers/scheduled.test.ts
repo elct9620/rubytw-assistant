@@ -59,10 +59,6 @@ describe('scheduledHandler', () => {
     const span = langfuse.find('generate-summary')
     expect(span?.status.code).toBe(2)
     expect(span?.status.message).toBe('AI service failed')
-    expect(span?.eventNames).toContain('exception')
-    expect(span?.attributes['langfuse.observation.output']).toContain(
-      'AI service failed',
-    )
   })
 
   it('should export the root span after re-throwing presenter errors', async () => {

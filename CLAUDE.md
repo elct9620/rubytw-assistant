@@ -64,7 +64,7 @@ Handlers create a **child container** per request/cron trigger via `container.cr
 - Traces are emitted via the standard OTel API (`@opentelemetry/api`) and exported by `@langfuse/otel`'s `LangfuseSpanProcessor`
 - Spans batch until the handler's `finally` force-flushes them, so one invocation costs one HTTP request; `exportMode: 'immediate'` would spend a subrequest per span
 - `WorkerContextManager` (`src/handlers/worker-context-manager.ts`) backs the OTel active context with the runtime's `AsyncLocalStorage`, which is what lets the AI SDK's spans nest under the root span
-- Handlers wrap use case execution in a root `startActiveSpan` and attach `langfuse.observation.input`/`langfuse.observation.output` attributes so the root observation renders correctly in the Langfuse v4 Fast UI
+- Handlers wrap use case execution in `@langfuse/tracing`'s `startActiveObservation`, which owns the root observation's attributes, error status and lifetime; `setupTrace` hands it the per-invocation provider via `setLangfuseTracerProvider`
 - The AI SDK's `generateText` is instrumented via `experimental_telemetry: { isEnabled: true, tracer }` inside the services, producing a trace hierarchy: root span → generation → tool spans
 
 ### Prompt Templates
