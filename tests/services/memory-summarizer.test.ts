@@ -65,7 +65,7 @@ describe('MemorySummarizerService', () => {
     const today = new Date().toISOString().slice(0, 10)
     expect(mockGenerateText).toHaveBeenCalledWith(
       expect.objectContaining({
-        system: SUMMARIZE_MEMORY_PROMPT.replace(
+        instructions: SUMMARIZE_MEMORY_PROMPT.replace(
           '{{memorySummaryLengthLimit}}',
           '300',
         ).replace('{{today}}', today),

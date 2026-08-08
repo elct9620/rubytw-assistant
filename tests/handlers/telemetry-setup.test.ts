@@ -1,8 +1,8 @@
 import { container } from 'tsyringe'
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { http, HttpResponse } from 'msw'
-import type { Tracer } from '@opentelemetry/api'
 import { TOKENS } from '../../src/tokens'
+import { startObservation } from '@langfuse/tracing'
 import { runWithTrace, setupTrace } from '../../src/handlers/telemetry-setup'
 import { server } from '../msw-server'
 import {
@@ -45,8 +45,7 @@ describe('setupTrace', () => {
       fn: async () => {
         // Stands in for the AI SDK, which starts its generation spans from
         // the active context rather than from an explicit parent.
-        const tracer = child.resolve<Tracer>(TOKENS.Tracer)
-        tracer.startSpan('generation').end()
+        startObservation('generation').end()
       },
     })
 
@@ -69,9 +68,8 @@ describe('setupTrace', () => {
       input: {},
       summarizeOutput: () => ({}),
       fn: async () => {
-        const tracer = child.resolve<Tracer>(TOKENS.Tracer)
         for (let step = 0; step < 10; step += 1) {
-          tracer.startSpan(`step-${step}`).end()
+          startObservation(`step-${step}`).end()
         }
       },
     })

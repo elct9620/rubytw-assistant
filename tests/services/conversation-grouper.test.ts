@@ -17,7 +17,7 @@ vi.mock('ai', () => ({
       error instanceof Error && error.name === 'AI_NoOutputGeneratedError',
   },
   tool: (def: unknown) => def,
-  stepCountIs: (n: number) => ({ type: 'stepCount', count: n }),
+  isStepCount: (n: number) => ({ type: 'stepCount', count: n }),
 }))
 
 function createService(): ConversationGrouperService {
@@ -71,7 +71,7 @@ describe('ConversationGrouperService', () => {
       expect.objectContaining({
         model: expect.anything(),
         output: expect.objectContaining({ type: 'object' }),
-        system: GROUP_CONVERSATIONS_PROMPT.replace(
+        instructions: GROUP_CONVERSATIONS_PROMPT.replace(
           '{{memoryEntryLimit}}',
           '32',
         ).replace('{{today}}', today),
@@ -140,7 +140,7 @@ describe('ConversationGrouperService', () => {
       '{{memoryEntryLimit}}',
       '32',
     ).replace('{{today}}', today)
-    expect(call.system).toBe(
+    expect(call.instructions).toBe(
       expectedBase + '\n\n# Memory Summary\n\nprevious context paragraph',
     )
   })
@@ -155,7 +155,7 @@ describe('ConversationGrouperService', () => {
 
     const call = mockGenerateText.mock.calls[0][0]
     const today = new Date().toISOString().slice(0, 10)
-    expect(call.system).toBe(
+    expect(call.instructions).toBe(
       GROUP_CONVERSATIONS_PROMPT.replace('{{memoryEntryLimit}}', '32').replace(
         '{{today}}',
         today,

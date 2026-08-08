@@ -1,6 +1,6 @@
 import { injectable, inject } from 'tsyringe'
 import { generateText } from 'ai'
-import type { Tracer } from '@opentelemetry/api'
+import type { Telemetry } from 'ai'
 import type { MemorySummarizer, MemoryStore } from '../usecases/ports'
 import { TOKENS, type AiGatewayConfig } from '../tokens'
 import { createAIModel } from './ai-model'
@@ -14,7 +14,7 @@ export class MemorySummarizerService implements MemorySummarizer {
     @inject(TOKENS.MemoryStore) private memoryStore: MemoryStore,
     @inject(TOKENS.MemorySummaryLengthLimit)
     private lengthLimit: number,
-    @inject(TOKENS.Tracer) private tracer: Tracer | null,
+    @inject(TOKENS.Telemetry) private telemetry: Telemetry | null,
   ) {}
 
   async summarize(): Promise<string | null> {
@@ -42,11 +42,11 @@ export class MemorySummarizerService implements MemorySummarizer {
       async () => {
         const result = await generateText({
           model: createAIModel(this.aiGatewayConfig),
-          system,
+          instructions: system,
           prompt: markdown,
           providerOptions: { openai: { reasoningEffort: 'low' } },
-          ...(this.tracer && {
-            experimental_telemetry: { isEnabled: true, tracer: this.tracer },
+          ...(this.telemetry && {
+            telemetry: { integrations: this.telemetry },
           }),
         })
         return result.text

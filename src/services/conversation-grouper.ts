@@ -1,5 +1,5 @@
 import { injectable, inject } from 'tsyringe'
-import type { Tracer } from '@opentelemetry/api'
+import type { Telemetry } from 'ai'
 import { z } from 'zod'
 import type { ConversationGrouper } from '../usecases/ports'
 import type { TopicGroup } from '../entities/topic-group'
@@ -31,7 +31,7 @@ export class ConversationGrouperService implements ConversationGrouper {
     @inject(TOKENS.AiGatewayConfig) private aiGatewayConfig: AiGatewayConfig,
     @inject(TOKENS.MemoryEntryLimit) private memoryEntryLimit: number,
     @inject(TOKENS.AIToolsFactory) private toolsFactory: AIToolsFactory,
-    @inject(TOKENS.Tracer) private tracer: Tracer | null,
+    @inject(TOKENS.Telemetry) private telemetry: Telemetry | null,
   ) {}
 
   async groupConversations(
@@ -55,7 +55,7 @@ export class ConversationGrouperService implements ConversationGrouper {
       prompt: messages.join('\n'),
       schema: GroupConversationsOutputSchema,
       tools,
-      tracer: this.tracer,
+      telemetry: this.telemetry,
     })
 
     return output.groups

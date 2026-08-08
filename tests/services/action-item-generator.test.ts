@@ -17,7 +17,7 @@ vi.mock('ai', () => ({
       error instanceof Error && error.name === 'AI_NoOutputGeneratedError',
   },
   tool: (def: unknown) => def,
-  stepCountIs: (n: number) => ({ type: 'stepCount', count: n }),
+  isStepCount: (n: number) => ({ type: 'stepCount', count: n }),
 }))
 
 function createService(): ActionItemGeneratorService {
@@ -84,7 +84,7 @@ describe('ActionItemGeneratorService', () => {
       expect.objectContaining({
         model: expect.anything(),
         output: expect.objectContaining({ type: 'object' }),
-        system: expectedSystem,
+        instructions: expectedSystem,
         prompt: JSON.stringify(groups),
         providerOptions: { openai: { reasoningEffort: 'low' } },
       }),
@@ -181,9 +181,9 @@ describe('ActionItemGeneratorService', () => {
     )
 
     const call = mockGenerateText.mock.calls[0][0]
-    expect(call.system).toContain('previous context paragraph')
+    expect(call.instructions).toContain('previous context paragraph')
     expect(
-      call.system.endsWith(
+      call.instructions.endsWith(
         '\n\n# Memory Summary\n\nprevious context paragraph',
       ),
     ).toBe(true)
@@ -211,7 +211,7 @@ describe('ActionItemGeneratorService', () => {
       today,
     ).replace('{{memoryEntryLimit}}', '32')
     const call = mockGenerateText.mock.calls[0][0]
-    expect(call.system).toBe(expectedSystem)
+    expect(call.instructions).toBe(expectedSystem)
   })
 
   it('should include memory and github tools', async () => {

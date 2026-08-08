@@ -54,7 +54,7 @@ Dependencies point inward: handlers/services/adapters → usecases. Port interfa
 Handlers create a **child container** per request/cron trigger via `container.createChildContainer()` for isolation. The flow:
 
 1. Handler creates child container
-2. `setupTrace()` (in `src/handlers/telemetry-setup.ts`) creates a `BasicTracerProvider` fed by `@langfuse/otel`'s `LangfuseSpanProcessor` (if Langfuse keys are configured) and registers the resulting `Tracer` under `TOKENS.Tracer` in the child container
+2. `setupTrace()` (in `src/handlers/telemetry-setup.ts`) creates a `BasicTracerProvider` fed by `@langfuse/otel`'s `LangfuseSpanProcessor` (if Langfuse keys are configured) and registers a `LangfuseVercelAiSdkIntegration` bound to that provider's tracer under `TOKENS.Telemetry` in the child container
 3. Use case is resolved from child container, executed inside a root OTel span, and result presented
 4. `finally` block flushes telemetry via `provider.forceFlush()`
 
@@ -65,7 +65,7 @@ Handlers create a **child container** per request/cron trigger via `container.cr
 - Spans batch until the handler's `finally` force-flushes them, so one invocation costs one HTTP request; `exportMode: 'immediate'` would spend a subrequest per span
 - `WorkerContextManager` (`src/handlers/worker-context-manager.ts`) backs the OTel active context with the runtime's `AsyncLocalStorage`, which is what lets the AI SDK's spans nest under the root span
 - Handlers wrap use case execution in `@langfuse/tracing`'s `startActiveObservation`, which owns the root observation's attributes, error status and lifetime; `setupTrace` hands it the per-invocation provider via `setLangfuseTracerProvider`
-- The AI SDK's `generateText` is instrumented via `experimental_telemetry: { isEnabled: true, tracer }` inside the services, producing a trace hierarchy: root span → generation → tool spans
+- The AI SDK's `generateText` is instrumented by passing that integration as `telemetry: { integrations }`, producing a trace hierarchy: root observation → generation → tool spans. Per-call integrations take precedence over globally registered ones, which is what keeps telemetry scoped to the invocation that owns it
 
 ### Prompt Templates
 
@@ -114,7 +114,7 @@ Tests use `cloudflare:test` helpers for the Workers runtime environment:
 - Production secrets are deployed via `wrangler secret put`; local secrets go in `.dev.vars` (see Configuration Files above)
 - Cron trigger runs at `0 16 * * *` UTC (midnight Taiwan time, UTC+8)
 - Services use AI SDK's `generateText()` with Zod schemas for structured output extraction
-- Services constrain AI tool loops with `stepCountIs(MAX_TOOL_STEPS)`
+- Services constrain AI tool loops with `isStepCount(MAX_TOOL_STEPS)`
 - AI model is created via `createAIModel(config)` which chains through AI Gateway
 - Debug endpoint at `/debug/summary?channel_id=X&hours=Y` for dev-only summary previews
 - Compatibility flag `nodejs_compat` is enabled for crypto API support

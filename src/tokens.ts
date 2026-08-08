@@ -46,8 +46,9 @@ export const TOKENS = {
   // Langfuse telemetry (optional)
   LangfuseConfig: 'LangfuseConfig',
 
-  // OTel tracer (optional — set per-request when telemetry is enabled)
-  Tracer: 'Tracer',
+  // AI SDK telemetry integration (optional — set per-request when
+  // telemetry is enabled)
+  Telemetry: 'Telemetry',
 
   // Port interfaces
   MemoryStore: 'MemoryStore',

@@ -70,8 +70,8 @@ container.register(TOKENS.LangfuseConfig, {
       : null,
 })
 
-// OTel tracer (default: null — no telemetry)
-container.register(TOKENS.Tracer, { useValue: null })
+// AI SDK telemetry integration (default: null — no telemetry)
+container.register(TOKENS.Telemetry, { useValue: null })
 
 // Port → Adapter mappings (infrastructure)
 container.register(TOKENS.MemoryStore, { useClass: KVMemoryStoreAdapter })

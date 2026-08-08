@@ -1,6 +1,5 @@
-import { generateText, NoOutputGeneratedError, Output, stepCountIs } from 'ai'
-import type { ToolSet } from 'ai'
-import type { Tracer } from '@opentelemetry/api'
+import { generateText, isStepCount, NoOutputGeneratedError, Output } from 'ai'
+import type { Telemetry, ToolSet } from 'ai'
 import type { z } from 'zod'
 import { createAIModel } from './ai-model'
 import { withRetry } from './retry'
@@ -16,7 +15,7 @@ export interface RunStructuredAIOptions<S extends z.ZodTypeAny> {
   prompt: string
   schema: S
   tools: ToolSet
-  tracer: Tracer | null
+  telemetry: Telemetry | null
 }
 
 /**
@@ -25,7 +24,7 @@ export interface RunStructuredAIOptions<S extends z.ZodTypeAny> {
  *
  *  - model construction via createAIModel
  *  - Output.object schema binding
- *  - optional experimental_telemetry when a tracer is provided
+ *  - optional Langfuse telemetry when an integration is provided
  *  - MAX_TOOL_STEPS guard
  *  - NoOutputGeneratedError unwrapping with diagnostic context
  *  - null-output guard
@@ -41,7 +40,7 @@ export async function runStructuredAI<S extends z.ZodTypeAny>({
   prompt,
   schema,
   tools,
-  tracer,
+  telemetry,
 }: RunStructuredAIOptions<S>): Promise<z.infer<S>> {
   return withRetry(
     () =>
@@ -52,7 +51,7 @@ export async function runStructuredAI<S extends z.ZodTypeAny>({
         prompt,
         schema,
         tools,
-        tracer,
+        telemetry,
       }),
     {
       onRetry: (error, attempt) => {
@@ -72,19 +71,17 @@ async function generateOnce<S extends z.ZodTypeAny>({
   prompt,
   schema,
   tools,
-  tracer,
+  telemetry,
 }: RunStructuredAIOptions<S>): Promise<z.infer<S>> {
   const result = await generateText({
     model: createAIModel(config),
     output: Output.object({ schema }),
-    system,
+    instructions: system,
     prompt,
     providerOptions: { openai: { reasoningEffort: 'low' } },
     tools,
-    stopWhen: stepCountIs(MAX_TOOL_STEPS),
-    ...(tracer && {
-      experimental_telemetry: { isEnabled: true, tracer },
-    }),
+    stopWhen: isStepCount(MAX_TOOL_STEPS),
+    ...(telemetry && { telemetry: { integrations: telemetry } }),
   })
 
   let output: typeof result.output

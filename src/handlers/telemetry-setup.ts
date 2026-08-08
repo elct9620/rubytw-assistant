@@ -1,5 +1,6 @@
 import type { DependencyContainer } from 'tsyringe'
 import { LangfuseSpanProcessor } from '@langfuse/otel'
+import { LangfuseVercelAiSdkIntegration } from '@langfuse/vercel-ai-sdk'
 import {
   setLangfuseTracerProvider,
   startActiveObservation,
@@ -71,7 +72,9 @@ export function setupTrace(
   })
 
   const tracer = provider.getTracer(options.scopeName ?? 'ai')
-  child.register(TOKENS.Tracer, { useValue: tracer })
+  child.register(TOKENS.Telemetry, {
+    useValue: new LangfuseVercelAiSdkIntegration({ tracer }),
+  })
 
   // `startActiveObservation` reads the provider from this module-level slot
   // rather than from an argument, so the per-invocation provider has to be
