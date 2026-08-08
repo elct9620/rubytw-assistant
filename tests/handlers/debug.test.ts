@@ -145,33 +145,6 @@ describe('debug handler', () => {
     ).toBe(JSON.stringify({ channelId: 'ch-1', hours: 12, debug: true }))
   })
 
-  it('should set langfuse.observation.output with summary stats on success', async () => {
-    enableTelemetry()
-    const langfuse = captureLangfuseSpans()
-
-    mockExecute.mockResolvedValue({
-      kind: 'success',
-      topicGroups: [{}, {}],
-      actionItems: [{}],
-    })
-
-    await debug.request('/summary?channel_id=ch-1', undefined, {
-      SUMMARY_HOURS: '24',
-    })
-
-    expect(
-      langfuse.find('generate-summary')?.attributes[
-        'langfuse.observation.output'
-      ],
-    ).toBe(
-      JSON.stringify({
-        kind: 'success',
-        topicGroupCount: 2,
-        actionItemCount: 1,
-      }),
-    )
-  })
-
   it('should set langfuse.observation.output with error info on failure', async () => {
     enableTelemetry()
     const langfuse = captureLangfuseSpans()

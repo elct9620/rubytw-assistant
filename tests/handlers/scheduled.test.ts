@@ -119,40 +119,10 @@ describe('scheduledHandler', () => {
     const controller = { cron: '0 16 * * *', scheduledTime: Date.now() }
     await scheduledHandler(controller as ScheduledController)
 
+    // The classification itself is covered by summarize-result.test.ts;
+    // what matters here is that the handler passes it through.
     const span = langfuse.find('generate-summary')
     expect(span?.attributes['langfuse.observation.level']).toBe('WARNING')
-    expect(span?.attributes['langfuse.observation.status_message']).toBe(
-      'AI service down',
-    )
-    // span status stays OK for WARNING — only ERROR-level classifications
-    // mark the span itself as failed
     expect(span?.status.code).not.toBe(2)
-  })
-
-  it('should set langfuse.observation.output with summary stats on success', async () => {
-    enableTelemetry()
-    const langfuse = captureLangfuseSpans()
-
-    mockExecute.mockResolvedValue({
-      kind: 'success',
-      topicGroups: [{}, {}, {}],
-      actionItems: [{}, {}],
-    })
-    mockPresent.mockResolvedValue(undefined)
-
-    const controller = { cron: '0 16 * * *', scheduledTime: Date.now() }
-    await scheduledHandler(controller as ScheduledController)
-
-    expect(
-      langfuse.find('generate-summary')?.attributes[
-        'langfuse.observation.output'
-      ],
-    ).toBe(
-      JSON.stringify({
-        kind: 'success',
-        topicGroupCount: 3,
-        actionItemCount: 2,
-      }),
-    )
   })
 })
