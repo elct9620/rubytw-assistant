@@ -3,30 +3,17 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { TOKENS } from '../../src/tokens'
 import { GenerateSummary } from '../../src/usecases/generate-summary'
 import debug from '../../src/handlers/debug'
-
-const telemetry = await vi.hoisted(async () => {
-  const { createTelemetryMocks } = await import('../helpers/telemetry-mocks')
-  return createTelemetryMocks()
-})
-
-vi.mock('@aotoki/edge-otel', () => telemetry.edgeOtelModule)
-vi.mock(
-  '@aotoki/edge-otel/exporters/langfuse',
-  () => telemetry.langfuseExporterModule,
-)
-vi.mock('@opentelemetry/api', () => telemetry.openTelemetryApiModule)
-
-const {
-  mocks: {
-    spanEnd: mockSpanEnd,
-    recordException: mockRecordException,
-    setAttribute: mockSetAttribute,
-    forceFlush: mockForceFlush,
-    startActiveSpan: mockStartActiveSpan,
-  },
-} = telemetry
+import {
+  captureLangfuseSpans,
+  LANGFUSE_TEST_CONFIG,
+} from '../helpers/langfuse-otlp'
 
 const mockExecute = vi.fn()
+
+const enableTelemetry = () =>
+  container.register(TOKENS.LangfuseConfig, {
+    useFactory: () => LANGFUSE_TEST_CONFIG,
+  })
 
 beforeEach(() => {
   container.clearInstances()
@@ -40,7 +27,6 @@ beforeEach(() => {
   })
 
   mockExecute.mockReset()
-  telemetry.resetAll()
 })
 
 describe('debug handler', () => {
@@ -128,14 +114,9 @@ describe('debug handler', () => {
     expect(body).toEqual({ error: 'Discord API failed' })
   })
 
-  it('should flush OTel trace when telemetry is enabled', async () => {
-    container.register(TOKENS.LangfuseConfig, {
-      useFactory: () => ({
-        publicKey: 'pk-test',
-        secretKey: 'sk-test',
-        baseUrl: 'https://us.cloud.langfuse.com',
-      }),
-    })
+  it('should export the root span when telemetry is enabled', async () => {
+    enableTelemetry()
+    const langfuse = captureLangfuseSpans()
 
     mockExecute.mockResolvedValue({ topicGroups: [], actionItems: [] })
 
@@ -144,18 +125,12 @@ describe('debug handler', () => {
     })
 
     expect(res.status).toBe(200)
-    expect(mockSpanEnd).toHaveBeenCalled()
-    expect(mockForceFlush).toHaveBeenCalled()
+    expect(langfuse.find('generate-summary')).toBeDefined()
   })
 
   it('should set langfuse.observation.input on root span when telemetry is enabled', async () => {
-    container.register(TOKENS.LangfuseConfig, {
-      useFactory: () => ({
-        publicKey: 'pk-test',
-        secretKey: 'sk-test',
-        baseUrl: 'https://us.cloud.langfuse.com',
-      }),
-    })
+    enableTelemetry()
+    const langfuse = captureLangfuseSpans()
 
     mockExecute.mockResolvedValue({ topicGroups: [], actionItems: [] })
 
@@ -163,29 +138,16 @@ describe('debug handler', () => {
       SUMMARY_HOURS: '24',
     })
 
-    expect(mockStartActiveSpan).toHaveBeenCalledWith(
-      'generate-summary',
-      expect.objectContaining({
-        attributes: expect.objectContaining({
-          'langfuse.observation.input': JSON.stringify({
-            channelId: 'ch-1',
-            hours: 12,
-            debug: true,
-          }),
-        }),
-      }),
-      expect.any(Function),
-    )
+    expect(
+      langfuse.find('generate-summary')?.attributes[
+        'langfuse.observation.input'
+      ],
+    ).toBe(JSON.stringify({ channelId: 'ch-1', hours: 12, debug: true }))
   })
 
   it('should set langfuse.observation.output with summary stats on success', async () => {
-    container.register(TOKENS.LangfuseConfig, {
-      useFactory: () => ({
-        publicKey: 'pk-test',
-        secretKey: 'sk-test',
-        baseUrl: 'https://us.cloud.langfuse.com',
-      }),
-    })
+    enableTelemetry()
+    const langfuse = captureLangfuseSpans()
 
     mockExecute.mockResolvedValue({
       kind: 'success',
@@ -197,8 +159,11 @@ describe('debug handler', () => {
       SUMMARY_HOURS: '24',
     })
 
-    expect(mockSetAttribute).toHaveBeenCalledWith(
-      'langfuse.observation.output',
+    expect(
+      langfuse.find('generate-summary')?.attributes[
+        'langfuse.observation.output'
+      ],
+    ).toBe(
       JSON.stringify({
         kind: 'success',
         topicGroupCount: 2,
@@ -208,13 +173,8 @@ describe('debug handler', () => {
   })
 
   it('should set langfuse.observation.output with error info on failure', async () => {
-    container.register(TOKENS.LangfuseConfig, {
-      useFactory: () => ({
-        publicKey: 'pk-test',
-        secretKey: 'sk-test',
-        baseUrl: 'https://us.cloud.langfuse.com',
-      }),
-    })
+    enableTelemetry()
+    const langfuse = captureLangfuseSpans()
 
     mockExecute.mockRejectedValue(new Error('Discord API failed'))
 
@@ -223,12 +183,11 @@ describe('debug handler', () => {
     })
 
     expect(res.status).toBe(500)
-    expect(mockSetAttribute).toHaveBeenCalledWith(
-      'langfuse.observation.output',
-      expect.stringContaining('Discord API failed'),
+    const span = langfuse.find('generate-summary')
+    expect(span?.attributes['langfuse.observation.output']).toContain(
+      'Discord API failed',
     )
-    expect(mockRecordException).toHaveBeenCalled()
-    expect(mockSpanEnd).toHaveBeenCalled()
-    expect(mockForceFlush).toHaveBeenCalled()
+    expect(span?.eventNames).toContain('exception')
+    expect(span?.status.code).toBe(2)
   })
 })

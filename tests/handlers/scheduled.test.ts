@@ -3,32 +3,18 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { TOKENS } from '../../src/tokens'
 import { GenerateSummary } from '../../src/usecases/generate-summary'
 import { scheduledHandler } from '../../src/handlers/scheduled'
-
-const telemetry = await vi.hoisted(async () => {
-  const { createTelemetryMocks } = await import('../helpers/telemetry-mocks')
-  return createTelemetryMocks()
-})
-
-vi.mock('@aotoki/edge-otel', () => telemetry.edgeOtelModule)
-vi.mock(
-  '@aotoki/edge-otel/exporters/langfuse',
-  () => telemetry.langfuseExporterModule,
-)
-vi.mock('@opentelemetry/api', () => telemetry.openTelemetryApiModule)
-
-const {
-  mocks: {
-    spanEnd: mockSpanEnd,
-    recordException: mockRecordException,
-    setStatus: mockSetStatus,
-    setAttribute: mockSetAttribute,
-    forceFlush: mockForceFlush,
-    startActiveSpan: mockStartActiveSpan,
-  },
-} = telemetry
+import {
+  captureLangfuseSpans,
+  LANGFUSE_TEST_CONFIG,
+} from '../helpers/langfuse-otlp'
 
 const mockExecute = vi.fn()
 const mockPresent = vi.fn()
+
+const enableTelemetry = () =>
+  container.register(TOKENS.LangfuseConfig, {
+    useFactory: () => LANGFUSE_TEST_CONFIG,
+  })
 
 beforeEach(() => {
   container.clearInstances()
@@ -44,7 +30,6 @@ beforeEach(() => {
 
   mockExecute.mockReset()
   mockPresent.mockReset()
-  telemetry.resetAll()
 })
 
 describe('scheduledHandler', () => {
@@ -60,14 +45,9 @@ describe('scheduledHandler', () => {
     expect(mockPresent).toHaveBeenCalledWith(result)
   })
 
-  it('should flush OTel trace even when use case throws', async () => {
-    container.register(TOKENS.LangfuseConfig, {
-      useFactory: () => ({
-        publicKey: 'pk-test',
-        secretKey: 'sk-test',
-        baseUrl: 'https://us.cloud.langfuse.com',
-      }),
-    })
+  it('should export the root span even when use case throws', async () => {
+    enableTelemetry()
+    const langfuse = captureLangfuseSpans()
 
     mockExecute.mockRejectedValue(new Error('AI service failed'))
 
@@ -76,26 +56,18 @@ describe('scheduledHandler', () => {
       scheduledHandler(controller as ScheduledController),
     ).rejects.toThrow('AI service failed')
 
-    expect(mockRecordException).toHaveBeenCalled()
-    expect(mockSetStatus).toHaveBeenCalledWith(
-      expect.objectContaining({ code: 2 }),
+    const span = langfuse.find('generate-summary')
+    expect(span?.status.code).toBe(2)
+    expect(span?.status.message).toBe('AI service failed')
+    expect(span?.eventNames).toContain('exception')
+    expect(span?.attributes['langfuse.observation.output']).toContain(
+      'AI service failed',
     )
-    expect(mockSetAttribute).toHaveBeenCalledWith(
-      'langfuse.observation.output',
-      expect.stringContaining('AI service failed'),
-    )
-    expect(mockSpanEnd).toHaveBeenCalled()
-    expect(mockForceFlush).toHaveBeenCalled()
   })
 
-  it('should re-throw presenter errors after flushing', async () => {
-    container.register(TOKENS.LangfuseConfig, {
-      useFactory: () => ({
-        publicKey: 'pk-test',
-        secretKey: 'sk-test',
-        baseUrl: 'https://us.cloud.langfuse.com',
-      }),
-    })
+  it('should export the root span after re-throwing presenter errors', async () => {
+    enableTelemetry()
+    const langfuse = captureLangfuseSpans()
 
     mockExecute.mockResolvedValue({ topicGroups: [], actionItems: [] })
     mockPresent.mockRejectedValue(new Error('Discord API error'))
@@ -105,38 +77,11 @@ describe('scheduledHandler', () => {
       scheduledHandler(controller as ScheduledController),
     ).rejects.toThrow('Discord API error')
 
-    expect(mockSpanEnd).toHaveBeenCalled()
-    expect(mockForceFlush).toHaveBeenCalled()
+    expect(langfuse.find('generate-summary')?.status.code).toBe(2)
   })
 
-  it('should flush OTel trace when telemetry is enabled', async () => {
-    container.register(TOKENS.LangfuseConfig, {
-      useFactory: () => ({
-        publicKey: 'pk-test',
-        secretKey: 'sk-test',
-        baseUrl: 'https://us.cloud.langfuse.com',
-      }),
-    })
-
-    const result = { kind: 'empty' }
-    mockExecute.mockResolvedValue(result)
-    mockPresent.mockResolvedValue(undefined)
-
-    const controller = { cron: '0 16 * * *', scheduledTime: Date.now() }
-    await scheduledHandler(controller as ScheduledController)
-
-    expect(mockSpanEnd).toHaveBeenCalled()
-    expect(mockForceFlush).toHaveBeenCalled()
-  })
-
-  it('should set langfuse.observation.input on root span when telemetry is enabled', async () => {
-    container.register(TOKENS.LangfuseConfig, {
-      useFactory: () => ({
-        publicKey: 'pk-test',
-        secretKey: 'sk-test',
-        baseUrl: 'https://us.cloud.langfuse.com',
-      }),
-    })
+  it('should not export anything when telemetry is disabled', async () => {
+    const langfuse = captureLangfuseSpans()
 
     mockExecute.mockResolvedValue({ kind: 'empty' })
     mockPresent.mockResolvedValue(undefined)
@@ -144,28 +89,29 @@ describe('scheduledHandler', () => {
     const controller = { cron: '0 16 * * *', scheduledTime: Date.now() }
     await scheduledHandler(controller as ScheduledController)
 
-    expect(mockStartActiveSpan).toHaveBeenCalledWith(
-      'generate-summary',
-      expect.objectContaining({
-        attributes: expect.objectContaining({
-          'langfuse.observation.input': JSON.stringify({
-            cron: '0 16 * * *',
-            hours: 12,
-          }),
-        }),
-      }),
-      expect.any(Function),
-    )
+    expect(langfuse.requestCount()).toBe(0)
+  })
+
+  it('should set langfuse.observation.input on the root span', async () => {
+    enableTelemetry()
+    const langfuse = captureLangfuseSpans()
+
+    mockExecute.mockResolvedValue({ kind: 'empty' })
+    mockPresent.mockResolvedValue(undefined)
+
+    const controller = { cron: '0 16 * * *', scheduledTime: Date.now() }
+    await scheduledHandler(controller as ScheduledController)
+
+    expect(
+      langfuse.find('generate-summary')?.attributes[
+        'langfuse.observation.input'
+      ],
+    ).toBe(JSON.stringify({ cron: '0 16 * * *', hours: 12 }))
   })
 
   it('should flag fallback results as WARNING on the root span', async () => {
-    container.register(TOKENS.LangfuseConfig, {
-      useFactory: () => ({
-        publicKey: 'pk-test',
-        secretKey: 'sk-test',
-        baseUrl: 'https://us.cloud.langfuse.com',
-      }),
-    })
+    enableTelemetry()
+    const langfuse = captureLangfuseSpans()
 
     mockExecute.mockResolvedValue({
       kind: 'fallback',
@@ -177,27 +123,19 @@ describe('scheduledHandler', () => {
     const controller = { cron: '0 16 * * *', scheduledTime: Date.now() }
     await scheduledHandler(controller as ScheduledController)
 
-    expect(mockSetAttribute).toHaveBeenCalledWith(
-      'langfuse.observation.level',
-      'WARNING',
-    )
-    expect(mockSetAttribute).toHaveBeenCalledWith(
-      'langfuse.observation.status_message',
+    const span = langfuse.find('generate-summary')
+    expect(span?.attributes['langfuse.observation.level']).toBe('WARNING')
+    expect(span?.attributes['langfuse.observation.status_message']).toBe(
       'AI service down',
     )
     // span status stays OK for WARNING — only ERROR-level classifications
-    // call setStatus(ERROR)
-    expect(mockSetStatus).not.toHaveBeenCalled()
+    // mark the span itself as failed
+    expect(span?.status.code).not.toBe(2)
   })
 
   it('should set langfuse.observation.output with summary stats on success', async () => {
-    container.register(TOKENS.LangfuseConfig, {
-      useFactory: () => ({
-        publicKey: 'pk-test',
-        secretKey: 'sk-test',
-        baseUrl: 'https://us.cloud.langfuse.com',
-      }),
-    })
+    enableTelemetry()
+    const langfuse = captureLangfuseSpans()
 
     mockExecute.mockResolvedValue({
       kind: 'success',
@@ -209,8 +147,11 @@ describe('scheduledHandler', () => {
     const controller = { cron: '0 16 * * *', scheduledTime: Date.now() }
     await scheduledHandler(controller as ScheduledController)
 
-    expect(mockSetAttribute).toHaveBeenCalledWith(
-      'langfuse.observation.output',
+    expect(
+      langfuse.find('generate-summary')?.attributes[
+        'langfuse.observation.output'
+      ],
+    ).toBe(
       JSON.stringify({
         kind: 'success',
         topicGroupCount: 3,

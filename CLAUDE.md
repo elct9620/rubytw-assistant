@@ -54,14 +54,16 @@ Dependencies point inward: handlers/services/adapters → usecases. Port interfa
 Handlers create a **child container** per request/cron trigger via `container.createChildContainer()` for isolation. The flow:
 
 1. Handler creates child container
-2. `setupTrace()` (in `src/handlers/telemetry-setup.ts`) creates an OTel `TracerProvider` via `@aotoki/edge-otel` (if Langfuse keys are configured) and registers the resulting `Tracer` under `TOKENS.Tracer` in the child container
+2. `setupTrace()` (in `src/handlers/telemetry-setup.ts`) creates a `BasicTracerProvider` fed by `@langfuse/otel`'s `LangfuseSpanProcessor` (if Langfuse keys are configured) and registers the resulting `Tracer` under `TOKENS.Tracer` in the child container
 3. Use case is resolved from child container, executed inside a root OTel span, and result presented
 4. `finally` block flushes telemetry via `provider.forceFlush()`
 
 ### Telemetry (Langfuse)
 
 - **Optional**: telemetry activates only when both `LANGFUSE_PUBLIC_KEY` and `LANGFUSE_SECRET_KEY` are present; otherwise `setupTrace()` returns `undefined` and handlers run without instrumentation
-- Traces are emitted via the standard OTel API (`@opentelemetry/api`) and exported by `@aotoki/edge-otel`'s Langfuse exporter
+- Traces are emitted via the standard OTel API (`@opentelemetry/api`) and exported by `@langfuse/otel`'s `LangfuseSpanProcessor`
+- Spans batch until the handler's `finally` force-flushes them, so one invocation costs one HTTP request; `exportMode: 'immediate'` would spend a subrequest per span
+- `WorkerContextManager` (`src/handlers/worker-context-manager.ts`) backs the OTel active context with the runtime's `AsyncLocalStorage`, which is what lets the AI SDK's spans nest under the root span
 - Handlers wrap use case execution in a root `startActiveSpan` and attach `langfuse.observation.input`/`langfuse.observation.output` attributes so the root observation renders correctly in the Langfuse v4 Fast UI
 - The AI SDK's `generateText` is instrumented via `experimental_telemetry: { isEnabled: true, tracer }` inside the services, producing a trace hierarchy: root span → generation → tool spans
 

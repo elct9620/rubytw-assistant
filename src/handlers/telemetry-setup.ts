@@ -1,12 +1,29 @@
 import type { DependencyContainer } from 'tsyringe'
-import type { TracerProvider } from '@aotoki/edge-otel'
-import { createTracerProvider } from '@aotoki/edge-otel'
-import { langfuseExporter } from '@aotoki/edge-otel/exporters/langfuse'
-import { SpanStatusCode, type Tracer } from '@opentelemetry/api'
+import { LangfuseSpanProcessor } from '@langfuse/otel'
+import { context, SpanStatusCode, type Tracer } from '@opentelemetry/api'
+import { BasicTracerProvider } from '@opentelemetry/sdk-trace-base'
 import { TOKENS, type LangfuseConfig } from '../tokens'
+import { WorkerContextManager } from './worker-context-manager'
 
 export interface TraceSetup {
-  provider: TracerProvider
+  provider: BasicTracerProvider
+}
+
+/**
+ * OTel resolves span parents through the active context, which needs a
+ * context manager to exist at all. Without one `startActiveSpan` cannot
+ * nest, so the AI SDK's generation spans would surface as separate traces
+ * instead of children of the root span. The global registration is
+ * process-wide and survives across invocations in the same isolate, hence
+ * the module-scope guard.
+ */
+let contextManagerRegistered = false
+
+function ensureContextManager(): void {
+  if (contextManagerRegistered) return
+
+  context.setGlobalContextManager(new WorkerContextManager())
+  contextManagerRegistered = true
 }
 
 export function setupTrace(
@@ -16,13 +33,29 @@ export function setupTrace(
   const config = child.resolve<LangfuseConfig | null>(TOKENS.LangfuseConfig)
   if (!config) return undefined
 
-  const provider = createTracerProvider({
-    ...langfuseExporter({
-      publicKey: config.publicKey,
-      secretKey: config.secretKey,
-      baseUrl: config.baseUrl,
-      environment: config.environment,
-    }),
+  ensureContextManager()
+
+  const provider = new BasicTracerProvider({
+    spanProcessors: [
+      new LangfuseSpanProcessor({
+        publicKey: config.publicKey,
+        secretKey: config.secretKey,
+        baseUrl: config.baseUrl,
+        environment: config.environment,
+        // `immediate` issues one HTTP request per span, which a tool-using
+        // summary run would multiply into hundreds of subrequests. Batching
+        // is safe here because every invocation force-flushes before it ends.
+        exportMode: 'batched',
+        // Media upload issues extra API calls for base64 payloads; this
+        // pipeline only ever produces text.
+        mediaUploadEnabled: false,
+        // This provider exists solely to feed Langfuse, so every span it
+        // produces is meant to be exported. The default filter keys off the
+        // instrumentation scope name, which would silently drop spans if the
+        // scope were ever renamed.
+        shouldExportSpan: () => true,
+      }),
+    ],
   })
 
   const tracer = provider.getTracer(options.scopeName ?? 'ai')

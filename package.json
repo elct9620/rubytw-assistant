@@ -13,10 +13,13 @@
     "format:check": "prettier --check ."
   },
   "dependencies": {
-    "@aotoki/edge-otel": "^0.1.0",
-    "@opentelemetry/api": "^1.9.1",
+    "@langfuse/otel": "^5.10.0",
     "@octokit/auth-app": "^8.2.0",
     "@octokit/core": "^7.0.6",
+    "@opentelemetry/api": "^1.9.1",
+    "@opentelemetry/core": "^2.10.0",
+    "@opentelemetry/exporter-trace-otlp-http": "^0.221.0",
+    "@opentelemetry/sdk-trace-base": "^2.10.0",
     "ai": "^6.0.140",
     "ai-gateway-provider": "^3.1.2",
     "discord-api-types": "^0.38.42",
@@ -24,7 +27,7 @@
     "hono": "^4.12.27",
     "reflect-metadata": "^0.2.2",
     "tsyringe": "^4.10.0",
-    "workers-ai-provider": "^3.1.8",
+    "workers-ai-provider": "3.1.8",
     "zod": "^4.3.6"
   },
   "devDependencies": {
