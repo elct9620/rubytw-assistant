@@ -75,9 +75,14 @@ export function setupTrace(child: DependencyContainer): TraceSetup | undefined {
     useValue: new LangfuseVercelAiSdkIntegration({ tracer }),
   })
 
-  // `startActiveObservation` reads the provider from this module-level slot
-  // rather than from an argument, so the per-invocation provider has to be
-  // handed over before any observation starts.
+  // Telemetry here has two lifetimes. The integration above is scoped to this
+  // invocation's container, but `startActiveObservation` takes no provider
+  // argument — it reads this module-level slot, so each invocation overwrites
+  // the last. Two invocations overlapping in one isolate would send the
+  // older one's root observation through the newer one's provider. The cron
+  // fires once a day and the debug endpoint is localhost-only, so they do not
+  // overlap; a busier entry point would need the root observation built from
+  // the tracer instead.
   setLangfuseTracerProvider(provider)
 
   return { provider }

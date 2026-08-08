@@ -55,7 +55,7 @@ Handlers create a **child container** per request/cron trigger via `container.cr
 
 1. Handler creates child container
 2. `setupTrace()` (in `src/handlers/telemetry-setup.ts`) creates a `BasicTracerProvider` fed by `@langfuse/otel`'s `LangfuseSpanProcessor` (if Langfuse keys are configured) and registers a `LangfuseVercelAiSdkIntegration` bound to that provider's tracer under `TOKENS.Telemetry` in the child container
-3. Use case is resolved from child container, executed inside a root OTel span, and result presented
+3. Use case is resolved from child container, executed inside a root Langfuse observation, and result presented
 4. `finally` block flushes telemetry via `provider.forceFlush()`
 
 ### Telemetry (Langfuse)
