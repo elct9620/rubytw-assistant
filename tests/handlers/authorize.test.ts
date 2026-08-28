@@ -114,7 +114,7 @@ const approve = (approval: string) =>
     new Request('http://localhost/authorize/approve', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({ approval }),
+      body: new URLSearchParams({ approval, decision: 'approve' }),
     }),
   )
 
@@ -311,5 +311,85 @@ describe('an operator who loses the role after signing in', () => {
     expect((await res.json()) as { error: string }).toMatchObject({
       error: 'invalid_grant',
     })
+  })
+})
+
+describe('an operator who declines', () => {
+  it('should get no grant, and no second chance at the same screen', async () => {
+    mockDiscord({ roles: [OPERATOR_ROLE_ID] })
+    const clientId = await registerClient()
+    const approval = await finishDiscordLogin(await startLogin(clientId))
+
+    const declined = await call(
+      new Request('http://localhost/authorize/approve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ approval, decision: 'deny' }),
+      }),
+    )
+
+    expect(declined.status).toBe(200)
+    expect(declined.headers.get('Location')).toBeNull()
+    expect((await approve(approval)).status).toBe(400)
+  })
+})
+
+describe('the consent page', () => {
+  it('should carry its stylesheet into the page', async () => {
+    mockDiscord({ roles: [OPERATOR_ROLE_ID] })
+    const clientId = await registerClient()
+    const state = await startLogin(clientId)
+
+    const page = await (
+      await call(
+        new Request(
+          `http://localhost/oauth/callback?code=discord-code&state=${state}`,
+        ),
+      )
+    ).text()
+
+    expect(page).toContain('<style id="hono-css">')
+    expect(page).toContain('prefers-color-scheme:dark')
+    expect(page).toMatch(/<body class="css-\d+"/)
+  })
+
+  it('should show where the authorization code would be sent', async () => {
+    mockDiscord({ roles: [OPERATOR_ROLE_ID] })
+    const clientId = await registerClient()
+    const state = await startLogin(clientId)
+
+    const res = await call(
+      new Request(
+        `http://localhost/oauth/callback?code=discord-code&state=${state}`,
+      ),
+    )
+
+    expect(await res.text()).toContain(CLIENT_REDIRECT)
+  })
+
+  it('should not let a client name carry markup into the page', async () => {
+    mockDiscord({ roles: [OPERATOR_ROLE_ID] })
+    const res = await call(
+      new Request('http://localhost/oauth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          client_name: '<script>alert(1)</script>',
+          redirect_uris: [CLIENT_REDIRECT],
+          token_endpoint_auth_method: 'none',
+          grant_types: ['authorization_code'],
+          response_types: ['code'],
+        }),
+      }),
+    )
+    const { client_id: clientId } = (await res.json()) as { client_id: string }
+
+    const page = await call(
+      new Request(
+        `http://localhost/oauth/callback?code=discord-code&state=${await startLogin(clientId)}`,
+      ),
+    )
+
+    expect(await page.text()).not.toContain('<script>alert(1)</script>')
   })
 })

@@ -1,10 +1,9 @@
 import { Hono } from 'hono'
-import { html } from 'hono/html'
 import type {
   AuthRequest,
-  ClientInfo,
   OAuthHelpers,
 } from '@cloudflare/workers-oauth-provider'
+import { ConsentPage } from './consent-page'
 import { container } from '../container'
 import { TOKENS } from '../tokens'
 import type {
@@ -34,33 +33,6 @@ const identityProvider = () =>
 
 const callbackUri = (requestUrl: string): string =>
   new URL(CALLBACK_PATH, requestUrl).toString()
-
-const consentPage = (
-  client: ClientInfo | null,
-  user: DiscordIdentity,
-  approval: string,
-) =>
-  html`<!doctype html>
-    <html lang="en">
-      <head>
-        <meta charset="utf-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <title>Authorize MCP client</title>
-      </head>
-      <body>
-        <h1>Authorize MCP client</h1>
-        <p>
-          Signed in as <strong>${user.username}</strong>.
-          <strong>${client?.clientName ?? 'An unnamed client'}</strong> is
-          asking to manage Ruby Taiwan assistant data on your behalf.
-        </p>
-        <p>Only approve this if you started it yourself.</p>
-        <form method="post" action="${APPROVE_PATH}">
-          <input type="hidden" name="approval" value="${approval}" />
-          <button type="submit">Approve</button>
-        </form>
-      </body>
-    </html>`
 
 authorize.get('/authorize', async (c) => {
   const authRequest = await c.env.OAUTH_PROVIDER.parseAuthRequest(c.req.raw)
@@ -97,7 +69,15 @@ authorize.get(CALLBACK_PATH, async (c) => {
   // someone else started cannot be turned into a grant by a single click.
   const approval = await stateStore().issue({ authRequest, user })
   const client = await c.env.OAUTH_PROVIDER.lookupClient(authRequest.clientId)
-  return c.html(consentPage(client, user, approval))
+  return c.html(
+    ConsentPage({
+      client,
+      user,
+      scopes: authRequest.scope,
+      approval,
+      action: APPROVE_PATH,
+    }),
+  )
 })
 
 authorize.post(APPROVE_PATH, async (c) => {
@@ -110,6 +90,12 @@ authorize.post(APPROVE_PATH, async (c) => {
   const pending = await stateStore().consume<PendingApproval>(approval)
   if (!pending) {
     return c.text('Approval expired or already used', 400)
+  }
+
+  // Declining spends the approval too, so a page left open cannot be
+  // completed later by someone else at the same screen.
+  if (form.get('decision') !== 'approve') {
+    return c.text('Authorization declined', 200)
   }
 
   const { redirectTo } = await c.env.OAUTH_PROVIDER.completeAuthorization({
