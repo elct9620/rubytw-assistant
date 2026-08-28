@@ -1,9 +1,5 @@
 export type ActionItemStatus =
-  | 'to-do'
-  | 'in-progress'
-  | 'done'
-  | 'stalled'
-  | 'discussion'
+  'to-do' | 'in-progress' | 'done' | 'stalled' | 'discussion'
 
 export interface ActionItem {
   status: ActionItemStatus

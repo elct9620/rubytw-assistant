@@ -39,13 +39,13 @@
     "@eslint/js": "^10.0.1",
     "@modelcontextprotocol/client": "2.0.0",
     "@msw/cloudflare": "^0.0.1",
-    "@types/node": "^25.5.0",
-    "eslint": "^10.1.0",
+    "@types/node": "^26.4.0",
+    "eslint": "^10.9.1",
     "eslint-config-prettier": "^10.1.8",
     "msw": "^2.15.0",
-    "prettier": "^3.8.1",
-    "typescript-eslint": "^8.57.2",
-    "vitest": "^4.1.2",
+    "prettier": "^3.9.6",
+    "typescript-eslint": "^8.68.0",
+    "vitest": "^4.1.11",
     "wrangler": "^4.127.0"
   }
 }
