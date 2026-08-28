@@ -12,19 +12,22 @@ Provide automated information aggregation and query tools for Ruby Taiwan commun
 
 ## Impacts
 
-| Behavior Change       | Current State                                                    | Target State                                               |
-| --------------------- | ---------------------------------------------------------------- | ---------------------------------------------------------- |
-| Information Gathering | Operators manually browse GitHub and Discord to stay informed    | System automatically aggregates and pushes daily summaries |
-| Data Querying         | Operators switch to GitHub UI to search Issues or Project status | _(Deferred)_ Query directly in Discord via commands        |
+| Behavior Change       | Current State                                                       | Target State                                                        |
+| --------------------- | ------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| Information Gathering | Operators manually browse GitHub and Discord to stay informed       | System automatically aggregates and pushes daily summaries          |
+| Data Querying         | Operators switch to GitHub UI to search Issues or Project status    | _(Deferred)_ Query directly in Discord via commands                 |
+| Memory Correction     | Wrong or stale memory can only be displaced by a later pipeline run | Operators inspect and correct memory directly through an MCP client |
 
 ## Success Criteria
 
 - After each scheduled trigger, the designated Discord channel receives an AI-generated action item list
+- An operator holding the designated Discord role can connect an MCP client and correct memory without waiting for a pipeline run
+- A Discord account without that role is refused, and an account that loses it stops being served within one MCP Access Token Lifetime
 - _(Deferred — see Feature 2)_ Operators can query Issue status and project progress in Discord and get immediate responses
 
 ## Non-goals
 
-- Does not handle Discord user permission management
+- Does not create or modify Discord roles, permissions, or memberships; role membership is read to decide access
 - Does not provide GitHub Issue creation or modification (read-only access)
 - Does not provide features for general community members (operators only)
 
@@ -105,25 +108,43 @@ A development-only HTTP endpoint that triggers the same AI summary pipeline as F
 | ----------------------------------------------------------------- | ------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------- |
 | Operator is tuning AI summary behavior and wants to verify output | Send HTTP request to debug endpoint with a source channel ID | Operator receives the full pipeline result (topic groups and action items) in the response and can inspect correctness |
 
+### 5. MCP Management Endpoint
+
+An MCP endpoint carries the assistant's own data to operators between pipeline runs: memory slots and the Memory Summary are readable and writable, and Project Issues are readable. The tools exposing those resources are awaiting design; the endpoint and the access decision that guards it are defined here, and the tool behaviors will be defined in a later specification iteration.
+
+Access is decided by Discord. The visitor establishes identity through Discord's authorization, and the assistant serves only accounts holding the Operator Role in the designated guild. Deciding access costs the visitor no consent beyond revealing their identity — role membership is read with the assistant's own credential, not theirs.
+
+**User Journey:**
+
+| Context                                                             | Action                                                            | Outcome                                                                                      |
+| ------------------------------------------------------------------- | ----------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| Operator wants to correct memory an AI run recorded wrongly         | Connect an MCP client to the endpoint and sign in through Discord | Operator is asked to confirm which client is asking, then the client is served               |
+| A Discord account without the Operator Role attempts to connect     | Sign in through Discord                                           | Access is refused and no grant is created                                                    |
+| An operator's role is removed after their client was already served | Client continues using its existing access                        | Access ends within one MCP Access Token Lifetime, without anyone revoking the client by hand |
+
 ## Configuration
 
-| Setting                     | Description                                                    | Default                |
-| --------------------------- | -------------------------------------------------------------- | ---------------------- |
-| Discord Channel ID          | Designated channel for summary delivery and message collection | (required, no default) |
-| Summary Collection Hours    | Collect Discord messages from the past N hours                 | 24                     |
-| Summary Item Limit          | Maximum number of action items per summary                     | 30                     |
-| Memory Entry Limit          | Maximum number of memory slots for Memory Tool                 | 32                     |
-| Memory Description Limit    | Maximum character length for memory slot description           | 128                    |
-| Memory Summary Length Limit | Maximum character length for Memory Summary output             | 300                    |
-| Issue Body Length Limit     | Maximum character length for Issue body in read_issues result  | 500                    |
+| Setting                         | Description                                                                       | Default                |
+| ------------------------------- | --------------------------------------------------------------------------------- | ---------------------- |
+| Discord Channel ID              | Designated channel for summary delivery and message collection                    | (required, no default) |
+| Summary Collection Hours        | Collect Discord messages from the past N hours                                    | 24                     |
+| Summary Item Limit              | Maximum number of action items per summary                                        | 30                     |
+| Memory Entry Limit              | Maximum number of memory slots for Memory Tool                                    | 32                     |
+| Memory Description Limit        | Maximum character length for memory slot description                              | 128                    |
+| Memory Summary Length Limit     | Maximum character length for Memory Summary output                                | 300                    |
+| Issue Body Length Limit         | Maximum character length for Issue body in read_issues result                     | 500                    |
+| Discord Guild ID                | Guild whose role membership decides MCP endpoint access                           | (required, no default) |
+| Operator Role ID                | Role within that guild that grants MCP endpoint access                            | (required, no default) |
+| Discord Application Credentials | Client ID and secret identifying the assistant to Discord's authorization service | (required, no default) |
+| MCP Access Token Lifetime       | How long an issued access token is honoured before the Operator Role is re-read   | 1 hour                 |
 
 ## System Boundary
 
-| Aspect         | Inside System                                                                                                                                                          | Outside System                                                                         |
-| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| Responsibility | Data collection, three-phase AI summary generation, memory management, memory summary generation, query responses                                                      | Discord server administration, GitHub project management                               |
-| Interaction    | Receive Discord Interaction Webhook; call GitHub API and AI service; read channel message history; read/write persistent memory store; read/write Memory Summary Store | Discord user authentication; GitHub permission settings; Discord channel configuration |
-| Control        | Summary schedule and content format; channel and collection hours configuration; memory entry limit                                                                    | Discord channel configuration; GitHub Project structure                                |
+| Aspect         | Inside System                                                                                                                                                                                                                              | Outside System                                                                                                         |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------- |
+| Responsibility | Data collection, three-phase AI summary generation, memory management, memory summary generation, query responses, deciding who may reach the MCP endpoint                                                                                 | Discord server administration, GitHub project management, deciding who holds the Operator Role                         |
+| Interaction    | Receive Discord Interaction Webhook; call GitHub API and AI service; read channel message history; read/write persistent memory store; read/write Memory Summary Store; read guild role membership; issue and revalidate MCP access tokens | Authenticating the person behind a Discord account; GitHub permission settings; Discord channel and role configuration |
+| Control        | Summary schedule and content format; channel and collection hours configuration; memory entry limit; which guild and role grant MCP access                                                                                                 | Discord channel and role configuration; GitHub Project structure                                                       |
 
 ## Behaviors
 
@@ -191,6 +212,30 @@ Phase 3 uses an independent AI call with its own system prompt. All non-empty me
 | Memory Summary AI call fails     | Log warning; skip Memory Summary generation                                   | Next run continues without injected context (degraded)               |
 | Memory Summary Store write fails | Log warning                                                                   | Summary lost; next run continues without injected context (degraded) |
 
+### MCP Management Endpoint
+
+#### Access Authorization
+
+Every request to the MCP endpoint carries an access token the assistant issued. A token is issued only after a Discord account has proved its identity, been found to hold the Operator Role, and confirmed which client is asking.
+
+| State                                                   | Action                                                                                  | Result                                                                               |
+| ------------------------------------------------------- | --------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| MCP client requests authorization                       | Redirect the visitor to Discord's authorization, requesting identity only               | Visitor authenticates with Discord; the assistant learns their account, nothing more |
+| Visitor returns from Discord                            | Read their role membership in the configured guild using the assistant's bot credential | Membership is known without the visitor granting any guild-related consent           |
+| Visitor holds the Operator Role                         | Present the requesting client by name and ask the visitor to confirm                    | Visitor sees which client is asking before any grant exists                          |
+| Requesting client registered no name                    | Present it as unnamed and ask the visitor to confirm                                    | Visitor is told the client did not identify itself rather than shown a blank         |
+| Visitor confirms                                        | Create the grant and return the client to its redirect target                           | Client completes the exchange and holds an access token                              |
+| Visitor does not hold the Operator Role                 | Refuse and create no grant                                                              | Client receives no token; nothing about the visitor is retained                      |
+| Request to the MCP endpoint carries no or unknown token | Reject the request                                                                      | Client is told to authorize first                                                    |
+
+#### Access Revalidation
+
+| State                                           | Action                                | Result                                                                        |
+| ----------------------------------------------- | ------------------------------------- | ----------------------------------------------------------------------------- |
+| Client refreshes its access token               | Re-read the account's role membership | Role is confirmed still held before a new token is issued                     |
+| Account no longer holds the Operator Role       | Refuse the refresh                    | Access ends within one MCP Access Token Lifetime; no manual revocation needed |
+| Discord cannot be reached while deciding access | Refuse rather than assume             | Access is denied; a reachable Discord is required to be served                |
+
 ### Debug Summary Preview
 
 | State                                                  | Action                                                                                                                | Result                                                                                           |
@@ -257,6 +302,9 @@ Memory Store provides a fixed number of slots indexed from 0 to Memory Entry Lim
 | No messages found in collection time window                     | Send a plain text notice to the designated Discord channel indicating no actionable discussions were found in the time window; do not invoke AI pipeline |
 | AI service fails to complete grouping or action item generation | Apply "exponential backoff retry"; after all retries fail, apply "raw message fallback"                                                                  |
 | AI output does not conform to expected structure                | Treat as AI service failure; apply same fallback behavior                                                                                                |
+| Discord authorization service unreachable during sign-in        | Sign-in fails; the visitor retries; no grant is created                                                                                                  |
+| Discord role lookup fails while deciding access                 | Access is denied rather than assumed; the visitor retries once Discord is reachable                                                                      |
+| Login or confirmation is presented a second time                | The second attempt is refused; each sign-in and each confirmation is honoured once                                                                       |
 | Memory Tool read/write fails                                    | Log warning; AI continues processing without memory assistance (degraded but not interrupted)                                                            |
 | Memory Store reaches Entry Limit                                | AI decides eviction strategy (clear slots by writing empty content, or overwrite existing slots) to make room for new entries                            |
 | GitHub Tool query fails (auth failure, rate limit)              | Log warning; AI continues processing without GitHub data assistance (degraded but not interrupted)                                                       |
@@ -282,19 +330,21 @@ When the AI pipeline fails after all retries, the system sends a plain text fall
 
 ## Terminology
 
-| Term                 | Definition                                                                                                                                                                                                                                                         |
-| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Summary              | Structured action item list produced by the AI pipeline                                                                                                                                                                                                            |
-| Operator             | A member of the Ruby Taiwan core team responsible for community operations                                                                                                                                                                                         |
-| Command              | A query request issued by an operator via Discord Slash Command                                                                                                                                                                                                    |
-| Group                | Phase 1 output; aggregates contextually related conversation messages into a topic group with summary and attribute tags                                                                                                                                           |
-| Action Item          | Phase 2 output; a structured to-do extracted from a group, containing status, assignee, and task description                                                                                                                                                       |
-| Action Item Status   | Classification label for action items: to-do, in-progress, done, stalled, or discussion                                                                                                                                                                            |
-| Memory Tool          | An AI-accessible tool set (`list_memories`, `read_memories`, `update_memory`) for index-based context memory with description and content fields, retaining information across executions                                                                          |
-| GitHub Tool          | An AI-accessible tool set (`list_issues`, `read_issues`) that retrieves Issues from GitHub Projects V2 via GitHub App: `list_issues` returns an overview with optional state filter; `read_issues` returns full details including body for specified Issue numbers |
-| Memory Summary       | Phase 3 output; a condensed context paragraph generated from all memory slots after Phase 2, stored in Memory Summary Store for injection into subsequent pipeline runs                                                                                            |
-| Memory Summary Store | Persistent KV store holding a single condensed summary string, written after each pipeline run and read at the start of the next run                                                                                                                               |
-| Schedule             | The mechanism that triggers the summary generation pipeline on a timed basis, driven by platform scheduling                                                                                                                                                        |
+| Term                    | Definition                                                                                                                                                                                                                                                         |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Summary                 | Structured action item list produced by the AI pipeline                                                                                                                                                                                                            |
+| Operator                | A member of the Ruby Taiwan core team responsible for community operations                                                                                                                                                                                         |
+| Command                 | A query request issued by an operator via Discord Slash Command                                                                                                                                                                                                    |
+| Group                   | Phase 1 output; aggregates contextually related conversation messages into a topic group with summary and attribute tags                                                                                                                                           |
+| Action Item             | Phase 2 output; a structured to-do extracted from a group, containing status, assignee, and task description                                                                                                                                                       |
+| Action Item Status      | Classification label for action items: to-do, in-progress, done, stalled, or discussion                                                                                                                                                                            |
+| Memory Tool             | An AI-accessible tool set (`list_memories`, `read_memories`, `update_memory`) for index-based context memory with description and content fields, retaining information across executions                                                                          |
+| GitHub Tool             | An AI-accessible tool set (`list_issues`, `read_issues`) that retrieves Issues from GitHub Projects V2 via GitHub App: `list_issues` returns an overview with optional state filter; `read_issues` returns full details including body for specified Issue numbers |
+| Memory Summary          | Phase 3 output; a condensed context paragraph generated from all memory slots after Phase 2, stored in Memory Summary Store for injection into subsequent pipeline runs                                                                                            |
+| MCP Management Endpoint | The interface through which an authorized operator reaches the assistant's own data outside a pipeline run                                                                                                                                                         |
+| Operator Role           | The Discord role, within the configured guild, whose holders are permitted to reach the MCP Management Endpoint                                                                                                                                                    |
+| Memory Summary Store    | Persistent KV store holding a single condensed summary string, written after each pipeline run and read at the start of the next run                                                                                                                               |
+| Schedule                | The mechanism that triggers the summary generation pipeline on a timed basis, driven by platform scheduling                                                                                                                                                        |
 
 ## Contracts
 
@@ -306,5 +356,7 @@ When the AI pipeline fails after all retries, the system sends a plain text fall
 | AI Service                  | System makes three separate AI service calls: Phase 1 receives message list and produces groups; Phase 2 receives groups and produces action item list; Phase 3 receives all memory slots and produces a condensed summary. Each phase is an independent request-response cycle. |
 | Memory Store                | AI reads and writes fixed-slot memory entries (each with description and content) via persistent store; slot count capped by Memory Entry Limit; description length capped by Memory Description Limit; empty content clears the slot                                            |
 | Memory Summary Store        | Persistent KV store holding a single condensed summary string; written by Phase 3 after each pipeline run; read at the start of the next run to inject into Phase 1 and Phase 2 system prompts                                                                                   |
+| Discord Authorization       | System redirects a visitor to Discord to establish identity, requesting identity scope only; guild role membership is read separately with the assistant's bot credential                                                                                                        |
+| MCP Client                  | Client registers itself, obtains an access token through the authorization above, and presents that token on every request to the MCP endpoint; a token grants no access once the account behind it stops holding the Operator Role                                              |
 | Cron Trigger                | Platform triggers summary generation pipeline on configured schedule                                                                                                                                                                                                             |
 | Debug Summary Endpoint      | Development-only HTTP endpoint; accepts source channel ID and optional hours; returns pipeline result in response body; does not exist in production                                                                                                                             |
