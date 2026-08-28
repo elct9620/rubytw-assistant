@@ -32,6 +32,10 @@
       "binding": "MEMORY_KV",
       "id": "9dcf2589f66143aa8ed7128177d76d19",
     },
+    // Binding name is fixed by @cloudflare/workers-oauth-provider.
+    {
+      "binding": "OAUTH_KV",
+    },
   ],
   "observability": {
     "enabled": true,
