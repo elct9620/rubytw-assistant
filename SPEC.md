@@ -110,7 +110,7 @@ A development-only HTTP endpoint that triggers the same AI summary pipeline as F
 
 ### 5. MCP Management Endpoint
 
-An MCP endpoint carries the assistant's own data to operators between pipeline runs: memory slots and the Memory Summary are readable and writable, and Project Issues are readable. The tools exposing those resources are awaiting design; the endpoint and the access decision that guards it are defined here, and the tool behaviors will be defined in a later specification iteration.
+An MCP endpoint carries the assistant's own data to operators between pipeline runs. Memory slots and the Memory Summary are readable and writable through named tools; several slots may be corrected in one call. Reading Project Issues through this endpoint is deferred and no tool exposes them in the current scope.
 
 An issued access token is honoured for one hour before the Operator Role is re-read (fixed design constraint, not configurable). This bounds how long a revoked operator keeps access.
 
@@ -126,18 +126,18 @@ Access is decided by Discord. The visitor establishes identity through Discord's
 
 ## Configuration
 
-| Setting                         | Description                                                                       | Default                |
-| ------------------------------- | --------------------------------------------------------------------------------- | ---------------------- |
-| Discord Channel ID              | Designated channel for summary delivery and message collection                    | (required, no default) |
-| Summary Collection Hours        | Collect Discord messages from the past N hours                                    | 24                     |
-| Summary Item Limit              | Maximum number of action items per summary                                        | 30                     |
-| Memory Entry Limit              | Maximum number of memory slots for Memory Tool                                    | 32                     |
-| Memory Description Limit        | Maximum character length for memory slot description                              | 128                    |
-| Memory Summary Length Limit     | Maximum character length for Memory Summary output                                | 300                    |
-| Issue Body Length Limit         | Maximum character length for Issue body in read_issues result                     | 500                    |
-| Discord Guild ID                | Guild whose role membership decides MCP endpoint access                           | (required, no default) |
-| Operator Role ID                | Role within that guild that grants MCP endpoint access                            | (required, no default) |
-| Discord Application Credentials | Client ID and secret identifying the assistant to Discord's authorization service | (required, no default) |
+| Setting                         | Description                                                                            | Default                |
+| ------------------------------- | -------------------------------------------------------------------------------------- | ---------------------- |
+| Discord Channel ID              | Designated channel for summary delivery and message collection                         | (required, no default) |
+| Summary Collection Hours        | Collect Discord messages from the past N hours                                         | 24                     |
+| Summary Item Limit              | Maximum number of action items per summary                                             | 30                     |
+| Memory Entry Limit              | Maximum number of memory slots for Memory Tool                                         | 32                     |
+| Memory Description Limit        | Maximum character length for memory slot description                                   | 128                    |
+| Memory Summary Length Limit     | Maximum character length for the Memory Summary, whether generated or operator-written | 300                    |
+| Issue Body Length Limit         | Maximum character length for Issue body in read_issues result                          | 500                    |
+| Discord Guild ID                | Guild whose role membership decides MCP endpoint access                                | (required, no default) |
+| Operator Role ID                | Role within that guild that grants MCP endpoint access                                 | (required, no default) |
+| Discord Application Credentials | Client ID and secret identifying the assistant to Discord's authorization service      | (required, no default) |
 
 ## System Boundary
 
@@ -237,6 +237,21 @@ Every request to the MCP endpoint carries an access token the assistant issued. 
 | Account no longer holds the Operator Role       | Refuse the refresh                    | Access ends within one hour; no manual revocation needed       |
 | Discord cannot be reached while deciding access | Refuse rather than assume             | Access is denied; a reachable Discord is required to be served |
 
+#### Memory Management Tools
+
+An authorized operator reaches the assistant's memory through five tools. An update carries no read-before-write condition; any slot may be written directly.
+
+| State                                                                                               | Action                                                            | Result                                                                                                           |
+| --------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| Operator invokes `list_memories`                                                                    | Return index and description for every slot                       | Operator receives all slots with index and description; an unused slot has an empty string as description        |
+| Operator invokes `read_memories(idx[])`                                                             | Return full content for each requested slot index                 | Operator receives content for the specified slots; a repeated index yields one entry                             |
+| Operator invokes `update_memories`                                                                  | Write the given slots, each addressed by its index                | Every named slot is created or overwritten; the number of slots in one call does not affect whether it is served |
+| Operator writes empty content for a slot                                                            | `update_memories` receives an empty string as that slot's content | That slot is cleared (description and content become empty string)                                               |
+| A slot names an index outside the slot range, or a description longer than Memory Description Limit | Refuse the whole call                                             | No slot changes; the operator is told which constraint was broken                                                |
+| Operator invokes `read_memory_summary`                                                              | Return the stored Memory Summary                                  | Operator receives the summary, or is told none is stored                                                         |
+| Operator invokes `write_memory_summary`                                                             | Replace the stored Memory Summary                                 | The next pipeline run injects the operator's text in place of the last generated summary                         |
+| Summary exceeds Memory Summary Length Limit                                                         | Refuse the write                                                  | The stored summary is unchanged and the operator is told the limit                                               |
+
 ### Debug Summary Preview
 
 | State                                                  | Action                                                                                                                | Result                                                                                           |
@@ -284,7 +299,7 @@ GitHub Tool provides two operations: `list_issues` is the discovery entry point 
 
 ### Memory Tool Interface
 
-Memory Store provides a fixed number of slots indexed from 0 to Memory Entry Limit − 1. Each slot holds a description (max Memory Description Limit characters) and content. AI chooses which slot to read or write. Unused slots return empty strings for both description and content.
+Memory Store provides a fixed number of slots indexed from 0 to Memory Entry Limit − 1. Each slot holds a description (max Memory Description Limit characters) and content. AI chooses which slot to read or write, and may only write a slot it has read in the same run. Unused slots return empty strings for both description and content.
 
 | State                             | Action                                                            | Result                                                                                          |
 | --------------------------------- | ----------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
@@ -293,31 +308,34 @@ Memory Store provides a fixed number of slots indexed from 0 to Memory Entry Lim
 | AI invokes `update_memory`        | Write description and content to the specified slot index         | Slot at the given index is created or overwritten                                               |
 | AI writes empty content           | `update_memory` receives empty string as content                  | The slot is cleared (description and content become empty string)                               |
 | Description exceeds length limit  | `update_memory` receives description longer than configured limit | System rejects the update and returns an error                                                  |
+| AI writes a slot it has not read  | `update_memory` names a slot index absent from this run's reads   | System rejects the update and tells the AI to read that slot first                              |
 
 ## Error Scenarios
 
-| Scenario                                                        | System Behavior                                                                                                                                          |
-| --------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Discord message history collection fails                        | Apply "exponential backoff retry"; after all retries fail, log error, do not send summary                                                                |
-| Discord API request fails (sending summary)                     | Apply "exponential backoff retry"; permanent failure logged                                                                                              |
-| No messages found in collection time window                     | Send a plain text notice to the designated Discord channel indicating no actionable discussions were found in the time window; do not invoke AI pipeline |
-| AI service fails to complete grouping or action item generation | Apply "exponential backoff retry"; after all retries fail, apply "raw message fallback"                                                                  |
-| AI output does not conform to expected structure                | Treat as AI service failure; apply same fallback behavior                                                                                                |
-| Discord authorization service unreachable during sign-in        | Sign-in fails; the visitor retries; no grant is created                                                                                                  |
-| Discord role lookup fails while deciding access                 | Access is denied rather than assumed; the visitor retries once Discord is reachable                                                                      |
-| Login or confirmation is presented a second time                | The second attempt is refused; each sign-in and each confirmation is honoured once                                                                       |
-| Memory Tool read/write fails                                    | Log warning; AI continues processing without memory assistance (degraded but not interrupted)                                                            |
-| Memory Store reaches Entry Limit                                | AI decides eviction strategy (clear slots by writing empty content, or overwrite existing slots) to make room for new entries                            |
-| GitHub Tool query fails (auth failure, rate limit)              | Log warning; AI continues processing without GitHub data assistance (degraded but not interrupted)                                                       |
-| GitHub App authentication fails                                 | Apply "exponential backoff retry"; after all retries fail, log error, GitHub Tool unavailable                                                            |
-| Interaction command timeout (platform time limit)               | Reply with timeout notice, suggest retrying later                                                                                                        |
-| Debug endpoint called in production environment                 | Endpoint does not exist; return standard HTTP 404                                                                                                        |
-| Debug endpoint: source channel inaccessible                     | Return error indicating the channel could not be accessed; no retry                                                                                      |
-| Debug endpoint: Discord message collection fails                | Return error with failure reason; no retry (debug context favors fast feedback over resilience)                                                          |
-| Debug endpoint: AI pipeline fails                               | Return error with the failed phase name and failure reason; no fallback message sent, no retry (unlike Daily AI Summary)                                 |
-| Memory Summary Store read fails (at pipeline start)             | Log warning; pipeline continues without memory context (degraded but not interrupted)                                                                    |
-| Memory Summary AI call fails (after Phase 2)                    | Log warning; stored summary not updated; next run uses previous summary or none                                                                          |
-| Memory Summary Store write fails (after Phase 2)                | Log warning; summary lost; next run uses previous summary or none                                                                                        |
+| Scenario                                                         | System Behavior                                                                                                                                          |
+| ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Discord message history collection fails                         | Apply "exponential backoff retry"; after all retries fail, log error, do not send summary                                                                |
+| Discord API request fails (sending summary)                      | Apply "exponential backoff retry"; permanent failure logged                                                                                              |
+| No messages found in collection time window                      | Send a plain text notice to the designated Discord channel indicating no actionable discussions were found in the time window; do not invoke AI pipeline |
+| AI service fails to complete grouping or action item generation  | Apply "exponential backoff retry"; after all retries fail, apply "raw message fallback"                                                                  |
+| AI output does not conform to expected structure                 | Treat as AI service failure; apply same fallback behavior                                                                                                |
+| Discord authorization service unreachable during sign-in         | Sign-in fails; the visitor retries; no grant is created                                                                                                  |
+| Discord role lookup fails while deciding access                  | Access is denied rather than assumed; the visitor retries once Discord is reachable                                                                      |
+| Login or confirmation is presented a second time                 | The second attempt is refused; each sign-in and each confirmation is honoured once                                                                       |
+| Memory Tool read/write fails                                     | Log warning; AI continues processing without memory assistance (degraded but not interrupted)                                                            |
+| Memory Store reaches Entry Limit                                 | AI decides eviction strategy (clear slots by writing empty content, or overwrite existing slots) to make room for new entries                            |
+| GitHub Tool query fails (auth failure, rate limit)               | Log warning; AI continues processing without GitHub data assistance (degraded but not interrupted)                                                       |
+| GitHub App authentication fails                                  | Apply "exponential backoff retry"; after all retries fail, log error, GitHub Tool unavailable                                                            |
+| Interaction command timeout (platform time limit)                | Reply with timeout notice, suggest retrying later                                                                                                        |
+| Debug endpoint called in production environment                  | Endpoint does not exist; return standard HTTP 404                                                                                                        |
+| Debug endpoint: source channel inaccessible                      | Return error indicating the channel could not be accessed; no retry                                                                                      |
+| Debug endpoint: Discord message collection fails                 | Return error with failure reason; no retry (debug context favors fast feedback over resilience)                                                          |
+| Debug endpoint: AI pipeline fails                                | Return error with the failed phase name and failure reason; no fallback message sent, no retry (unlike Daily AI Summary)                                 |
+| Memory Summary Store read fails (at pipeline start)              | Log warning; pipeline continues without memory context (degraded but not interrupted)                                                                    |
+| Memory Summary AI call fails (after Phase 2)                     | Log warning; stored summary not updated; next run uses previous summary or none                                                                          |
+| Memory Summary Store write fails (after Phase 2)                 | Log warning; summary lost; next run uses previous summary or none                                                                                        |
+| Memory Store read or write fails during an MCP tool call         | The tool call reports the failure to the operator; no slot changes and nothing degrades silently                                                         |
+| Memory Summary Store read or write fails during an MCP tool call | The tool call reports the failure to the operator; the stored summary is unchanged                                                                       |
 
 ## Patterns
 
@@ -342,6 +360,7 @@ When the AI pipeline fails after all retries, the system sends a plain text fall
 | Memory Tool             | An AI-accessible tool set (`list_memories`, `read_memories`, `update_memory`) for index-based context memory with description and content fields, retaining information across executions                                                                          |
 | GitHub Tool             | An AI-accessible tool set (`list_issues`, `read_issues`) that retrieves Issues from GitHub Projects V2 via GitHub App: `list_issues` returns an overview with optional state filter; `read_issues` returns full details including body for specified Issue numbers |
 | Memory Summary          | Phase 3 output; a condensed context paragraph generated from all memory slots after Phase 2, stored in Memory Summary Store for injection into subsequent pipeline runs                                                                                            |
+| MCP Memory Tools        | The tool set an authorized operator reaches through the MCP Management Endpoint: `list_memories`, `read_memories`, `update_memories`, `read_memory_summary`, `write_memory_summary`                                                                                |
 | MCP Management Endpoint | The interface through which an authorized operator reaches the assistant's own data outside a pipeline run                                                                                                                                                         |
 | Operator Role           | The Discord role, within the configured guild, whose holders are permitted to reach the MCP Management Endpoint                                                                                                                                                    |
 | Memory Summary Store    | Persistent KV store holding a single condensed summary string, written after each pipeline run and read at the start of the next run                                                                                                                               |
@@ -349,15 +368,16 @@ When the AI pipeline fails after all retries, the system sends a plain text fall
 
 ## Contracts
 
-| Interaction Point           | Contract                                                                                                                                                                                                                                                                         |
-| --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Discord Interaction Webhook | _(Deferred)_ Awaiting design for Feature 2; no contract defined in the current scope                                                                                                                                                                                             |
-| GitHub API                  | System makes read-only REST/GraphQL API calls using GitHub App Installation Token; also serves as the backend for AI GitHub Tool                                                                                                                                                 |
-| Discord Bot API             | System sends messages to designated channel and reads channel message history via Bot Token                                                                                                                                                                                      |
-| AI Service                  | System makes three separate AI service calls: Phase 1 receives message list and produces groups; Phase 2 receives groups and produces action item list; Phase 3 receives all memory slots and produces a condensed summary. Each phase is an independent request-response cycle. |
-| Memory Store                | AI reads and writes fixed-slot memory entries (each with description and content) via persistent store; slot count capped by Memory Entry Limit; description length capped by Memory Description Limit; empty content clears the slot                                            |
-| Memory Summary Store        | Persistent KV store holding a single condensed summary string; written by Phase 3 after each pipeline run; read at the start of the next run to inject into Phase 1 and Phase 2 system prompts                                                                                   |
-| Discord Authorization       | System redirects a visitor to Discord to establish identity, requesting identity scope only; guild role membership is read separately with the assistant's bot credential                                                                                                        |
-| MCP Client                  | Client registers itself, obtains an access token through the authorization above, and presents that token on every request to the MCP endpoint; a token grants no access once the account behind it stops holding the Operator Role                                              |
-| Cron Trigger                | Platform triggers summary generation pipeline on configured schedule                                                                                                                                                                                                             |
-| Debug Summary Endpoint      | Development-only HTTP endpoint; accepts source channel ID and optional hours; returns pipeline result in response body; does not exist in production                                                                                                                             |
+| Interaction Point           | Contract                                                                                                                                                                                                                                                                                                                              |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Discord Interaction Webhook | _(Deferred)_ Awaiting design for Feature 2; no contract defined in the current scope                                                                                                                                                                                                                                                  |
+| GitHub API                  | System makes read-only REST/GraphQL API calls using GitHub App Installation Token; also serves as the backend for AI GitHub Tool                                                                                                                                                                                                      |
+| Discord Bot API             | System sends messages to designated channel and reads channel message history via Bot Token                                                                                                                                                                                                                                           |
+| AI Service                  | System makes three separate AI service calls: Phase 1 receives message list and produces groups; Phase 2 receives groups and produces action item list; Phase 3 receives all memory slots and produces a condensed summary. Each phase is an independent request-response cycle.                                                      |
+| Memory Store                | The AI and authorized operators read and write fixed-slot memory entries (each with description and content) via persistent store; slot count capped by Memory Entry Limit; description length capped by Memory Description Limit; empty content clears the slot; a write addressing several slots takes effect in full or not at all |
+| Memory Summary Store        | Persistent KV store holding a single condensed summary string; written by Phase 3 after each pipeline run or by an operator through the MCP endpoint; read at the start of the next run to inject into Phase 1 and Phase 2 system prompts                                                                                             |
+| Discord Authorization       | System redirects a visitor to Discord to establish identity, requesting identity scope only; guild role membership is read separately with the assistant's bot credential                                                                                                                                                             |
+| MCP Client                  | Client registers itself, obtains an access token through the authorization above, and presents that token on every request to the MCP endpoint; a token grants no access once the account behind it stops holding the Operator Role                                                                                                   |
+| MCP Memory Tools            | Named tools reading and writing memory slots and the Memory Summary; every call is subject to the access decision guarding the endpoint                                                                                                                                                                                               |
+| Cron Trigger                | Platform triggers summary generation pipeline on configured schedule                                                                                                                                                                                                                                                                  |
+| Debug Summary Endpoint      | Development-only HTTP endpoint; accepts source channel ID and optional hours; returns pipeline result in response body; does not exist in production                                                                                                                                                                                  |
