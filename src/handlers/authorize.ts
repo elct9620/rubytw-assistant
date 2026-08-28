@@ -1,7 +1,8 @@
 import { Hono } from 'hono'
-import type {
-  AuthRequest,
-  OAuthHelpers,
+import {
+  AuthorizationError,
+  type AuthRequest,
+  type OAuthHelpers,
 } from '@cloudflare/workers-oauth-provider'
 import { ConsentPage } from './consent-page'
 import { container } from '../container'
@@ -35,7 +36,27 @@ const callbackUri = (requestUrl: string): string =>
   new URL(CALLBACK_PATH, requestUrl).toString()
 
 authorize.get('/authorize', async (c) => {
-  const authRequest = await c.env.OAUTH_PROVIDER.parseAuthRequest(c.req.raw)
+  let authRequest: AuthRequest
+  try {
+    authRequest = await c.env.OAUTH_PROVIDER.parseAuthRequest(c.req.raw)
+  } catch (error) {
+    if (!(error instanceof AuthorizationError)) {
+      throw error
+    }
+    // RFC 6749 §4.1.2.1: an unusable redirect target must be shown to the
+    // visitor, never followed — sending the error there would hand it to
+    // whoever supplied the bad address.
+    if (!error.redirectUri) {
+      return c.text(`${error.code}: ${error.description}`, 400)
+    }
+    const back = new URL(error.redirectUri)
+    back.searchParams.set('error', error.code)
+    back.searchParams.set('error_description', error.description)
+    if (error.state) back.searchParams.set('state', error.state)
+    if (error.issuer) back.searchParams.set('iss', error.issuer)
+    return c.redirect(back.toString(), 302)
+  }
+
   const state = await stateStore().issue(authRequest)
   return c.redirect(
     identityProvider().authorizeUrl(callbackUri(c.req.url), state),

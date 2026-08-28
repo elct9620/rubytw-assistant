@@ -173,6 +173,37 @@ describe('an operator signing an MCP client in with Discord', () => {
   })
 })
 
+describe('an authorization request the provider rejects', () => {
+  it('should answer the visitor rather than fail, when the redirect is unusable', async () => {
+    const clientId = await registerClient()
+    const url = new URL('http://localhost/authorize')
+    url.searchParams.set('response_type', 'code')
+    url.searchParams.set('client_id', clientId)
+    url.searchParams.set('redirect_uri', 'https://evil.example/cb')
+    url.searchParams.set('scope', 'mcp')
+    url.searchParams.set('state', 'client-state')
+
+    const res = await call(new Request(url))
+
+    expect(res.status).toBe(400)
+    expect(res.headers.get('Location')).toBeNull()
+    expect(await res.text()).toContain('invalid_request')
+  })
+
+  it('should not start a Discord login for a request it rejected', async () => {
+    const url = new URL('http://localhost/authorize')
+    url.searchParams.set('response_type', 'code')
+    url.searchParams.set('client_id', 'never-registered')
+    url.searchParams.set('redirect_uri', CLIENT_REDIRECT)
+    url.searchParams.set('scope', 'mcp')
+
+    const res = await call(new Request(url))
+
+    expect(res.status).toBe(400)
+    expect(res.headers.get('Location')).toBeNull()
+  })
+})
+
 describe('a Discord account without the operator role', () => {
   it('should be refused before any grant is created', async () => {
     mockDiscord({ roles: ['800000000000000000'] })
