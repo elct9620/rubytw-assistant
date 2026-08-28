@@ -1,5 +1,5 @@
 import { http, HttpResponse } from 'msw'
-import { server } from '../msw-server'
+import { network } from '../msw-server'
 
 export const LANGFUSE_BASE_URL = 'https://us.cloud.langfuse.com'
 export const LANGFUSE_OTLP_ENDPOINT = `${LANGFUSE_BASE_URL}/api/public/otel/v1/traces`
@@ -74,7 +74,7 @@ export function captureLangfuseSpans(): {
   const captured: CapturedSpan[] = []
   let requests = 0
 
-  server.use(
+  network.use(
     http.post(LANGFUSE_OTLP_ENDPOINT, async ({ request }) => {
       requests += 1
       const payload = (await request.json()) as OtlpPayload

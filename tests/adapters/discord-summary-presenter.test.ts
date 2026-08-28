@@ -10,7 +10,7 @@ import {
   type ActionItem,
 } from '../../src/entities/action-item'
 import type { TopicGroup } from '../../src/entities/topic-group'
-import { server } from '../msw-server'
+import { network } from '../msw-server'
 
 const MESSAGES_URL = 'https://discord.com/api/v10/channels/channel-123/messages'
 
@@ -230,7 +230,7 @@ describe('DiscordSummaryPresenter DI integration', () => {
   it('should resolve full Presenter → Notifier chain and send via Discord API', async () => {
     const sentMessages: string[] = []
 
-    server.use(
+    network.use(
       http.post(MESSAGES_URL, async ({ request }) => {
         const body = (await request.json()) as { content: string }
         sentMessages.push(body.content)
@@ -262,7 +262,7 @@ describe('DiscordSummaryPresenter DI integration', () => {
   it('should send chunked messages via Discord API when content is long', async () => {
     const sentMessages: string[] = []
 
-    server.use(
+    network.use(
       http.post(MESSAGES_URL, async ({ request }) => {
         const body = (await request.json()) as { content: string }
         sentMessages.push(body.content)

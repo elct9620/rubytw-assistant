@@ -1,7 +1,11 @@
 import 'reflect-metadata'
 import { afterAll, afterEach, beforeAll } from 'vitest'
-import { server } from './msw-server'
+import { network } from './msw-server'
 
-beforeAll(() => server.listen({ onUnhandledRequest: 'error' }))
-afterEach(() => server.resetHandlers())
-afterAll(() => server.close())
+// Any request without a handler fails the test rather than reaching the real
+// service — the tests carry credentials that would be rejected upstream.
+network.configure({ onUnhandledFrame: 'error' })
+
+beforeAll(() => network.enable())
+afterEach(() => network.resetHandlers())
+afterAll(() => network.disable())

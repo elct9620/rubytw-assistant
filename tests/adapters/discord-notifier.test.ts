@@ -3,7 +3,7 @@ import { container } from 'tsyringe'
 import { describe, it, expect, beforeEach } from 'vitest'
 import { DiscordNotifierAdapter } from '../../src/adapters/discord-notifier'
 import { TOKENS } from '../../src/tokens'
-import { server } from '../msw-server'
+import { network } from '../msw-server'
 
 const MESSAGES_URL = 'https://discord.com/api/v10/channels/123456/messages'
 
@@ -15,7 +15,7 @@ describe('DiscordNotifierAdapter', () => {
     let capturedBody: { content: string } | undefined
     let capturedContentType: string | undefined
 
-    server.use(
+    network.use(
       http.post(MESSAGES_URL, async ({ request }) => {
         capturedAuth = request.headers.get('Authorization') ?? undefined
         capturedContentType = request.headers.get('Content-Type') ?? undefined
@@ -33,7 +33,7 @@ describe('DiscordNotifierAdapter', () => {
   })
 
   it('should throw error with response body when API returns non-ok response', async () => {
-    server.use(
+    network.use(
       http.post(MESSAGES_URL, () => {
         return HttpResponse.json(
           { code: 50013, message: 'Missing Permissions' },
@@ -50,7 +50,7 @@ describe('DiscordNotifierAdapter', () => {
   })
 
   it('should include Retry-After info on 429 rate limit', async () => {
-    server.use(
+    network.use(
       http.post(MESSAGES_URL, () => {
         return HttpResponse.json(
           { message: 'You are being rate limited.', retry_after: 1.5 },
@@ -75,7 +75,7 @@ describe('DiscordNotifierAdapter DI integration', () => {
   it('should resolve from container and send message via Discord API', async () => {
     let capturedBody: { content: string } | undefined
 
-    server.use(
+    network.use(
       http.post(MESSAGES_URL, async ({ request }) => {
         capturedBody = (await request.json()) as { content: string }
         return HttpResponse.json({})

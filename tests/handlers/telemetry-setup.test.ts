@@ -4,7 +4,7 @@ import { http, HttpResponse } from 'msw'
 import { TOKENS } from '../../src/tokens'
 import { startObservation } from '@langfuse/tracing'
 import { runWithTrace, setupTrace } from '../../src/handlers/telemetry-setup'
-import { server } from '../msw-server'
+import { network } from '../msw-server'
 import {
   captureLangfuseSpans,
   LANGFUSE_OTLP_ENDPOINT,
@@ -80,7 +80,7 @@ describe('setupTrace', () => {
 
   describe('when Langfuse rejects the export', () => {
     const rejectExports = () =>
-      server.use(
+      network.use(
         http.post(
           LANGFUSE_OTLP_ENDPOINT,
           () => new HttpResponse(null, { status: 401 }),

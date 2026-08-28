@@ -1,7 +1,7 @@
 import { http, HttpResponse } from 'msw'
 import { describe, it, expect, beforeEach } from 'vitest'
 import { DiscordGuildRoleAdapter } from '../../src/adapters/discord-guild-role'
-import { server } from '../msw-server'
+import { network } from '../msw-server'
 
 const GUILD_ID = '900000000000000001'
 const OPERATOR_ROLE_ID = '900000000000000002'
@@ -17,7 +17,7 @@ describe('DiscordGuildRoleAdapter', () => {
   it('should grant when the member carries the operator role', async () => {
     let capturedAuth: string | undefined
 
-    server.use(
+    network.use(
       http.get(MEMBER_URL, ({ request }) => {
         capturedAuth = request.headers.get('Authorization') ?? undefined
         return HttpResponse.json({
@@ -31,7 +31,7 @@ describe('DiscordGuildRoleAdapter', () => {
   })
 
   it('should deny when the member lacks the operator role', async () => {
-    server.use(
+    network.use(
       http.get(MEMBER_URL, () =>
         HttpResponse.json({ roles: ['800000000000000000'] }),
       ),
@@ -41,7 +41,7 @@ describe('DiscordGuildRoleAdapter', () => {
   })
 
   it('should deny when the user never joined the guild', async () => {
-    server.use(
+    network.use(
       http.get(MEMBER_URL, () =>
         HttpResponse.json(
           { message: 'Unknown Member', code: 10007 },
@@ -54,7 +54,7 @@ describe('DiscordGuildRoleAdapter', () => {
   })
 
   it('should refuse to answer when Discord cannot be reached', async () => {
-    server.use(
+    network.use(
       http.get(MEMBER_URL, () =>
         HttpResponse.json(
           { message: 'Internal Server Error' },

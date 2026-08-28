@@ -4,7 +4,7 @@ import { http, HttpResponse } from 'msw'
 import { describe, it, expect, beforeEach } from 'vitest'
 import { container } from 'tsyringe'
 import { TOKENS } from '../../src/tokens'
-import { server } from '../msw-server'
+import { network } from '../msw-server'
 import worker from '../../src/index'
 
 const GUILD_ID = '900000000000000001'
@@ -16,7 +16,7 @@ const ctx = createExecutionContext()
 const call = (request: Request) => worker.fetch!(request, env, ctx)
 
 const mockDiscord = ({ roles }: { roles: string[] }) => {
-  server.use(
+  network.use(
     http.post('https://discord.com/api/oauth2/token', () =>
       HttpResponse.json({ access_token: 'discord-user-token' }),
     ),

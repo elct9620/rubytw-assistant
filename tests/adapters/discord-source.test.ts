@@ -6,7 +6,7 @@ import {
   formatMessageToXml,
 } from '../../src/adapters/discord-source'
 import { TOKENS } from '../../src/tokens'
-import { server } from '../msw-server'
+import { network } from '../msw-server'
 
 const DISCORD_EPOCH = 1420070400000n
 const MESSAGES_URL = 'https://discord.com/api/v10/channels/channel-123/messages'
@@ -60,7 +60,7 @@ describe('DiscordSourceAdapter', () => {
     let capturedUrl: URL | undefined
     let capturedAuth: string | undefined
 
-    server.use(
+    network.use(
       http.get(MESSAGES_URL, ({ request }) => {
         capturedUrl = new URL(request.url)
         capturedAuth = request.headers.get('Authorization') ?? undefined
@@ -77,7 +77,7 @@ describe('DiscordSourceAdapter', () => {
   })
 
   it('should return formatted XML messages and filter out empty content', async () => {
-    server.use(
+    network.use(
       http.get(MESSAGES_URL, () => {
         return HttpResponse.json([
           makeMessage('1', 'hello'),
@@ -98,7 +98,7 @@ describe('DiscordSourceAdapter', () => {
   })
 
   it('should throw error with response body when API returns non-ok response', async () => {
-    server.use(
+    network.use(
       http.get(MESSAGES_URL, () => {
         return HttpResponse.json(
           { code: 50001, message: 'Missing Access' },
@@ -117,7 +117,7 @@ describe('DiscordSourceAdapter', () => {
   it('should warn when messages are returned but all have empty content', async () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
 
-    server.use(
+    network.use(
       http.get(MESSAGES_URL, () => {
         return HttpResponse.json([makeMessage('1', ''), makeMessage('2', '')])
       }),
@@ -143,7 +143,7 @@ describe('DiscordSourceAdapter', () => {
     let requestCount = 0
     let secondRequestAfter: string | null = null
 
-    server.use(
+    network.use(
       http.get(MESSAGES_URL, ({ request }) => {
         requestCount++
         const url = new URL(request.url)
@@ -171,7 +171,7 @@ describe('DiscordSourceAdapter', () => {
 
     let requestCount = 0
 
-    server.use(
+    network.use(
       http.get(MESSAGES_URL, () => {
         requestCount++
         return HttpResponse.json(fullPage)
@@ -291,7 +291,7 @@ describe('DiscordSourceAdapter DI integration', () => {
   })
 
   it('should resolve from container and fetch messages via Discord API', async () => {
-    server.use(
+    network.use(
       http.get(MESSAGES_URL, () => {
         return HttpResponse.json([makeMessage('1', 'hello from DI')])
       }),
