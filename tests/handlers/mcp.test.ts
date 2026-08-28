@@ -5,6 +5,7 @@ import { container } from 'tsyringe'
 import { TOKENS } from '../../src/tokens'
 import { GenerateSummary } from '../../src/usecases/generate-summary'
 import worker from '../../src/index'
+import { mcpRequest } from '../helpers/mcp-rpc'
 
 describe('OAuth-protected MCP endpoint', () => {
   it('should advertise the authorization endpoints in server metadata', async () => {
@@ -41,6 +42,20 @@ describe('OAuth-protected MCP endpoint', () => {
     )
 
     expect(res.status).toBe(401)
+  })
+
+  it('should serve a client whose identity the authorization layer already settled', async () => {
+    const response = await mcpRequest(
+      'ping',
+      {},
+      {
+        userId: '42',
+        username: 'operator',
+      },
+    )
+
+    expect(response.error).toBeUndefined()
+    expect(response.result).toEqual({})
   })
 
   it('should leave unclaimed paths with the existing Hono app', async () => {
