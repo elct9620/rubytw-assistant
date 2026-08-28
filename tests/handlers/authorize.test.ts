@@ -1,4 +1,5 @@
 import { env } from 'cloudflare:workers'
+import { createExecutionContext } from 'cloudflare:test'
 import { http, HttpResponse } from 'msw'
 import { describe, it, expect, beforeEach } from 'vitest'
 import { container } from 'tsyringe'
@@ -11,7 +12,7 @@ const OPERATOR_ROLE_ID = '900000000000000002'
 const USER_ID = '900000000000000003'
 const CLIENT_REDIRECT = 'http://client.example/callback'
 
-const ctx = {} as ExecutionContext
+const ctx = createExecutionContext()
 const call = (request: Request) => worker.fetch!(request, env, ctx)
 
 const mockDiscord = ({ roles }: { roles: string[] }) => {
@@ -86,7 +87,6 @@ const startLogin = async (clientId: string): Promise<string> => {
 }
 
 beforeEach(() => {
-  container.clearInstances()
   container.register(TOKENS.DiscordGuildId, { useValue: GUILD_ID })
   container.register(TOKENS.DiscordOperatorRoleId, {
     useValue: OPERATOR_ROLE_ID,

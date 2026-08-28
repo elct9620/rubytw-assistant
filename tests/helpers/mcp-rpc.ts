@@ -1,4 +1,5 @@
 import { env } from 'cloudflare:workers'
+import { createExecutionContext } from 'cloudflare:test'
 import { mcpApiHandler } from '../../src/handlers/mcp'
 
 export interface McpIdentity {
@@ -34,22 +35,13 @@ export async function mcpRequest(
     body: JSON.stringify({ jsonrpc: '2.0', id: nextId++, method, params }),
   })
 
-  const ctx = {
+  const ctx = Object.assign(createExecutionContext(), {
     props: identity ?? {},
-    waitUntil: () => {},
-    passThroughOnException: () => {},
-  } as unknown as ExecutionContext
+  })
 
   const response = await mcpApiHandler.fetch(request, env, ctx)
   return parseEventStream(await response.text())
 }
-
-export const callMcpTool = (
-  name: string,
-  args: Record<string, unknown> = {},
-  identity?: McpIdentity,
-): Promise<JsonRpcResponse> =>
-  mcpRequest('tools/call', { name, arguments: args }, identity)
 
 function parseEventStream(body: string): JsonRpcResponse {
   const payloads = body

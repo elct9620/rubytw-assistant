@@ -1,5 +1,4 @@
 import { http, HttpResponse } from 'msw'
-import { container } from 'tsyringe'
 import { describe, it, expect, beforeEach } from 'vitest'
 import { DiscordGuildRoleAdapter } from '../../src/adapters/discord-guild-role'
 import { server } from '../msw-server'
@@ -12,9 +11,7 @@ const MEMBER_URL = `https://discord.com/api/v10/guilds/${GUILD_ID}/members/${USE
 const createAdapter = () =>
   new DiscordGuildRoleAdapter('test-bot-token', GUILD_ID, OPERATOR_ROLE_ID)
 
-beforeEach(() => {
-  container.clearInstances()
-})
+beforeEach(() => {})
 
 describe('DiscordGuildRoleAdapter', () => {
   it('should grant when the member carries the operator role', async () => {

@@ -11,9 +11,7 @@ import { server } from '../msw-server'
 const DISCORD_EPOCH = 1420070400000n
 const MESSAGES_URL = 'https://discord.com/api/v10/channels/channel-123/messages'
 
-beforeEach(() => {
-  container.clearInstances()
-})
+beforeEach(() => {})
 
 function makeMessage(
   id: string,

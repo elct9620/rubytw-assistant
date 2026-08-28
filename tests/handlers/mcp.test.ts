@@ -1,5 +1,8 @@
 import { env } from 'cloudflare:workers'
-import { createScheduledController } from 'cloudflare:test'
+import {
+  createExecutionContext,
+  createScheduledController,
+} from 'cloudflare:test'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { container } from 'tsyringe'
 import { TOKENS } from '../../src/tokens'
@@ -12,7 +15,7 @@ describe('OAuth-protected MCP endpoint', () => {
     const res = await worker.fetch!(
       new Request('http://localhost/.well-known/oauth-authorization-server'),
       env,
-      {} as ExecutionContext,
+      createExecutionContext(),
     )
 
     expect(res.status).toBe(200)
@@ -25,7 +28,7 @@ describe('OAuth-protected MCP endpoint', () => {
     const res = await worker.fetch!(
       new Request('http://localhost/mcp', { method: 'POST' }),
       env,
-      {} as ExecutionContext,
+      createExecutionContext(),
     )
 
     expect(res.status).toBe(401)
@@ -38,7 +41,7 @@ describe('OAuth-protected MCP endpoint', () => {
         headers: { Authorization: 'Bearer not-a-real-token' },
       }),
       env,
-      {} as ExecutionContext,
+      createExecutionContext(),
     )
 
     expect(res.status).toBe(401)
@@ -62,7 +65,7 @@ describe('OAuth-protected MCP endpoint', () => {
     const res = await worker.fetch!(
       new Request('http://localhost/'),
       env,
-      {} as ExecutionContext,
+      createExecutionContext(),
     )
 
     expect(res.status).toBe(200)
@@ -75,7 +78,6 @@ describe('cron entry point after the OAuth provider wraps fetch', () => {
   const mockPresent = vi.fn()
 
   beforeEach(() => {
-    container.clearInstances()
     container.register(TOKENS.SummaryHours, { useValue: 12 })
     container.register(TOKENS.SummaryPresenter, {
       useValue: { present: mockPresent },
@@ -92,7 +94,7 @@ describe('cron entry point after the OAuth provider wraps fetch', () => {
     await worker.scheduled!(
       createScheduledController({ cron: '0 16 * * *' }),
       env,
-      {} as ExecutionContext,
+      createExecutionContext(),
     )
 
     expect(mockExecute).toHaveBeenCalledWith(12)

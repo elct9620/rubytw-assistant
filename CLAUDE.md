@@ -104,7 +104,7 @@ Tests use `cloudflare:test` helpers for the Workers runtime environment:
 - Tests import the worker and call `worker.fetch()` / `worker.scheduled()` directly (not `app.request()`)
 - Use case tests use stub implementations of port interfaces (stubs in `tests/services/stubs.ts`), not the Workers test helpers
 - **MSW (Mock Service Worker)** intercepts external HTTP calls in tests. A global MSW server is set up in `tests/setup.ts` with `onUnhandledRequest: 'error'` — any unmocked external request will fail the test. Add per-test handlers via `server.use()` from `tests/msw-server.ts`.
-- Tests call `container.clearInstances()` before each test to reset DI state
+- Tests override DI bindings by calling `container.register()` in `beforeEach` — the newest registration wins. Do **not** call `container.clearInstances()`: it unregisters every `useValue` provider, wiping the env bindings the composition root sets up (tsyringe [#121](https://github.com/microsoft/tsyringe/issues/121)). Nothing here is registered as a singleton, so there are no instances for it to clear anyway.
 
 ## Key Conventions
 

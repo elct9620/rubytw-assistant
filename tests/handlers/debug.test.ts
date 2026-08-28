@@ -16,8 +16,6 @@ const enableTelemetry = () =>
   })
 
 beforeEach(() => {
-  container.clearInstances()
-
   container.register(TOKENS.ConversationGrouper, { useValue: {} })
   container.register(TOKENS.ActionItemGenerator, { useValue: {} })
   container.register(TOKENS.DiscordSource, { useValue: {} })

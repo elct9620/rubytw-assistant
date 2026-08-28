@@ -17,8 +17,6 @@ const enableTelemetry = () =>
   })
 
 beforeEach(() => {
-  container.clearInstances()
-
   container.register(TOKENS.SummaryHours, { useValue: 12 })
   container.register(TOKENS.SummaryPresenter, {
     useValue: { present: mockPresent },

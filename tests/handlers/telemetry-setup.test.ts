@@ -11,9 +11,7 @@ import {
   LANGFUSE_TEST_CONFIG,
 } from '../helpers/langfuse-otlp'
 
-beforeEach(() => {
-  container.clearInstances()
-})
+beforeEach(() => {})
 
 describe('setupTrace', () => {
   it('should stay inactive when Langfuse is not configured', () => {

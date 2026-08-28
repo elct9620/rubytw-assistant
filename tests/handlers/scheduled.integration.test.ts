@@ -70,7 +70,6 @@ function registerStubPorts() {
 }
 
 beforeEach(() => {
-  container.clearInstances()
   presentedResults.length = 0
   registerStubPorts()
 })

@@ -35,9 +35,7 @@ const sampleActionItem: ActionItem = {
   reason: '官網資訊過舊',
 }
 
-beforeEach(() => {
-  container.clearInstances()
-})
+beforeEach(() => {})
 
 describe('DiscordSummaryPresenter', () => {
   it('should send formatted action items to the channel', async () => {

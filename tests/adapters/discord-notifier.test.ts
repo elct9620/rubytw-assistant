@@ -7,9 +7,7 @@ import { server } from '../msw-server'
 
 const MESSAGES_URL = 'https://discord.com/api/v10/channels/123456/messages'
 
-beforeEach(() => {
-  container.clearInstances()
-})
+beforeEach(() => {})
 
 describe('DiscordNotifierAdapter', () => {
   it('should send message to correct Discord API endpoint', async () => {
