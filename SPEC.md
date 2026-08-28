@@ -22,7 +22,7 @@ Provide automated information aggregation and query tools for Ruby Taiwan commun
 
 - After each scheduled trigger, the designated Discord channel receives an AI-generated action item list
 - An operator holding the designated Discord role can connect an MCP client and correct memory without waiting for a pipeline run
-- A Discord account without that role is refused, and an account that loses it stops being served within one MCP Access Token Lifetime
+- A Discord account without that role is refused, and an account that loses it stops being served within one hour
 - _(Deferred — see Feature 2)_ Operators can query Issue status and project progress in Discord and get immediate responses
 
 ## Non-goals
@@ -112,15 +112,17 @@ A development-only HTTP endpoint that triggers the same AI summary pipeline as F
 
 An MCP endpoint carries the assistant's own data to operators between pipeline runs: memory slots and the Memory Summary are readable and writable, and Project Issues are readable. The tools exposing those resources are awaiting design; the endpoint and the access decision that guards it are defined here, and the tool behaviors will be defined in a later specification iteration.
 
+An issued access token is honoured for one hour before the Operator Role is re-read (fixed design constraint, not configurable). This bounds how long a revoked operator keeps access.
+
 Access is decided by Discord. The visitor establishes identity through Discord's authorization, and the assistant serves only accounts holding the Operator Role in the designated guild. Deciding access costs the visitor no consent beyond revealing their identity — role membership is read with the assistant's own credential, not theirs.
 
 **User Journey:**
 
-| Context                                                             | Action                                                            | Outcome                                                                                      |
-| ------------------------------------------------------------------- | ----------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| Operator wants to correct memory an AI run recorded wrongly         | Connect an MCP client to the endpoint and sign in through Discord | Operator is asked to confirm which client is asking, then the client is served               |
-| A Discord account without the Operator Role attempts to connect     | Sign in through Discord                                           | Access is refused and no grant is created                                                    |
-| An operator's role is removed after their client was already served | Client continues using its existing access                        | Access ends within one MCP Access Token Lifetime, without anyone revoking the client by hand |
+| Context                                                             | Action                                                            | Outcome                                                                        |
+| ------------------------------------------------------------------- | ----------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| Operator wants to correct memory an AI run recorded wrongly         | Connect an MCP client to the endpoint and sign in through Discord | Operator is asked to confirm which client is asking, then the client is served |
+| A Discord account without the Operator Role attempts to connect     | Sign in through Discord                                           | Access is refused and no grant is created                                      |
+| An operator's role is removed after their client was already served | Client continues using its existing access                        | Access ends within one hour, without anyone revoking the client by hand        |
 
 ## Configuration
 
@@ -136,7 +138,6 @@ Access is decided by Discord. The visitor establishes identity through Discord's
 | Discord Guild ID                | Guild whose role membership decides MCP endpoint access                           | (required, no default) |
 | Operator Role ID                | Role within that guild that grants MCP endpoint access                            | (required, no default) |
 | Discord Application Credentials | Client ID and secret identifying the assistant to Discord's authorization service | (required, no default) |
-| MCP Access Token Lifetime       | How long an issued access token is honoured before the Operator Role is re-read   | 1 hour                 |
 
 ## System Boundary
 
@@ -230,11 +231,11 @@ Every request to the MCP endpoint carries an access token the assistant issued. 
 
 #### Access Revalidation
 
-| State                                           | Action                                | Result                                                                        |
-| ----------------------------------------------- | ------------------------------------- | ----------------------------------------------------------------------------- |
-| Client refreshes its access token               | Re-read the account's role membership | Role is confirmed still held before a new token is issued                     |
-| Account no longer holds the Operator Role       | Refuse the refresh                    | Access ends within one MCP Access Token Lifetime; no manual revocation needed |
-| Discord cannot be reached while deciding access | Refuse rather than assume             | Access is denied; a reachable Discord is required to be served                |
+| State                                           | Action                                | Result                                                         |
+| ----------------------------------------------- | ------------------------------------- | -------------------------------------------------------------- |
+| Client refreshes its access token               | Re-read the account's role membership | Role is confirmed still held before a new token is issued      |
+| Account no longer holds the Operator Role       | Refuse the refresh                    | Access ends within one hour; no manual revocation needed       |
+| Discord cannot be reached while deciding access | Refuse rather than assume             | Access is denied; a reachable Discord is required to be served |
 
 ### Debug Summary Preview
 

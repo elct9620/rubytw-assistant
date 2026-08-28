@@ -10,6 +10,9 @@ import health from './handlers/health'
 import { MCP_ROUTE, mcpApiHandler } from './handlers/mcp'
 import { scheduledHandler } from './handlers/scheduled'
 
+/** How long a token is honoured before the Operator Role is re-read. */
+const MCP_ACCESS_TOKEN_TTL_SECONDS = 60 * 60
+
 const app = new Hono<{ Bindings: Env }>()
 
 app.route('/', health)
@@ -27,6 +30,7 @@ const oauth = new OAuthProvider({
   apiRoute: MCP_ROUTE,
   apiHandler: mcpApiHandler,
   defaultHandler: app,
+  accessTokenTTL: MCP_ACCESS_TOKEN_TTL_SECONDS,
   // The role is checked once at authorization, but a grant outlives that by
   // 30 days. Re-checking on refresh caps how long a revoked operator keeps
   // access at the access token's own lifetime.
