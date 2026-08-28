@@ -94,6 +94,7 @@ authorize.get(CALLBACK_PATH, async (c) => {
     ConsentPage({
       client,
       user,
+      redirectTarget: authRequest.redirectUri,
       scopes: authRequest.scope,
       approval,
       action: APPROVE_PATH,

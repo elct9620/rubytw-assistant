@@ -130,12 +130,16 @@ const cardClass = css`
 export const ConsentPage = ({
   client,
   user,
+  /** The address this request would send the code to, which a client with
+   * several registered addresses does not determine by being looked up. */
+  redirectTarget,
   scopes,
   approval,
   action,
 }: {
   client: ClientInfo | null
   user: DiscordIdentity
+  redirectTarget: string
   scopes: string[]
   approval: string
   action: string
@@ -156,7 +160,7 @@ export const ConsentPage = ({
           <dt>用戶端</dt>
           <dd>{client?.clientName ?? '（未提供名稱）'}</dd>
           <dt>授權碼將送往</dt>
-          <dd class="target">{client?.redirectUris?.[0] ?? '（未登記）'}</dd>
+          <dd class="target">{redirectTarget}</dd>
           <dt>取得的權限</dt>
           <dd>{scopes.length > 0 ? scopes.join('、') : '（未指定）'}</dd>
         </dl>

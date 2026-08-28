@@ -384,6 +384,51 @@ describe('the consent page', () => {
     expect(page).toMatch(/<body class="css-\d+"/)
   })
 
+  it('should show the address this request uses, not the first one registered', async () => {
+    mockDiscord({ roles: [OPERATOR_ROLE_ID] })
+    const decoy = 'http://decoy.example/callback'
+    const registered = await call(
+      new Request('http://localhost/oauth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          client_name: 'Two Address Client',
+          redirect_uris: [decoy, CLIENT_REDIRECT],
+          token_endpoint_auth_method: 'none',
+          grant_types: ['authorization_code'],
+          response_types: ['code'],
+        }),
+      }),
+    )
+    const { client_id: clientId } = (await registered.json()) as {
+      client_id: string
+    }
+
+    const url = new URL('http://localhost/authorize')
+    url.searchParams.set('response_type', 'code')
+    url.searchParams.set('client_id', clientId)
+    url.searchParams.set('redirect_uri', CLIENT_REDIRECT)
+    url.searchParams.set('scope', 'mcp')
+    url.searchParams.set('state', 'client-state')
+    url.searchParams.set('code_challenge', await codeChallenge())
+    url.searchParams.set('code_challenge_method', 'S256')
+    const started = await call(new Request(url))
+    const state = new URL(started.headers.get('Location')!).searchParams.get(
+      'state',
+    )!
+
+    const page = await (
+      await call(
+        new Request(
+          `http://localhost/oauth/callback?code=discord-code&state=${state}`,
+        ),
+      )
+    ).text()
+
+    expect(page).toContain(CLIENT_REDIRECT)
+    expect(page).not.toContain(decoy)
+  })
+
   it('should show where the authorization code would be sent', async () => {
     mockDiscord({ roles: [OPERATOR_ROLE_ID] })
     const clientId = await registerClient()
