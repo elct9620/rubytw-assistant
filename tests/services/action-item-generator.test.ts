@@ -7,7 +7,8 @@ import { createStubGitHubSource } from './stubs'
 import { KVMemoryStoreAdapter } from '../../src/adapters/kv-memory-store'
 
 const mockGenerateText = vi.fn()
-vi.mock('ai', () => ({
+vi.mock('ai', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('ai')>()),
   generateText: (...args: unknown[]) => mockGenerateText(...args),
   Output: {
     object: (opts: unknown) => ({ type: 'object', ...opts }),

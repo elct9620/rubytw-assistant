@@ -1,5 +1,5 @@
 import { injectable, inject } from 'tsyringe'
-import { generateText } from 'ai'
+import { generateText } from './ai-sdk'
 import type { Telemetry } from 'ai'
 import type { MemorySummarizer, MemoryStore } from '../usecases/ports'
 import { TOKENS, type AiGatewayConfig } from '../tokens'

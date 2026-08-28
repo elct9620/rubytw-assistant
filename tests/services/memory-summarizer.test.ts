@@ -6,7 +6,8 @@ import { KV_KEY } from '../../src/adapters/kv-memory-store'
 import SUMMARIZE_MEMORY_PROMPT from '../../src/prompts/summarize-memory.md'
 
 const mockGenerateText = vi.fn()
-vi.mock('ai', () => ({
+vi.mock('ai', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('ai')>()),
   generateText: (...args: unknown[]) => mockGenerateText(...args),
 }))
 
