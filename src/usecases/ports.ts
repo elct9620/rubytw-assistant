@@ -94,10 +94,17 @@ export interface MemorySlotDetail extends MemorySlot {
   content: string
 }
 
+/** Slot index to the values written there. */
+export type MemoryUpdate = Record<
+  number,
+  { description: string; content: string }
+>
+
 export interface MemoryStore {
   list(): Promise<MemorySlot[]>
   read(indices: number[]): Promise<MemorySlotDetail[]>
-  update(index: number, description: string, content: string): Promise<void>
+  /** All-or-nothing: nothing is written unless every entry is valid. */
+  update(entries: MemoryUpdate): Promise<void>
 }
 
 export interface MemorySummaryStore {

@@ -88,7 +88,7 @@ function createMemoryTools({
           }
         }
         try {
-          await memoryStore.update(index, description, content)
+          await memoryStore.update({ [index]: { description, content } })
           return { success: true }
         } catch (e) {
           console.warn('Memory update failed:', e)

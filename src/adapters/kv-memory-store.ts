@@ -3,6 +3,7 @@ import type {
   MemoryStore,
   MemorySlot,
   MemorySlotDetail,
+  MemoryUpdate,
 } from '../usecases/ports'
 import { TOKENS } from '../tokens'
 
@@ -45,32 +46,45 @@ export class KVMemoryStoreAdapter implements MemoryStore {
   }
 
   /**
+   * Every slot lives under one KV key, which Cloudflare rate-limits to one
+   * write per second — hence one write per batch.
+   *
    * Write-through cache: updates the in-memory cache and writes to KV
    * in one step. Cloudflare KV does not guarantee read-after-write
    * consistency, so subsequent reads within the same request must use
    * the cached copy instead of re-fetching from KV.
    */
-  async update(
-    index: number,
-    description: string,
-    content: string,
-  ): Promise<void> {
-    if (index < 0 || index >= this.entryLimit) {
-      throw new Error(`Index ${index} out of range (0..${this.entryLimit - 1})`)
+  async update(entries: MemoryUpdate): Promise<void> {
+    const updates = Object.entries(entries).map(([index, slot]) => ({
+      index: Number(index),
+      ...slot,
+    }))
+
+    if (updates.length === 0) {
+      return
     }
 
-    if (description.length > this.descriptionLimit) {
-      throw new Error(
-        `Description exceeds ${this.descriptionLimit} character limit`,
-      )
+    for (const { index, description } of updates) {
+      if (!Number.isInteger(index) || index < 0 || index >= this.entryLimit) {
+        throw new Error(
+          `Index ${index} out of range (0..${this.entryLimit - 1})`,
+        )
+      }
+
+      if (description.length > this.descriptionLimit) {
+        throw new Error(
+          `Description exceeds ${this.descriptionLimit} character limit`,
+        )
+      }
     }
 
     const slots = await this.getSlots()
 
-    if (content === '') {
-      slots[index] = { description: '', content: '' }
-    } else {
-      slots[index] = { description, content }
+    for (const { index, description, content } of updates) {
+      slots[index] =
+        content === ''
+          ? { description: '', content: '' }
+          : { description, content }
     }
 
     const nextMetadata: SlotsMetadata = {
