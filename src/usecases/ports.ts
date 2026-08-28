@@ -69,6 +69,22 @@ export interface GuildRoleChecker {
   hasOperatorRole(userId: string): Promise<boolean>
 }
 
+export interface DiscordIdentity {
+  userId: string
+  username: string
+}
+
+export interface DiscordIdentityProvider {
+  authorizeUrl(redirectUri: string, state: string): string
+  exchangeCode(code: string, redirectUri: string): Promise<DiscordIdentity>
+}
+
+/** Carries an in-flight login across the round trip to Discord. */
+export interface LoginStateStore {
+  issue(payload: unknown): Promise<string>
+  consume<T>(state: string): Promise<T | null>
+}
+
 export interface MemorySlot {
   index: number
   description: string

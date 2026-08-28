@@ -12,6 +12,8 @@ import { ActionItemGeneratorService } from './services/action-item-generator'
 import { MemorySummarizerService } from './services/memory-summarizer'
 import { DiscordNotifierAdapter } from './adapters/discord-notifier'
 import { DiscordGuildRoleAdapter } from './adapters/discord-guild-role'
+import { DiscordOAuthAdapter } from './adapters/discord-oauth'
+import { KVLoginStateStoreAdapter } from './adapters/kv-login-state-store'
 import { DiscordSourceAdapter } from './adapters/discord-source'
 import { DiscordSummaryPresenter } from './adapters/discord-summary-presenter'
 import { GitHubSourceAdapter } from './adapters/github-source'
@@ -35,7 +37,12 @@ container.register(TOKENS.AiGatewayConfig, {
     modelId: env.AI_MODEL,
   },
 })
+container.register(TOKENS.DiscordClientId, { useValue: env.DISCORD_CLIENT_ID })
+container.register(TOKENS.DiscordClientSecret, {
+  useValue: env.DISCORD_CLIENT_SECRET,
+})
 container.register(TOKENS.MemoryKv, { useValue: env.MEMORY_KV })
+container.register(TOKENS.OAuthKv, { useValue: env.OAUTH_KV })
 container.register(TOKENS.MemoryEntryLimit, {
   useValue: Number(env.MEMORY_ENTRY_LIMIT),
 })
@@ -87,6 +94,12 @@ container.register(TOKENS.DiscordNotifier, { useClass: DiscordNotifierAdapter })
 container.register(TOKENS.DiscordSource, { useClass: DiscordSourceAdapter })
 container.register(TOKENS.GuildRoleChecker, {
   useClass: DiscordGuildRoleAdapter,
+})
+container.register(TOKENS.DiscordIdentityProvider, {
+  useClass: DiscordOAuthAdapter,
+})
+container.register(TOKENS.LoginStateStore, {
+  useClass: KVLoginStateStoreAdapter,
 })
 container.register(TOKENS.SummaryPresenter, {
   useClass: DiscordSummaryPresenter,

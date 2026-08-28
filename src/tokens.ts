@@ -29,6 +29,9 @@ export const TOKENS = {
   DiscordChannelId: 'DiscordChannelId',
   DiscordGuildId: 'DiscordGuildId',
   DiscordOperatorRoleId: 'DiscordOperatorRoleId',
+  DiscordClientId: 'DiscordClientId',
+  DiscordClientSecret: 'DiscordClientSecret',
+  OAuthKv: 'OAuthKv',
   AiGatewayConfig: 'AiGatewayConfig',
   MemoryKv: 'MemoryKv',
   MemoryEntryLimit: 'MemoryEntryLimit',
@@ -62,6 +65,8 @@ export const TOKENS = {
   ActionItemGenerator: 'ActionItemGenerator',
   DiscordNotifier: 'DiscordNotifier',
   GuildRoleChecker: 'GuildRoleChecker',
+  DiscordIdentityProvider: 'DiscordIdentityProvider',
+  LoginStateStore: 'LoginStateStore',
   SummaryPresenter: 'SummaryPresenter',
 
   // Factory-injection tokens — resolve to a callable that produces a
