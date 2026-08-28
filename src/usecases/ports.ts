@@ -64,6 +64,11 @@ export interface SummaryPresenter {
   present(result: SummaryResult): Promise<void>
 }
 
+/** Answers whether a Discord user may manage this assistant's data. */
+export interface GuildRoleChecker {
+  hasOperatorRole(userId: string): Promise<boolean>
+}
+
 export interface MemorySlot {
   index: number
   description: string

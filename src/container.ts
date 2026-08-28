@@ -11,6 +11,7 @@ import { ConversationGrouperService } from './services/conversation-grouper'
 import { ActionItemGeneratorService } from './services/action-item-generator'
 import { MemorySummarizerService } from './services/memory-summarizer'
 import { DiscordNotifierAdapter } from './adapters/discord-notifier'
+import { DiscordGuildRoleAdapter } from './adapters/discord-guild-role'
 import { DiscordSourceAdapter } from './adapters/discord-source'
 import { DiscordSummaryPresenter } from './adapters/discord-summary-presenter'
 import { GitHubSourceAdapter } from './adapters/github-source'
@@ -21,6 +22,10 @@ import { GenerateSummary } from './usecases/generate-summary'
 container.register(TOKENS.DiscordBotToken, { useValue: env.DISCORD_BOT_TOKEN })
 container.register(TOKENS.DiscordChannelId, {
   useValue: env.DISCORD_CHANNEL_ID,
+})
+container.register(TOKENS.DiscordGuildId, { useValue: env.DISCORD_GUILD_ID })
+container.register(TOKENS.DiscordOperatorRoleId, {
+  useValue: env.DISCORD_OPERATOR_ROLE_ID,
 })
 container.register(TOKENS.AiGatewayConfig, {
   useValue: {
@@ -80,6 +85,9 @@ container.register(TOKENS.MemorySummaryStore, {
 })
 container.register(TOKENS.DiscordNotifier, { useClass: DiscordNotifierAdapter })
 container.register(TOKENS.DiscordSource, { useClass: DiscordSourceAdapter })
+container.register(TOKENS.GuildRoleChecker, {
+  useClass: DiscordGuildRoleAdapter,
+})
 container.register(TOKENS.SummaryPresenter, {
   useClass: DiscordSummaryPresenter,
 })

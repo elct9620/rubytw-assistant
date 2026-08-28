@@ -27,6 +27,8 @@ export const TOKENS = {
   // Env bindings
   DiscordBotToken: 'DiscordBotToken',
   DiscordChannelId: 'DiscordChannelId',
+  DiscordGuildId: 'DiscordGuildId',
+  DiscordOperatorRoleId: 'DiscordOperatorRoleId',
   AiGatewayConfig: 'AiGatewayConfig',
   MemoryKv: 'MemoryKv',
   MemoryEntryLimit: 'MemoryEntryLimit',
@@ -59,6 +61,7 @@ export const TOKENS = {
   ConversationGrouper: 'ConversationGrouper',
   ActionItemGenerator: 'ActionItemGenerator',
   DiscordNotifier: 'DiscordNotifier',
+  GuildRoleChecker: 'GuildRoleChecker',
   SummaryPresenter: 'SummaryPresenter',
 
   // Factory-injection tokens — resolve to a callable that produces a

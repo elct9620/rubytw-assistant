@@ -21,6 +21,8 @@
     "MEMORY_DESCRIPTION_LIMIT": "128",
     "MEMORY_SUMMARY_LENGTH_LIMIT": "300",
     "ISSUE_BODY_LENGTH_LIMIT": "500",
+    "DISCORD_GUILD_ID": "",
+    "DISCORD_OPERATOR_ROLE_ID": "",
     "GITHUB_ORG": "rubytaiwan",
     "GITHUB_REPO": "community-operation",
     "GITHUB_PROJECT_NUMBER": "1",
