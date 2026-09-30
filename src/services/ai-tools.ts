@@ -141,13 +141,15 @@ function createGitHubTools({
     }),
     search_issues: tool({
       description:
-        'Find issues in the repository by keyword, including ones that are not on the project board. Returns up to 20 issues with the same overview as list_issues; status is null for an issue that is not on the board. GitHub issue search qualifiers such as label:, assignee: or state:open may be used in the query.',
+        'Find issues in the repository by keyword, including ones that are not on the project board. Returns up to 20 issues with the same overview as list_issues; status is null for an issue that is not on the board. Every word in the query must match, so use one or two distinctive keywords rather than a phrase. An empty result means this query matched nothing, not that no issue exists: retry with a single broader keyword before concluding. GitHub issue search qualifiers such as label:, assignee: or state:open may be used in the query.',
       inputSchema: z.object({
         query: z
           .string()
           .trim()
           .min(1)
-          .describe('keywords, optionally with GitHub issue search qualifiers'),
+          .describe(
+            'one or two distinctive keywords, optionally with GitHub issue search qualifiers',
+          ),
       }),
       execute: async ({ query }) => {
         try {

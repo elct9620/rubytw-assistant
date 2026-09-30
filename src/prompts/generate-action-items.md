@@ -102,7 +102,8 @@ When classifying action item status, use the following table to decide whether a
 
 - Prefer `list_issues` for discovery and status confirmation — it is lightweight and returns state, assignees, and project status without body.
 - Use `read_issues` only when issue body content is needed to make a classification decision (e.g., reading acceptance criteria to distinguish stalled from abandoned). Body is truncated to the configured limit.
-- When `list_issues` shows no matching issue, call `search_issues` with keywords from the topic — it also finds issues that are not on the project board.
+- When `list_issues` shows no matching issue, call `search_issues` — it also finds issues that are not on the project board. Every word must match, so search one or two distinctive keywords (an event or project name such as `RubyKaigi`), not a phrase. Issue titles are in English and start with a category such as `[RubyJam]` or `[COSCUP]`.
+- An empty `search_issues` result means that query matched nothing. Retry once with a single broader keyword, and do not record a failed search in memory as proof that no issue exists.
 - Query once per batch of related items rather than per item. GitHub queries may fail silently — continue without GitHub data if needed.
 
 ## Phase 3: Creating Concise Action Items

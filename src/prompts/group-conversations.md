@@ -53,7 +53,8 @@ Identify and group related messages together based on their context and topics d
 | N                                   | —                         | Call `list_issues` if the topic involves ongoing work that might be tracked; otherwise skip  |
 
 - When a conversation references a specific issue number, call `read_issues` with that number directly (batch up to 10 numbers per call). Body content is truncated — use it to confirm relevance, not for full detail.
-- When `list_issues` shows no matching issue, call `search_issues` with keywords from the topic — it also finds issues that are not on the project board.
+- When `list_issues` shows no matching issue, call `search_issues` — it also finds issues that are not on the project board. Every word must match, so search one or two distinctive keywords (an event or project name such as `RubyKaigi`), not a phrase. Issue titles are in English and start with a category such as `[RubyJam]` or `[COSCUP]`.
+- An empty `search_issues` result means that query matched nothing. Retry once with a single broader keyword, and do not record a failed search in memory as proof that no issue exists.
 - GitHub queries may fail silently — continue processing without GitHub data if needed.
 
 > Some messages may have attachments or reactions. You may not get the full context from just the text. Use your best judgment to group related messages.
