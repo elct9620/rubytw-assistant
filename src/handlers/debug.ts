@@ -48,4 +48,162 @@ debug.get('/summary', async (c) => {
   }
 })
 
+// Temporary: records how Discord actually behaves so the message tools are
+// built on observation. Removed once the tools are verified.
+const DISCORD_API = 'https://discord.com/api/v10'
+const DISCORD_EPOCH = 1420070400000n
+const PROBE_DEFAULT_DAYS = 30
+
+interface ProbeMessage {
+  id: string
+  type: number
+  timestamp: string
+  author: { id: string; username: string; bot?: boolean }
+  mentions?: { id: string }[]
+  message_reference?: { message_id?: string }
+  referenced_message?: { id: string; author: { id: string } } | null
+}
+
+const edge = (msg?: ProbeMessage) =>
+  msg ? { id: msg.id, timestamp: msg.timestamp } : null
+
+debug.get('/discord-probe', async (c) => {
+  const channelId = c.req.query('channel_id')
+  if (!channelId) {
+    return c.json({ error: 'channel_id is required' }, 400)
+  }
+
+  const sinceParam = c.req.query('since')
+  const sinceMs = sinceParam
+    ? Date.parse(sinceParam)
+    : Date.now() - PROBE_DEFAULT_DAYS * 24 * 3600 * 1000
+  if (Number.isNaN(sinceMs)) {
+    return c.json({ error: 'since must be an ISO 8601 timestamp' }, 400)
+  }
+  const sinceSnowflake = String((BigInt(sinceMs) - DISCORD_EPOCH) << 22n)
+
+  const headers = { Authorization: `Bot ${c.env.DISCORD_BOT_TOKEN}` }
+  const get = async (path: string) => {
+    const response = await fetch(`${DISCORD_API}${path}`, { headers })
+    const body = await response.json().catch(() => null)
+    return { status: response.status, body }
+  }
+
+  const page = async (after: string) => {
+    const { status, body } = await get(
+      `/channels/${channelId}/messages?after=${after}&limit=100`,
+    )
+    return { status, messages: Array.isArray(body) ? body : [], body }
+  }
+  const describePage = (
+    result: Awaited<ReturnType<typeof page>>,
+    seen: Set<string>,
+  ) => {
+    const messages = result.messages as ProbeMessage[]
+    return {
+      status: result.status,
+      ...(result.status !== 200 && { body: result.body }),
+      count: messages.length,
+      first: edge(messages[0]),
+      last: edge(messages[messages.length - 1]),
+      overlapWithFirstPage: messages.filter((m) => seen.has(m.id)).length,
+    }
+  }
+
+  const first = await page(sinceSnowflake)
+  const firstMessages = first.messages as ProbeMessage[]
+  const firstIds = new Set(firstMessages.map((m) => m.id))
+  const pagination: Record<string, unknown> = {
+    sinceSnowflake,
+    page1: describePage(first, new Set()),
+  }
+  if (firstMessages.length > 0) {
+    const head = firstMessages[0].id
+    const tail = firstMessages[firstMessages.length - 1].id
+    pagination.nextAfterFirstElement = describePage(await page(head), firstIds)
+    pagination.nextAfterLastElement = describePage(await page(tail), firstIds)
+  }
+
+  const replies = firstMessages.filter((m) => m.type === 19)
+  const replyShape = {
+    count: replies.length,
+    sample: replies[0]
+      ? {
+          id: replies[0].id,
+          messageReferenceId: replies[0].message_reference?.message_id ?? null,
+          referencedMessage: replies[0].referenced_message
+            ? {
+                id: replies[0].referenced_message.id,
+                authorId: replies[0].referenced_message.author.id,
+              }
+            : null,
+        }
+      : null,
+  }
+
+  const me = await get('/users/@me')
+  const botAuthors = new Map<string, string>()
+  for (const msg of firstMessages) {
+    if (msg.author.bot) botAuthors.set(msg.author.id, msg.author.username)
+  }
+  const clientId = c.env.DISCORD_CLIENT_ID
+  const identity = {
+    clientId,
+    usersMe:
+      me.status === 200
+        ? {
+            id: (me.body as { id: string }).id,
+            username: (me.body as { username: string }).username,
+          }
+        : { status: me.status, body: me.body },
+    botAuthorsInChannel: Object.fromEntries(botAuthors),
+  }
+
+  const selfId =
+    me.status === 200 ? (me.body as { id: string }).id : String(clientId)
+  const search = async (label: string, params: Record<string, string>) => {
+    const query = new URLSearchParams({
+      channel_id: channelId,
+      limit: '5',
+      ...params,
+    })
+    const { status, body } = await get(
+      `/guilds/${c.env.DISCORD_GUILD_ID}/messages/search?${query}`,
+    )
+    const result = (body ?? {}) as {
+      total_results?: number
+      messages?: ProbeMessage[][]
+      retry_after?: number
+      code?: number
+      message?: string
+    }
+    return {
+      label,
+      status,
+      keys: body && typeof body === 'object' ? Object.keys(body) : [],
+      totalResults: result.total_results ?? null,
+      retryAfter: result.retry_after ?? null,
+      error:
+        status >= 400 ? { code: result.code, message: result.message } : null,
+      hits: (result.messages ?? []).map((group) =>
+        group.map((m) => ({
+          id: m.id,
+          timestamp: m.timestamp,
+          authorId: m.author.id,
+        })),
+      ),
+    }
+  }
+  const searches = [
+    await search('channel only', {}),
+    await search('min_id', { min_id: sinceSnowflake }),
+    await search('author_id=self', { author_id: selfId }),
+    await search('mentions=self', { mentions: selfId }),
+    await search('replied_to_user_id=self', { replied_to_user_id: selfId }),
+    await search('sort asc', { sort_by: 'timestamp', sort_order: 'asc' }),
+  ]
+
+  return c.json({ pagination, replyShape, identity, searches })
+})
+
 export default debug
