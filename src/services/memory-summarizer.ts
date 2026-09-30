@@ -44,7 +44,7 @@ export class MemorySummarizerService implements MemorySummarizer {
           model: createAIModel(this.aiGatewayConfig),
           instructions: system,
           prompt: markdown,
-          providerOptions: { openai: { reasoningEffort: 'low' } },
+          providerOptions: { openai: { reasoningEffort: 'medium' } },
           ...(this.telemetry && {
             telemetry: {
               integrations: this.telemetry,
