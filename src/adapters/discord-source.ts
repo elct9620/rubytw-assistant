@@ -16,7 +16,10 @@ function snowflakeAt(time: Date): bigint {
   return (BigInt(time.getTime()) - DISCORD_EPOCH) << 22n
 }
 
-interface DiscordAuthor {
+// https://docs.discord.com/developers/resources/message#message-object-message-types
+const REPLY_MESSAGE_TYPE = 19
+
+interface DiscordUser {
   id: string
   global_name: string | null
   username: string
@@ -28,31 +31,47 @@ interface DiscordAttachment {
   url: string
 }
 
-interface DiscordMention {
-  id: string
-  global_name: string | null
-  username: string
-}
-
 interface DiscordMessage {
   id: string
+  type: number
   content: string
-  author: DiscordAuthor
+  author: DiscordUser
   timestamp: string
   attachments: DiscordAttachment[]
-  mentions: DiscordMention[]
+  mentions: DiscordUser[]
+  message_reference?: { message_id?: string }
+  /** Null once the replied-to message has been deleted. */
+  referenced_message?: { id: string; author: DiscordUser } | null
 }
 
-export function formatMessageToXml(msg: DiscordMessage): string {
-  const authorName = escapeXml(msg.author.global_name ?? msg.author.username)
+const displayName = (user: DiscordUser) =>
+  escapeXml(user.global_name ?? user.username)
+
+export function formatMessageToXml(
+  msg: DiscordMessage,
+  selfId: string,
+): string {
+  const selfMark = (user: DiscordUser) =>
+    user.id === selfId ? ' self="true"' : ''
   const isBot = msg.author.bot ?? false
 
   const parts = [
     `<item id="${msg.id}">`,
-    `<user bot="${isBot}">${authorName}</user>`,
+    `<user id="${msg.author.id}" bot="${isBot}"${selfMark(msg.author)}>${displayName(msg.author)}</user>`,
     `<timestamp>${msg.timestamp}</timestamp>`,
-    `<content>${escapeXml(msg.content)}</content>`,
   ]
+
+  const repliedToId = msg.message_reference?.message_id
+  if (msg.type === REPLY_MESSAGE_TYPE && repliedToId) {
+    const target = msg.referenced_message
+    parts.push(
+      target
+        ? `<reply-to id="${target.id}"${selfMark(target.author)}>${displayName(target.author)}</reply-to>`
+        : `<reply-to id="${repliedToId}"/>`,
+    )
+  }
+
+  parts.push(`<content>${escapeXml(msg.content)}</content>`)
 
   if (msg.attachments.length > 0) {
     const attachmentLines = msg.attachments
@@ -65,10 +84,7 @@ export function formatMessageToXml(msg: DiscordMessage): string {
 
   if (msg.mentions.length > 0) {
     const mentionLines = msg.mentions
-      .map(
-        (m) =>
-          `<user id="${m.id}">${escapeXml(m.global_name ?? m.username)}</user>`,
-      )
+      .map((m) => `<user id="${m.id}"${selfMark(m)}>${displayName(m)}</user>`)
       .join('\n')
     parts.push('<mentions>')
     parts.push(mentionLines)
@@ -84,6 +100,8 @@ export class DiscordSourceAdapter implements DiscordSource {
   constructor(
     @inject(TOKENS.DiscordBotToken) private botToken: string,
     @inject(TOKENS.DiscordChannelId) private channelId: string,
+    // The bot's user id is its application's client id.
+    @inject(TOKENS.DiscordClientId) private selfId: string,
   ) {}
 
   async readMessages({
@@ -117,7 +135,7 @@ export class DiscordSourceAdapter implements DiscordSource {
     }
 
     return {
-      messages: collected.map(formatMessageToXml),
+      messages: collected.map((msg) => formatMessageToXml(msg, this.selfId)),
       nextCursor: exhausted ? null : after,
     }
   }

@@ -11,6 +11,9 @@ import { network } from '../msw-server'
 const DISCORD_EPOCH = 1420070400000n
 const MESSAGES_URL = 'https://discord.com/api/v10/channels/channel-123/messages'
 
+const SELF_ID = 'assistant-1'
+const REPLY = 19
+
 const lastDay = () => ({
   since: new Date(Date.now() - 24 * 3600 * 1000),
   limit: 500,
@@ -44,11 +47,20 @@ function makeMessage(
     timestamp?: string
     attachments?: { filename: string; url: string }[]
     mentions?: { id: string; global_name: string | null; username: string }[]
+    type?: number
+    message_reference?: { message_id?: string }
+    referenced_message?: {
+      id: string
+      author: { id: string; global_name: string | null; username: string }
+    } | null
   },
 ) {
   return {
     id,
     content,
+    type: overrides?.type ?? 0,
+    message_reference: overrides?.message_reference,
+    referenced_message: overrides?.referenced_message,
     author: {
       id: 'user-1',
       global_name: 'Test User',
@@ -86,7 +98,11 @@ describe('DiscordSourceAdapter', () => {
       }),
     )
 
-    const adapter = new DiscordSourceAdapter('bot-token', 'channel-123')
+    const adapter = new DiscordSourceAdapter(
+      'bot-token',
+      'channel-123',
+      SELF_ID,
+    )
     await adapter.readMessages(lastDay())
 
     expect(capturedUrl?.searchParams.get('after')).toBe(expectedSnowflake)
@@ -105,7 +121,11 @@ describe('DiscordSourceAdapter', () => {
       }),
     )
 
-    const adapter = new DiscordSourceAdapter('bot-token', 'channel-123')
+    const adapter = new DiscordSourceAdapter(
+      'bot-token',
+      'channel-123',
+      SELF_ID,
+    )
     const { messages: result } = await adapter.readMessages(lastDay())
 
     expect(result).toHaveLength(2)
@@ -125,7 +145,11 @@ describe('DiscordSourceAdapter', () => {
       }),
     )
 
-    const adapter = new DiscordSourceAdapter('bot-token', 'channel-123')
+    const adapter = new DiscordSourceAdapter(
+      'bot-token',
+      'channel-123',
+      SELF_ID,
+    )
 
     await expect(adapter.readMessages(lastDay())).rejects.toThrow(
       /Discord API error: 403 Forbidden.*Missing Access/,
@@ -141,7 +165,11 @@ describe('DiscordSourceAdapter', () => {
       }),
     )
 
-    const adapter = new DiscordSourceAdapter('bot-token', 'channel-123')
+    const adapter = new DiscordSourceAdapter(
+      'bot-token',
+      'channel-123',
+      SELF_ID,
+    )
     const { messages: result } = await adapter.readMessages(lastDay())
 
     expect(result).toHaveLength(0)
@@ -163,7 +191,11 @@ describe('DiscordSourceAdapter', () => {
       }),
     )
 
-    const adapter = new DiscordSourceAdapter('bot-token', 'channel-123')
+    const adapter = new DiscordSourceAdapter(
+      'bot-token',
+      'channel-123',
+      SELF_ID,
+    )
     const { messages: result } = await adapter.readMessages(lastDay())
 
     expect(result.map((xml) => /<item id="(\d+)">/.exec(xml)?.[1])).toEqual([
@@ -194,7 +226,11 @@ describe('DiscordSourceAdapter', () => {
       }),
     )
 
-    const adapter = new DiscordSourceAdapter('bot-token', 'channel-123')
+    const adapter = new DiscordSourceAdapter(
+      'bot-token',
+      'channel-123',
+      SELF_ID,
+    )
     const { messages: result } = await adapter.readMessages(lastDay())
 
     expect(requestCount).toBe(2)
@@ -212,7 +248,11 @@ describe('DiscordSourceAdapter', () => {
       }),
     )
 
-    const adapter = new DiscordSourceAdapter('bot-token', 'channel-123')
+    const adapter = new DiscordSourceAdapter(
+      'bot-token',
+      'channel-123',
+      SELF_ID,
+    )
     const page = await adapter.readMessages(lastDay())
 
     expect(requestCount).toBe(5)
@@ -229,7 +269,11 @@ describe('DiscordSourceAdapter', () => {
       }),
     )
 
-    const adapter = new DiscordSourceAdapter('bot-token', 'channel-123')
+    const adapter = new DiscordSourceAdapter(
+      'bot-token',
+      'channel-123',
+      SELF_ID,
+    )
     const page = await adapter.readMessages({ ...lastDay(), limit: 50 })
 
     expect(requestedLimit).toBe('50')
@@ -243,7 +287,11 @@ describe('DiscordSourceAdapter', () => {
       ),
     )
 
-    const adapter = new DiscordSourceAdapter('bot-token', 'channel-123')
+    const adapter = new DiscordSourceAdapter(
+      'bot-token',
+      'channel-123',
+      SELF_ID,
+    )
     const page = await adapter.readMessages(lastDay())
 
     expect(page.nextCursor).toBeNull()
@@ -258,7 +306,11 @@ describe('DiscordSourceAdapter', () => {
       }),
     )
 
-    const adapter = new DiscordSourceAdapter('bot-token', 'channel-123')
+    const adapter = new DiscordSourceAdapter(
+      'bot-token',
+      'channel-123',
+      SELF_ID,
+    )
     await adapter.readMessages({ ...lastDay(), cursor: '4242' })
 
     expect(after).toBe('4242')
@@ -277,7 +329,11 @@ describe('DiscordSourceAdapter', () => {
       ),
     )
 
-    const adapter = new DiscordSourceAdapter('bot-token', 'channel-123')
+    const adapter = new DiscordSourceAdapter(
+      'bot-token',
+      'channel-123',
+      SELF_ID,
+    )
     const page = await adapter.readMessages({
       since: new Date('2026-03-28T00:00:00Z'),
       until,
@@ -297,10 +353,10 @@ describe('formatMessageToXml', () => {
       timestamp: '2026-03-28T12:00:00.000Z',
     })
 
-    const xml = formatMessageToXml(msg)
+    const xml = formatMessageToXml(msg, SELF_ID)
 
     expect(xml).toContain('<item id="42">')
-    expect(xml).toContain('<user bot="false">Alice</user>')
+    expect(xml).toContain('<user id="u1" bot="false">Alice</user>')
     expect(xml).toContain('<timestamp>2026-03-28T12:00:00.000Z</timestamp>')
     expect(xml).toContain('<content>Hello world</content>')
     expect(xml).toContain('</item>')
@@ -311,9 +367,9 @@ describe('formatMessageToXml', () => {
       author: { id: 'bot-1', global_name: 'Bot', username: 'bot', bot: true },
     })
 
-    const xml = formatMessageToXml(msg)
+    const xml = formatMessageToXml(msg, SELF_ID)
 
-    expect(xml).toContain('<user bot="true">Bot</user>')
+    expect(xml).toContain('<user id="bot-1" bot="true">Bot</user>')
   })
 
   it('should fall back to username when global_name is null', () => {
@@ -321,7 +377,7 @@ describe('formatMessageToXml', () => {
       author: { id: 'u1', global_name: null, username: 'fallback_user' },
     })
 
-    const xml = formatMessageToXml(msg)
+    const xml = formatMessageToXml(msg, SELF_ID)
 
     expect(xml).toContain('>fallback_user</user>')
   })
@@ -334,7 +390,7 @@ describe('formatMessageToXml', () => {
       ],
     })
 
-    const xml = formatMessageToXml(msg)
+    const xml = formatMessageToXml(msg, SELF_ID)
 
     expect(xml).toContain('<attachments size="2">')
     expect(xml).toContain('image.png - https://cdn.example.com/image.png')
@@ -349,7 +405,7 @@ describe('formatMessageToXml', () => {
       ],
     })
 
-    const xml = formatMessageToXml(msg)
+    const xml = formatMessageToXml(msg, SELF_ID)
 
     expect(xml).toContain('<user id="u2">Bob</user>')
     expect(xml).toContain('<user id="u3">charlie</user>')
@@ -364,7 +420,7 @@ describe('formatMessageToXml', () => {
       },
     })
 
-    const xml = formatMessageToXml(msg)
+    const xml = formatMessageToXml(msg, SELF_ID)
 
     expect(xml).toContain(
       '<content>use &lt;script&gt; &amp; &quot;quotes&quot;</content>',
@@ -375,7 +431,7 @@ describe('formatMessageToXml', () => {
   it('should omit attachments section when empty', () => {
     const msg = makeMessage('1', 'hello', { attachments: [] })
 
-    const xml = formatMessageToXml(msg)
+    const xml = formatMessageToXml(msg, SELF_ID)
 
     expect(xml).not.toContain('<attachments')
   })
@@ -383,9 +439,98 @@ describe('formatMessageToXml', () => {
   it('should omit mentions section when empty', () => {
     const msg = makeMessage('1', 'hello', { mentions: [] })
 
-    const xml = formatMessageToXml(msg)
+    const xml = formatMessageToXml(msg, SELF_ID)
 
     expect(xml).not.toContain('<mentions')
+  })
+
+  it('should mark a message the assistant sent', () => {
+    const msg = makeMessage('1', 'summary', {
+      author: { id: SELF_ID, global_name: 'Assistant', bot: true },
+    })
+
+    const xml = formatMessageToXml(msg, SELF_ID)
+
+    expect(xml).toContain(
+      `<user id="${SELF_ID}" bot="true" self="true">Assistant</user>`,
+    )
+  })
+
+  it('should not mark another bot as the assistant', () => {
+    const msg = makeMessage('1', 'beep', {
+      author: { id: 'other-bot', global_name: 'Other', bot: true },
+    })
+
+    const xml = formatMessageToXml(msg, SELF_ID)
+
+    expect(xml).not.toContain('self=')
+  })
+
+  it('should mark a mention of the assistant', () => {
+    const msg = makeMessage('1', 'hey', {
+      mentions: [
+        { id: SELF_ID, global_name: 'Assistant', username: 'assistant' },
+        { id: 'u2', global_name: 'Bob', username: 'bob' },
+      ],
+    })
+
+    const xml = formatMessageToXml(msg, SELF_ID)
+
+    expect(xml).toContain(`<user id="${SELF_ID}" self="true">Assistant</user>`)
+    expect(xml).toContain('<user id="u2">Bob</user>')
+  })
+
+  it('should name who a reply answers without quoting them', () => {
+    const msg = makeMessage('2', 'done already', {
+      type: REPLY,
+      message_reference: { message_id: '1' },
+      referenced_message: {
+        id: '1',
+        author: { id: 'u2', global_name: 'Bob', username: 'bob' },
+      },
+    })
+
+    const xml = formatMessageToXml(msg, SELF_ID)
+
+    expect(xml).toContain('<reply-to id="1">Bob</reply-to>')
+  })
+
+  it('should mark a reply to the assistant', () => {
+    const msg = makeMessage('2', 'that item is done', {
+      type: REPLY,
+      message_reference: { message_id: '1' },
+      referenced_message: {
+        id: '1',
+        author: { id: SELF_ID, global_name: 'Assistant', username: 'a' },
+      },
+    })
+
+    const xml = formatMessageToXml(msg, SELF_ID)
+
+    expect(xml).toContain('<reply-to id="1" self="true">Assistant</reply-to>')
+  })
+
+  it('should carry only the id when the replied-to message is gone', () => {
+    const msg = makeMessage('2', 'agreed', {
+      type: REPLY,
+      message_reference: { message_id: '1' },
+      referenced_message: null,
+    })
+
+    const xml = formatMessageToXml(msg, SELF_ID)
+
+    expect(xml).toContain('<reply-to id="1"/>')
+  })
+
+  it('should not treat a non-reply reference as a reply', () => {
+    const msg = makeMessage('2', 'pinned a message', {
+      type: 6,
+      message_reference: { message_id: '1' },
+    })
+
+    const xml = formatMessageToXml(msg, SELF_ID)
+
+    expect(xml).not.toContain('<reply-to')
   })
 })
 
@@ -404,11 +549,13 @@ describe('DiscordSourceAdapter DI integration', () => {
     const child = container.createChildContainer()
     child.register(TOKENS.DiscordBotToken, { useValue: 'di-test-token' })
     child.register(TOKENS.DiscordChannelId, { useValue: 'channel-123' })
+    child.register(TOKENS.DiscordClientId, { useValue: 'user-1' })
     const adapter = child.resolve(DiscordSourceAdapter)
 
     const { messages: result } = await adapter.readMessages(lastDay())
 
     expect(result).toHaveLength(1)
     expect(result[0]).toContain('<content>hello from DI</content>')
+    expect(result[0]).toContain('self="true"')
   })
 })
