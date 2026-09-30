@@ -14,19 +14,10 @@ interface IssueNode {
   url: string
   labels: { nodes: { name: string }[] }
   assignees: { nodes: { login: string }[] }
-  body: string
 }
 
 interface ProjectItemNode {
-  content: {
-    __typename: string
-    title: string
-    number: number
-    state: string
-    url: string
-    labels: { nodes: { name: string }[] }
-    assignees: { nodes: { login: string }[] }
-  } | null
+  content: IssueNode | null
   fieldValues: {
     nodes: FieldValueNode[]
   }
@@ -75,11 +66,25 @@ const ISSUE_OVERVIEW_FIELDS = `
   }
 `
 
+const READ_ISSUES_RECENT_COMMENTS = 5
+
+const ISSUE_DETAIL_FIELDS = `
+  body
+  updatedAt
+  comments(last: ${READ_ISSUES_RECENT_COMMENTS}) {
+    nodes {
+      author { login }
+      createdAt
+      body
+    }
+  }
+`
+
 function buildReadIssuesQuery(numbers: number[]): string {
   const aliases = numbers
     .map(
       (n, i) =>
-        `issue${i}: issue(number: ${n}) { ${ISSUE_OVERVIEW_FIELDS} body }`,
+        `issue${i}: issue(number: ${n}) { ${ISSUE_OVERVIEW_FIELDS} ${ISSUE_DETAIL_FIELDS} }`,
     )
     .join('\n')
   return `
@@ -104,7 +109,8 @@ const SEARCH_ISSUES_QUERY = `
   }
 `
 
-interface ReadIssueNode extends IssueNode {
+/** An issue reached directly, which carries its own place on the board. */
+interface IssueOverviewNode extends IssueNode {
   projectItems: {
     nodes: {
       fieldValues: { nodes: FieldValueNode[] }
@@ -112,7 +118,19 @@ interface ReadIssueNode extends IssueNode {
   }
 }
 
-interface SearchIssueNode extends ReadIssueNode {
+interface ReadIssueNode extends IssueOverviewNode {
+  body: string
+  updatedAt: string
+  comments: {
+    nodes: {
+      author: { login: string } | null
+      createdAt: string
+      body: string
+    }[]
+  }
+}
+
+interface SearchIssueNode extends IssueOverviewNode {
   repository: { nameWithOwner: string }
 }
 
@@ -120,7 +138,7 @@ interface SearchIssuesQueryResult {
   search: { nodes: (Partial<SearchIssueNode> | null)[] }
 }
 
-function toOverview(node: Omit<ReadIssueNode, 'body'>): IssueOverview {
+function toOverview(node: IssueOverviewNode): IssueOverview {
   return {
     title: node.title,
     number: node.number,
@@ -264,6 +282,12 @@ export class GitHubSourceAdapter implements GitHubSource {
       details.push({
         ...toOverview(node),
         body: node.body.slice(0, bodyLimit),
+        updatedAt: node.updatedAt,
+        comments: node.comments.nodes.map((comment) => ({
+          author: comment.author?.login ?? null,
+          createdAt: comment.createdAt,
+          body: comment.body.slice(0, bodyLimit),
+        })),
       })
     }
 

@@ -11,7 +11,7 @@ Following tools are available to you:
 - **update_memory**: Write description and content to a memory slot, or clear it by writing empty content.
 - **list_issues**: Discovery entry point — list GitHub Projects V2 issues (number, title, state, labels, assignees, status). Returns up to 50 issues. No body included.
 - **search_issues**: Keyword search — find issues in the repository by keyword, including ones not on the project board. Returns up to 20 issues. No body included.
-- **read_issues**: Detail fetch — retrieve full issue details including body for up to 10 specific issue numbers.
+- **read_issues**: Detail fetch — retrieve full issue details including body, last-updated time, and the 5 most recent comments for up to 10 specific issue numbers.
 - **read_messages**: Read the channel's messages in a time range (ISO 8601 `since` / `until`), oldest first, up to 100 per call (default 50). Returns `next_cursor` while more remain. Use it when a topic needs context from outside the provided conversation.
 - **search_messages**: Search the channel's messages, newest first, up to 25 per call, by `query` keywords, `author` (`self` for your own earlier messages, or a member id), `involves_self` (`mention` or `reply`), and an optional `since` / `until` range. Conditions narrow each other. Use it to find earlier discussion of a topic or responses to your previous summaries.
 

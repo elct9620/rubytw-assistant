@@ -71,6 +71,8 @@ function makeReadIssueNode(overrides?: {
   assignees?: string[]
   body?: string
   status?: string | null
+  updatedAt?: string
+  comments?: { author: string | null; createdAt: string; body: string }[]
 }) {
   const status = overrides?.status ?? null
   return {
@@ -86,6 +88,14 @@ function makeReadIssueNode(overrides?: {
       nodes: (overrides?.assignees ?? []).map((login) => ({ login })),
     },
     body: overrides?.body ?? '',
+    updatedAt: overrides?.updatedAt ?? '2026-03-01T00:00:00Z',
+    comments: {
+      nodes: (overrides?.comments ?? []).map((comment) => ({
+        author: comment.author ? { login: comment.author } : null,
+        createdAt: comment.createdAt,
+        body: comment.body,
+      })),
+    },
     repository: { nameWithOwner: 'rubytw/conf' },
     projectItems: {
       nodes:
@@ -333,6 +343,76 @@ describe('readIssues', () => {
     })
     const second = result.find((i: IssueDetail) => i.number === 20)!
     expect(second).toMatchObject({ number: 20, status: null })
+  })
+
+  it('should report when the issue last changed and its recent comments', async () => {
+    const graphql = vi.fn().mockResolvedValue(
+      makeReadIssuesResponse({
+        issue0: makeReadIssueNode({
+          number: 1,
+          updatedAt: '2026-03-20T08:00:00Z',
+          comments: [
+            {
+              author: 'alice',
+              createdAt: '2026-03-10T00:00:00Z',
+              body: 'on it',
+            },
+            {
+              author: 'bob',
+              createdAt: '2026-03-20T08:00:00Z',
+              body: 'merged',
+            },
+          ],
+        }),
+      }),
+    )
+
+    const [issue] = await createAdapterWithRepo(graphql).readIssues([1], 1000)
+
+    expect(issue.updatedAt).toBe('2026-03-20T08:00:00Z')
+    expect(issue.comments).toEqual([
+      { author: 'alice', createdAt: '2026-03-10T00:00:00Z', body: 'on it' },
+      { author: 'bob', createdAt: '2026-03-20T08:00:00Z', body: 'merged' },
+    ])
+    expect(graphql.mock.calls[0][0]).toContain('comments(last: 5)')
+  })
+
+  it('should truncate each comment to bodyLimit characters', async () => {
+    const graphql = vi.fn().mockResolvedValue(
+      makeReadIssuesResponse({
+        issue0: makeReadIssueNode({
+          comments: [
+            {
+              author: 'alice',
+              createdAt: '2026-03-10T00:00:00Z',
+              body: 'c'.repeat(200),
+            },
+          ],
+        }),
+      }),
+    )
+
+    const [issue] = await createAdapterWithRepo(graphql).readIssues([1], 50)
+
+    expect(issue.comments[0].body).toHaveLength(50)
+  })
+
+  it('should keep a comment whose author no longer exists', async () => {
+    const graphql = vi.fn().mockResolvedValue(
+      makeReadIssuesResponse({
+        issue0: makeReadIssueNode({
+          comments: [
+            { author: null, createdAt: '2026-03-10T00:00:00Z', body: 'ghost' },
+          ],
+        }),
+      }),
+    )
+
+    const [issue] = await createAdapterWithRepo(graphql).readIssues([1], 1000)
+
+    expect(issue.comments).toEqual([
+      { author: null, createdAt: '2026-03-10T00:00:00Z', body: 'ghost' },
+    ])
   })
 
   it('should truncate body to bodyLimit characters', async () => {

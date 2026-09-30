@@ -11,8 +11,18 @@ export interface IssueOverview {
   status: string | null
 }
 
+export interface IssueComment {
+  /** Null when the account that wrote it no longer exists. */
+  author: string | null
+  createdAt: string
+  body: string
+}
+
 export interface IssueDetail extends IssueOverview {
   body: string
+  updatedAt: string
+  /** The most recent few, oldest of those first. */
+  comments: IssueComment[]
 }
 
 export interface GitHubSource {

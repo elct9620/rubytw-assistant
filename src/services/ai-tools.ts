@@ -161,7 +161,7 @@ function createGitHubTools({
     }),
     read_issues: tool({
       description:
-        'Detail fetch: retrieve full issue details (body, comments) for up to 10 specific issue numbers. Use after list_issues to get complete information for issues of interest.',
+        'Detail fetch: retrieve full issue details (body, last-updated time, the 5 most recent comments) for up to 10 specific issue numbers. Use after list_issues or search_issues to confirm the current state of issues of interest. Body and comments are truncated.',
       inputSchema: z.object({
         numbers: z
           .array(z.number().int().positive())
