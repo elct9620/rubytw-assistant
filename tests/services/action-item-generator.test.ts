@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { ActionItemGeneratorService } from '../../src/services/action-item-generator'
 import { createAITools } from '../../src/services/ai-tools'
 import GENERATE_ACTION_ITEMS_PROMPT from '../../src/prompts/generate-action-items.md'
-import { createStubGitHubSource } from './stubs'
+import { createStubDiscordSource, createStubGitHubSource } from './stubs'
 import { KVMemoryStoreAdapter } from '../../src/adapters/kv-memory-store'
 
 const mockGenerateText = vi.fn()
@@ -36,6 +36,8 @@ function createService(): ActionItemGeneratorService {
       createAITools({
         memoryStore,
         githubSource,
+        discordSource: createStubDiscordSource(),
+        summaryHours: 24,
         memoryEntryLimit: 32,
         memoryDescriptionLimit: 128,
         issueBodyLengthLimit: 500,

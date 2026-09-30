@@ -115,6 +115,8 @@ container.register(TOKENS.AIToolsFactory, {
     const deps: AIToolsDeps = {
       memoryStore: c.resolve(TOKENS.MemoryStore),
       githubSource: c.resolve(TOKENS.GitHubSource),
+      discordSource: c.resolve(TOKENS.DiscordSource),
+      summaryHours: c.resolve(TOKENS.SummaryHours),
       memoryEntryLimit: c.resolve(TOKENS.MemoryEntryLimit),
       memoryDescriptionLimit: c.resolve(TOKENS.MemoryDescriptionLimit),
       issueBodyLengthLimit: c.resolve(TOKENS.IssueBodyLengthLimit),

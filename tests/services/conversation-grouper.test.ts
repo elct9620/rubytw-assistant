@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { ConversationGrouperService } from '../../src/services/conversation-grouper'
 import { createAITools } from '../../src/services/ai-tools'
 import GROUP_CONVERSATIONS_PROMPT from '../../src/prompts/group-conversations.md'
-import { createStubGitHubSource } from './stubs'
+import { createStubDiscordSource, createStubGitHubSource } from './stubs'
 import { KVMemoryStoreAdapter } from '../../src/adapters/kv-memory-store'
 
 const mockGenerateText = vi.fn()
@@ -38,6 +38,8 @@ function createService(
       createAITools({
         memoryStore,
         githubSource,
+        discordSource: createStubDiscordSource(),
+        summaryHours: 24,
         memoryEntryLimit: 32,
         memoryDescriptionLimit: 128,
         issueBodyLengthLimit: 500,

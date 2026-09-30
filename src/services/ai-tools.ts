@@ -1,18 +1,31 @@
 import { tool } from 'ai'
 import type { ToolSet } from 'ai'
 import { z } from 'zod'
-import type { MemoryStore, GitHubSource } from '../usecases/ports'
+import type {
+  DiscordSource,
+  GitHubSource,
+  MemoryStore,
+} from '../usecases/ports'
 
 export interface AIToolsDeps {
   memoryStore: MemoryStore
   githubSource: GitHubSource
+  discordSource: DiscordSource
   memoryEntryLimit: number
   memoryDescriptionLimit: number
   issueBodyLengthLimit: number
+  summaryHours: number
 }
 
+const READ_MESSAGES_DEFAULT_LIMIT = 50
+const READ_MESSAGES_MAX_LIMIT = 100
+
 export function createAITools(deps: AIToolsDeps): ToolSet {
-  return { ...createMemoryTools(deps), ...createGitHubTools(deps) }
+  return {
+    ...createMemoryTools(deps),
+    ...createGitHubTools(deps),
+    ...createDiscordTools(deps),
+  }
 }
 
 function createMemoryTools({
@@ -146,6 +159,78 @@ function createGitHubTools({
         } catch (error) {
           console.warn('GitHub read issues failed', error)
           return { issues: [], count: 0, error: 'query failed' }
+        }
+      },
+    }),
+  }
+}
+
+const isoTime = z.iso.datetime({ offset: true })
+const messageId = z.string().regex(/^\d+$/)
+
+function createDiscordTools({
+  discordSource,
+  summaryHours,
+}: AIToolsDeps): ToolSet {
+  return {
+    read_messages: tool({
+      description: `Read the channel's messages in a time range, oldest first, one bounded page per call. Defaults to the last ${summaryHours} hours. When next_cursor is not null, call again with the same range plus that cursor to continue.`,
+      inputSchema: z.object({
+        since: isoTime
+          .optional()
+          .describe(
+            `ISO 8601 start of the range, inclusive. Defaults to ${summaryHours} hours ago.`,
+          ),
+        until: isoTime
+          .optional()
+          .describe('ISO 8601 end of the range, exclusive. Defaults to now.'),
+        limit: z
+          .number()
+          .int()
+          .min(1)
+          .max(READ_MESSAGES_MAX_LIMIT)
+          .optional()
+          .describe(
+            `Messages per call (1–${READ_MESSAGES_MAX_LIMIT}). Defaults to ${READ_MESSAGES_DEFAULT_LIMIT}.`,
+          ),
+        cursor: messageId
+          .optional()
+          .describe('next_cursor from the previous call of the same range'),
+      }),
+      execute: async ({ since, until, limit, cursor }) => {
+        const start = since
+          ? new Date(since)
+          : new Date(Date.now() - summaryHours * 3600 * 1000)
+        const end = until ? new Date(until) : undefined
+        if (end && start > end) {
+          return {
+            messages: [],
+            count: 0,
+            next_cursor: null,
+            error: 'since must not be later than until',
+          }
+        }
+
+        try {
+          const page = await discordSource.readMessages({
+            since: start,
+            until: end,
+            limit: limit ?? READ_MESSAGES_DEFAULT_LIMIT,
+            cursor,
+          })
+          return {
+            messages: page.messages,
+            count: page.messages.length,
+            next_cursor: page.nextCursor,
+          }
+        } catch (error) {
+          console.warn('Discord read messages failed', error)
+          return {
+            messages: [],
+            count: 0,
+            next_cursor: null,
+            error: 'query failed',
+          }
         }
       },
     }),

@@ -1,12 +1,16 @@
 import { env } from 'cloudflare:workers'
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { createAITools } from '../../src/services/ai-tools'
-import type { GitHubSource, MemoryStore } from '../../src/usecases/ports'
+import type {
+  DiscordSource,
+  GitHubSource,
+  MemoryStore,
+} from '../../src/usecases/ports'
 import {
   KVMemoryStoreAdapter,
   KV_KEY,
 } from '../../src/adapters/kv-memory-store'
-import { createStubGitHubSource } from './stubs'
+import { createStubDiscordSource, createStubGitHubSource } from './stubs'
 
 vi.mock('ai', () => ({
   tool: (def: unknown) => def,
@@ -34,11 +38,14 @@ function createMemoryStore(): KVMemoryStoreAdapter {
 function createTools(overrides?: {
   memoryStore?: MemoryStore
   githubSource?: GitHubSource
+  discordSource?: DiscordSource
   issueBodyLengthLimit?: number
 }) {
   return createAITools({
     memoryStore: overrides?.memoryStore ?? createMemoryStore(),
     githubSource: overrides?.githubSource ?? createStubGitHubSource(),
+    discordSource: overrides?.discordSource ?? createStubDiscordSource(),
+    summaryHours: 24,
     memoryEntryLimit: ENTRY_LIMIT,
     memoryDescriptionLimit: DESCRIPTION_LIMIT,
     issueBodyLengthLimit: overrides?.issueBodyLengthLimit ?? 500,
@@ -59,6 +66,7 @@ describe('createAITools', () => {
         'update_memory',
         'list_issues',
         'read_issues',
+        'read_messages',
       ]),
     )
   })
@@ -414,6 +422,121 @@ describe('createAITools', () => {
 
       await getTool(tools, 'read_issues').execute({ numbers: [1] })
       expect(readIssues).toHaveBeenCalledWith([1], 42)
+    })
+  })
+
+  describe('discord tools', () => {
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    it('read_messages should return the page with its count and cursor', async () => {
+      const tools = createTools({
+        discordSource: createStubDiscordSource({
+          readMessages: vi
+            .fn()
+            .mockResolvedValue({ messages: ['<item/>'], nextCursor: '42' }),
+        }),
+      })
+
+      const result = await getTool(tools, 'read_messages').execute({})
+
+      expect(result).toEqual({
+        messages: ['<item/>'],
+        count: 1,
+        next_cursor: '42',
+      })
+    })
+
+    it('read_messages should default to the collection window and 50 messages', async () => {
+      vi.setSystemTime(new Date('2026-04-02T00:00:00Z'))
+      const readMessages = vi
+        .fn()
+        .mockResolvedValue({ messages: [], nextCursor: null })
+      const tools = createTools({
+        discordSource: createStubDiscordSource({ readMessages }),
+      })
+
+      await getTool(tools, 'read_messages').execute({})
+
+      expect(readMessages).toHaveBeenCalledWith({
+        since: new Date('2026-04-01T00:00:00Z'),
+        until: undefined,
+        limit: 50,
+        cursor: undefined,
+      })
+    })
+
+    it('read_messages should pass the requested range, limit and cursor', async () => {
+      const readMessages = vi
+        .fn()
+        .mockResolvedValue({ messages: [], nextCursor: null })
+      const tools = createTools({
+        discordSource: createStubDiscordSource({ readMessages }),
+      })
+
+      await getTool(tools, 'read_messages').execute({
+        since: '2026-03-01T00:00:00Z',
+        until: '2026-03-02T08:00:00+08:00',
+        limit: 10,
+        cursor: '123',
+      })
+
+      expect(readMessages).toHaveBeenCalledWith({
+        since: new Date('2026-03-01T00:00:00Z'),
+        until: new Date('2026-03-02T00:00:00Z'),
+        limit: 10,
+        cursor: '123',
+      })
+    })
+
+    it('read_messages should refuse a range that ends before it starts', async () => {
+      const readMessages = vi.fn()
+      const tools = createTools({
+        discordSource: createStubDiscordSource({ readMessages }),
+      })
+
+      const result = await getTool(tools, 'read_messages').execute({
+        since: '2026-03-02T00:00:00Z',
+        until: '2026-03-01T00:00:00Z',
+      })
+
+      expect(result.error).toMatch(/since/)
+      expect(readMessages).not.toHaveBeenCalled()
+    })
+
+    it('read_messages should return error object on failure', async () => {
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+      const tools = createTools({
+        discordSource: createStubDiscordSource({
+          readMessages: vi.fn().mockRejectedValue(new Error('discord down')),
+        }),
+      })
+
+      const result = await getTool(tools, 'read_messages').execute({})
+
+      expect(result).toEqual({
+        messages: [],
+        count: 0,
+        next_cursor: null,
+        error: 'query failed',
+      })
+      warnSpy.mockRestore()
+    })
+
+    it.each([
+      ['a time that is not ISO 8601', { since: 'yesterday' }],
+      ['a limit below 1', { limit: 0 }],
+      ['a limit above 100', { limit: 101 }],
+      ['a cursor that is not a message id', { cursor: '1&limit=100' }],
+    ])('read_messages schema should reject %s', (_, input) => {
+      const tools = createTools()
+
+      const result = getTool(tools, 'read_messages').inputSchema.safeParse(
+        input,
+      )
+
+      expect(result.success).toBe(false)
     })
   })
 })

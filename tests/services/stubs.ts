@@ -1,5 +1,5 @@
 import { vi } from 'vitest'
-import type { GitHubSource } from '../../src/usecases/ports'
+import type { DiscordSource, GitHubSource } from '../../src/usecases/ports'
 
 export function createStubGitHubSource(
   overrides?: Partial<GitHubSource>,
@@ -7,6 +7,15 @@ export function createStubGitHubSource(
   return {
     listIssues: vi.fn().mockResolvedValue([]),
     readIssues: vi.fn().mockResolvedValue([]),
+    ...overrides,
+  }
+}
+
+export function createStubDiscordSource(
+  overrides?: Partial<DiscordSource>,
+): DiscordSource {
+  return {
+    readMessages: vi.fn().mockResolvedValue({ messages: [], nextCursor: null }),
     ...overrides,
   }
 }
