@@ -92,7 +92,7 @@ Categorize each action item with one of the following statuses:
 - **stalled**: Tasks that are currently stalled or facing issues.
 - **discussion**: General discussions without specific action items.
 
-When a group's summary states there has been no new discussion since your last summary, keep the status that item had before (see memory) and do not report it as progress.
+When a group's summary gives an earlier date as the last time people discussed the item, or says no discussion by people was found, nothing has moved: keep the status that item had before (see memory) and do not report it as progress.
 
 When classifying action item status, use the following table to decide whether and how to query GitHub:
 

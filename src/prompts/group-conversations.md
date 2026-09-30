@@ -38,18 +38,20 @@ Messages whose author is marked `self="true"` are summaries you posted earlier: 
 - Extract each actionable item from your previous summaries.
 - Assign each actionable item to its relevant contextual group in the next phase.
 - Only assign actionable items that still require follow-up.
-- Before carrying an item forward, use the following table to look for what people said about it:
+- Before carrying an item forward, use the following table to find when people last discussed it:
 
-| Situation                                                         | Action                                                                                                          |
-| ----------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| People discuss the item in the provided conversation              | Use those messages; no lookup needed                                                                            |
-| The item's only source is your own summary                        | Call `search_messages(author="people")` with one or two keywords for the topic and read the most recent matches |
-| Any item is carried forward from your summary                     | Call `search_messages(involves_self="reply")` once to see whether anyone answered or corrected a summary        |
-| A message replies to one that is not in the provided conversation | Call `read_messages` with `until` at the start of the provided conversation and `since` one or two days earlier |
+| Situation                                                         | Action                                                                                                                                     |
+| ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| People discuss the item in the provided conversation              | Use those messages; no lookup needed                                                                                                       |
+| The item's only source is your own summary                        | Call `search_messages` with only `query` (one or two keywords) and `author="people"`; the newest match shows when people last discussed it |
+| Any item is carried forward from your summary                     | Call `search_messages` once with only `involves_self="reply"` to see whether anyone answered or corrected a summary                        |
+| A message replies to one that is not in the provided conversation | Call `read_messages` with `until` at the start of the provided conversation and `since` one or two days earlier                            |
 
-- Every word of a `search_messages` query must match, so keep it to one or two keywords in the language people wrote in (usually Chinese, or a proper noun such as an event name).
+- Give `search_messages` only the conditions that row names and leave every other parameter out (or null). Conditions narrow each other, so each extra one hides messages you are looking for.
+- Do not set `since`, `until`, or `cursor` for these lookups. Everything sent after your last summary is already in the provided conversation; what you are looking for is older.
+- Every word of `query` must match, so keep it to one or two keywords in the language people wrote in (usually Chinese, or a proper noun such as an event name).
 - Look up each item at most once. Discord queries may fail silently — continue processing without them if needed.
-- When nothing later than your last summary is found, carry the item forward and state in that group's summary that there has been no new discussion since your last summary.
+- For each item you carry forward, state in that group's summary the date people last discussed it, or that no discussion by people was found.
 
 ## Phase 2: Creating Contextual Groups
 
