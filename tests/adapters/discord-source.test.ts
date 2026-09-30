@@ -600,6 +600,15 @@ describe('DiscordSourceAdapter.searchMessages', () => {
     expect(captured.params?.get('author_id')).toBe(SELF_ID)
   })
 
+  it('should search only what people wrote when the author is people', async () => {
+    const captured = captureSearch()
+
+    await newAdapter().searchMessages({ author: 'people' })
+
+    expect(captured.params?.get('author_type')).toBe('user')
+    expect(captured.params?.has('author_id')).toBe(false)
+  })
+
   it('should search replies to the assistant by who was replied to', async () => {
     const captured = captureSearch()
 

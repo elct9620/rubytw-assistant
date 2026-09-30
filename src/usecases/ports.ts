@@ -52,7 +52,7 @@ export interface MessagePage {
 /** Every condition given must hold; none given matches the whole channel. */
 export interface SearchMessagesQuery {
   query?: string
-  /** A member id, or `self` for the assistant. */
+  /** A member id, `self` for the assistant, or `people` for everyone who is not a bot. */
   author?: string
   /** `reply` also finds replies that did not notify the assistant. */
   involvesSelf?: 'mention' | 'reply'

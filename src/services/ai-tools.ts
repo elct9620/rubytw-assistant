@@ -263,10 +263,10 @@ function createDiscordTools({
           .optional()
           .describe('keywords the message text must contain'),
         author: z
-          .union([z.literal('self'), numericId])
+          .union([z.literal('self'), z.literal('people'), numericId])
           .optional()
           .describe(
-            'who sent the message: "self" for your own messages, or a member id',
+            'who sent the message: "people" for members only (leaves out your own summaries and other bots), "self" for your own messages, or a member id',
           ),
         involves_self: z
           .enum(['mention', 'reply'])

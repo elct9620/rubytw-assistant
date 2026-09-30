@@ -175,7 +175,9 @@ export class DiscordSourceAdapter implements DiscordSource {
       sort_order: 'desc',
     })
     if (query) params.set('content', query)
-    if (author) {
+    if (author === 'people') {
+      params.set('author_type', 'user')
+    } else if (author) {
       params.set('author_id', author === 'self' ? this.selfId : author)
     }
     if (involvesSelf) {

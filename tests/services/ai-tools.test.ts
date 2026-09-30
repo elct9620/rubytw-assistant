@@ -664,18 +664,19 @@ describe('createAITools', () => {
       expect(result.success).toBe(false)
     })
 
-    it.each([[{ author: 'self' }], [{ author: '1219974039108456472' }]])(
-      'search_messages schema should accept %o',
-      (input) => {
-        const tools = createTools()
+    it.each([
+      [{ author: 'self' }],
+      [{ author: 'people' }],
+      [{ author: '1219974039108456472' }],
+    ])('search_messages schema should accept %o', (input) => {
+      const tools = createTools()
 
-        const result = getTool(tools, 'search_messages').inputSchema.safeParse(
-          input,
-        )
+      const result = getTool(tools, 'search_messages').inputSchema.safeParse(
+        input,
+      )
 
-        expect(result.success).toBe(true)
-      },
-    )
+      expect(result.success).toBe(true)
+    })
 
     it.each([
       ['a time that is not ISO 8601', { since: 'yesterday' }],
