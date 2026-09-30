@@ -65,6 +65,7 @@ describe('createAITools', () => {
         'read_memories',
         'update_memory',
         'list_issues',
+        'search_issues',
         'read_issues',
         'read_messages',
         'search_messages',
@@ -366,6 +367,60 @@ describe('createAITools', () => {
       await getTool(tools, 'read_issues').execute({ numbers: [1, 2] })
       expect(readIssues).toHaveBeenCalledWith([1, 2], 500)
     })
+
+    it('search_issues should return the matching issues from source', async () => {
+      const issues = [
+        {
+          title: 'Book the venue',
+          number: 7,
+          state: 'OPEN',
+          url: 'https://github.com/rubytw/conf/issues/7',
+          labels: [],
+          assignees: [],
+          status: null,
+        },
+      ]
+      const searchIssues = vi.fn().mockResolvedValue(issues)
+      const tools = createTools({
+        githubSource: createStubGitHubSource({ searchIssues }),
+      })
+
+      const result = await getTool(tools, 'search_issues').execute({
+        query: 'venue',
+      })
+
+      expect(searchIssues).toHaveBeenCalledWith('venue')
+      expect(result).toEqual({ issues, count: 1 })
+    })
+
+    it('search_issues should return error object on failure', async () => {
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+      const tools = createTools({
+        githubSource: createStubGitHubSource({
+          searchIssues: vi.fn().mockRejectedValue(new Error('rate limited')),
+        }),
+      })
+
+      const result = await getTool(tools, 'search_issues').execute({
+        query: 'venue',
+      })
+
+      expect(result).toEqual({ issues: [], count: 0, error: 'query failed' })
+      warnSpy.mockRestore()
+    })
+
+    it.each([[{}], [{ query: '' }], [{ query: '   ' }]])(
+      'search_issues schema should reject %o',
+      (input) => {
+        const tools = createTools()
+
+        const result = getTool(tools, 'search_issues').inputSchema.safeParse(
+          input,
+        )
+
+        expect(result.success).toBe(false)
+      },
+    )
 
     it('list_issues should pass CLOSED state to source', async () => {
       const listIssues = vi.fn().mockResolvedValue([])

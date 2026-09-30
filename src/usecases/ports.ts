@@ -17,6 +17,8 @@ export interface IssueDetail extends IssueOverview {
 
 export interface GitHubSource {
   listIssues(state?: 'OPEN' | 'CLOSED'): Promise<IssueOverview[]>
+  /** Reaches issues that are not on the project board; `status` is null for those. */
+  searchIssues(query: string): Promise<IssueOverview[]>
   readIssues(numbers: number[], bodyLimit: number): Promise<IssueDetail[]>
 }
 

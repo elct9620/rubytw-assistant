@@ -50,32 +50,37 @@ interface ProjectQueryResult {
 
 const READ_ISSUES_MAX = 10
 
-function buildReadIssuesQuery(numbers: number[]): string {
-  const issueFragment = `
-    __typename
-    title
-    number
-    state
-    url
-    labels(first: 5) { nodes { name } }
-    assignees(first: 5) { nodes { login } }
-    body
-    projectItems(first: 1) {
-      nodes {
-        fieldValues(first: 8) {
-          nodes {
-            __typename
-            ... on ProjectV2ItemFieldSingleSelectValue {
-              name
-              field { ... on ProjectV2FieldCommon { name } }
-            }
+const SEARCH_ISSUES_MAX = 20
+
+const ISSUE_OVERVIEW_FIELDS = `
+  __typename
+  title
+  number
+  state
+  url
+  labels(first: 5) { nodes { name } }
+  assignees(first: 5) { nodes { login } }
+  projectItems(first: 1) {
+    nodes {
+      fieldValues(first: 8) {
+        nodes {
+          __typename
+          ... on ProjectV2ItemFieldSingleSelectValue {
+            name
+            field { ... on ProjectV2FieldCommon { name } }
           }
         }
       }
     }
-  `
+  }
+`
+
+function buildReadIssuesQuery(numbers: number[]): string {
   const aliases = numbers
-    .map((n, i) => `issue${i}: issue(number: ${n}) { ${issueFragment} }`)
+    .map(
+      (n, i) =>
+        `issue${i}: issue(number: ${n}) { ${ISSUE_OVERVIEW_FIELDS} body }`,
+    )
     .join('\n')
   return `
     query ($owner: String!, $repo: String!) {
@@ -86,11 +91,44 @@ function buildReadIssuesQuery(numbers: number[]): string {
   `
 }
 
+const SEARCH_ISSUES_QUERY = `
+  query ($searchQuery: String!) {
+    search(query: $searchQuery, type: ISSUE, first: ${SEARCH_ISSUES_MAX}) {
+      nodes {
+        ... on Issue {
+          ${ISSUE_OVERVIEW_FIELDS}
+          repository { nameWithOwner }
+        }
+      }
+    }
+  }
+`
+
 interface ReadIssueNode extends IssueNode {
   projectItems: {
     nodes: {
       fieldValues: { nodes: FieldValueNode[] }
     }[]
+  }
+}
+
+interface SearchIssueNode extends ReadIssueNode {
+  repository: { nameWithOwner: string }
+}
+
+interface SearchIssuesQueryResult {
+  search: { nodes: (Partial<SearchIssueNode> | null)[] }
+}
+
+function toOverview(node: Omit<ReadIssueNode, 'body'>): IssueOverview {
+  return {
+    title: node.title,
+    number: node.number,
+    state: node.state,
+    url: node.url,
+    labels: node.labels.nodes.map((l) => l.name),
+    assignees: node.assignees.nodes.map((a) => a.login),
+    status: extractStatus(node.projectItems.nodes[0]?.fieldValues.nodes ?? []),
   }
 }
 
@@ -153,20 +191,10 @@ export class GitHubSourceAdapter implements GitHubSource {
   ) {}
 
   async listIssues(state?: 'OPEN' | 'CLOSED'): Promise<IssueOverview[]> {
-    const result = await withRetry(
-      () =>
-        this.octokit.graphql<ProjectQueryResult>(PROJECT_ITEMS_QUERY, {
-          organization: this.org,
-          number: this.projectNumber,
-        }),
-      {
-        onRetry: (error, attempt) => {
-          console.warn(
-            `GitHub listIssues retry ${attempt}:`,
-            error instanceof Error ? error.message : error,
-          )
-        },
-      },
+    const result = await this.graphql<ProjectQueryResult>(
+      'listIssues',
+      PROJECT_ITEMS_QUERY,
+      { organization: this.org, number: this.projectNumber },
     )
 
     const items = result.organization.projectV2.items.nodes
@@ -191,6 +219,25 @@ export class GitHubSourceAdapter implements GitHubSource {
       })
   }
 
+  async searchIssues(query: string): Promise<IssueOverview[]> {
+    const result = await this.graphql<SearchIssuesQueryResult>(
+      'searchIssues',
+      SEARCH_ISSUES_QUERY,
+      { searchQuery: `repo:${this.org}/${this.repo} is:issue ${query}` },
+    )
+
+    // A `repo:` qualifier inside the query widens the search rather than
+    // replacing ours, so the scope is enforced on what comes back.
+    const scope = `${this.org}/${this.repo}`.toLowerCase()
+    return result.search.nodes
+      .filter(
+        (node): node is SearchIssueNode =>
+          node?.__typename === 'Issue' &&
+          node.repository?.nameWithOwner.toLowerCase() === scope,
+      )
+      .map(toOverview)
+  }
+
   async readIssues(
     numbers: number[],
     bodyLimit: number,
@@ -205,40 +252,36 @@ export class GitHubSourceAdapter implements GitHubSource {
       return []
     }
 
-    const query = buildReadIssuesQuery(numbers)
-    const result = await withRetry(
-      () =>
-        this.octokit.graphql<ReadIssuesQueryResult>(query, {
-          owner: this.org,
-          repo: this.repo,
-        }),
-      {
-        onRetry: (error, attempt) => {
-          console.warn(
-            `GitHub readIssues retry ${attempt}:`,
-            error instanceof Error ? error.message : error,
-          )
-        },
-      },
+    const result = await this.graphql<ReadIssuesQueryResult>(
+      'readIssues',
+      buildReadIssuesQuery(numbers),
+      { owner: this.org, repo: this.repo },
     )
 
     const details: IssueDetail[] = []
-    for (const [, node] of Object.entries(result.repository)) {
+    for (const node of Object.values(result.repository)) {
       if (!node || node.__typename !== 'Issue') continue
-      const projectFieldValues =
-        node.projectItems.nodes[0]?.fieldValues.nodes ?? []
       details.push({
-        title: node.title,
-        number: node.number,
-        state: node.state,
-        url: node.url,
-        labels: node.labels.nodes.map((l) => l.name),
-        assignees: node.assignees.nodes.map((a) => a.login),
-        status: extractStatus(projectFieldValues),
+        ...toOverview(node),
         body: node.body.slice(0, bodyLimit),
       })
     }
 
     return details
+  }
+
+  private graphql<T>(
+    label: string,
+    query: string,
+    variables: Record<string, unknown>,
+  ): Promise<T> {
+    return withRetry(() => this.octokit.graphql<T>(query, variables), {
+      onRetry: (error, attempt) => {
+        console.warn(
+          `GitHub ${label} retry ${attempt}:`,
+          error instanceof Error ? error.message : error,
+        )
+      },
+    })
   }
 }

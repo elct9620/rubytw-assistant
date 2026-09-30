@@ -6,6 +6,7 @@ export function createStubGitHubSource(
 ): GitHubSource {
   return {
     listIssues: vi.fn().mockResolvedValue([]),
+    searchIssues: vi.fn().mockResolvedValue([]),
     readIssues: vi.fn().mockResolvedValue([]),
     ...overrides,
   }

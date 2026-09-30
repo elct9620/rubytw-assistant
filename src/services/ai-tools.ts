@@ -139,6 +139,26 @@ function createGitHubTools({
         }
       },
     }),
+    search_issues: tool({
+      description:
+        'Find issues in the repository by keyword, including ones that are not on the project board. Returns up to 20 issues with the same overview as list_issues; status is null for an issue that is not on the board. GitHub issue search qualifiers such as label:, assignee: or state:open may be used in the query.',
+      inputSchema: z.object({
+        query: z
+          .string()
+          .trim()
+          .min(1)
+          .describe('keywords, optionally with GitHub issue search qualifiers'),
+      }),
+      execute: async ({ query }) => {
+        try {
+          const issues = await githubSource.searchIssues(query)
+          return { issues, count: issues.length }
+        } catch (error) {
+          console.warn('GitHub search issues failed', error)
+          return { issues: [], count: 0, error: 'query failed' }
+        }
+      },
+    }),
     read_issues: tool({
       description:
         'Detail fetch: retrieve full issue details (body, comments) for up to 10 specific issue numbers. Use after list_issues to get complete information for issues of interest.',

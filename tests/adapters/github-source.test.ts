@@ -86,6 +86,7 @@ function makeReadIssueNode(overrides?: {
       nodes: (overrides?.assignees ?? []).map((login) => ({ login })),
     },
     body: overrides?.body ?? '',
+    repository: { nameWithOwner: 'rubytw/conf' },
     projectItems: {
       nodes:
         status !== null
@@ -399,5 +400,84 @@ describe('readIssues', () => {
     expect(result.map((i: IssueDetail) => i.number)).toEqual(
       expect.arrayContaining([1, 3]),
     )
+  })
+})
+
+describe('searchIssues', () => {
+  it('should confine the search to issues of the configured repository', async () => {
+    const graphql = vi.fn().mockResolvedValue({ search: { nodes: [] } })
+
+    await createAdapterWithRepo(graphql).searchIssues('venue label:event')
+
+    const [query, variables] = graphql.mock.calls[0]
+    expect(variables).toEqual({
+      searchQuery: 'repo:rubytw/conf is:issue venue label:event',
+    })
+    expect(query).toContain('type: ISSUE')
+    expect(query).toContain('first: 20')
+  })
+
+  it('should return an overview with the project status of each issue', async () => {
+    const graphql = vi.fn().mockResolvedValue({
+      search: {
+        nodes: [
+          makeReadIssueNode({
+            title: 'Book the venue',
+            number: 7,
+            state: 'OPEN',
+            url: 'https://github.com/rubytw/conf/issues/7',
+            labels: ['event'],
+            assignees: ['alice'],
+            status: 'In Progress',
+          }),
+          makeReadIssueNode({ number: 8, status: null }),
+        ],
+      },
+    })
+
+    const result = await createAdapterWithRepo(graphql).searchIssues('venue')
+
+    expect(result).toEqual([
+      {
+        title: 'Book the venue',
+        number: 7,
+        state: 'OPEN',
+        url: 'https://github.com/rubytw/conf/issues/7',
+        labels: ['event'],
+        assignees: ['alice'],
+        status: 'In Progress',
+      },
+      expect.objectContaining({ number: 8, status: null }),
+    ])
+  })
+
+  it('should leave out issues of any other repository the query reaches', async () => {
+    const graphql = vi.fn().mockResolvedValue({
+      search: {
+        nodes: [
+          {
+            ...makeReadIssueNode({ number: 5 }),
+            repository: { nameWithOwner: 'rubytw/private-notes' },
+          },
+          makeReadIssueNode({ number: 6 }),
+        ],
+      },
+    })
+
+    const result = await createAdapterWithRepo(graphql).searchIssues(
+      'budget repo:rubytw/private-notes',
+    )
+
+    expect(result.map((issue) => issue.number)).toEqual([6])
+  })
+
+  it('should leave out results that are not issues', async () => {
+    const graphql = vi.fn().mockResolvedValue({
+      search: { nodes: [{}, null, makeReadIssueNode({ number: 3 })] },
+    })
+
+    const result = await createAdapterWithRepo(graphql).searchIssues('x')
+
+    expect(result.map((issue) => issue.number)).toEqual([3])
   })
 })
