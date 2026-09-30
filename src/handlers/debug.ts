@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import { container } from '../container'
 import { TOKENS } from '../tokens'
 import { GenerateSummary } from '../usecases/generate-summary'
+import type { DiscordSource, GitHubSource } from '../usecases/ports'
 import { runWithTrace, setupTrace } from './telemetry-setup'
 import { classifySummaryResult, summarizeResult } from './summarize-result'
 
@@ -218,6 +219,66 @@ debug.get('/discord-probe', async (c) => {
   }
 
   return c.json({ pagination, replyShape, identity, searches })
+})
+
+// Temporary: runs the GitHub and Discord sources against the live APIs.
+debug.get('/source-probe', async (c) => {
+  const child = container.createChildContainer()
+  const channelId = c.req.query('channel_id')
+  if (channelId) {
+    child.register(TOKENS.DiscordChannelId, { useValue: channelId })
+  }
+  const attempt = async <T>(run: () => Promise<T>) => {
+    try {
+      return await run()
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : String(error) }
+    }
+  }
+
+  const github = child.resolve<GitHubSource>(TOKENS.GitHubSource)
+  const discord = child.resolve<DiscordSource>(TOKENS.DiscordSource)
+  const q = c.req.query('q')
+  const numbers = (c.req.query('numbers') ?? '')
+    .split(',')
+    .filter(Boolean)
+    .map(Number)
+  const since = c.req.query('since')
+  const until = c.req.query('until')
+  const range = {
+    since: since ? new Date(since) : undefined,
+    until: until ? new Date(until) : undefined,
+  }
+
+  return c.json({
+    searchIssues: q ? await attempt(() => github.searchIssues(q)) : null,
+    readIssues: numbers.length
+      ? await attempt(() => github.readIssues(numbers, 200))
+      : null,
+    readMessages: range.since
+      ? await attempt(() =>
+          discord.readMessages({
+            since: range.since!,
+            until: range.until,
+            limit: Number(c.req.query('limit') ?? 5),
+            cursor: c.req.query('cursor'),
+          }),
+        )
+      : null,
+    searchMessages: c.req.query('search')
+      ? await attempt(() =>
+          discord.searchMessages({
+            query: c.req.query('mq') || undefined,
+            author: c.req.query('author') || undefined,
+            involvesSelf:
+              (c.req.query('involves_self') as 'mention' | 'reply') ||
+              undefined,
+            ...range,
+            cursor: c.req.query('cursor'),
+          }),
+        )
+      : null,
+  })
 })
 
 export default debug
