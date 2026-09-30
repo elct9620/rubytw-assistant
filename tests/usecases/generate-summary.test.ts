@@ -42,7 +42,9 @@ function createStubDeps(
 ): GenerateSummaryDeps {
   return {
     discord: {
-      getChannelMessages: vi.fn().mockResolvedValue(['msg-1', 'msg-2']),
+      readMessages: vi
+        .fn()
+        .mockResolvedValue({ messages: ['msg-1', 'msg-2'], nextCursor: null }),
     },
     conversationGrouper: {
       groupConversations: vi
@@ -68,9 +70,16 @@ describe('GenerateSummary', () => {
     const deps = createStubDeps()
     const usecase = new GenerateSummary(deps)
 
-    const result = await usecase.execute(24)
+    const now = new Date('2026-04-01T00:00:00Z')
+    vi.setSystemTime(now)
 
-    expect(deps.discord.getChannelMessages).toHaveBeenCalledWith(24)
+    const result = await usecase.execute(24)
+    vi.useRealTimers()
+
+    expect(deps.discord.readMessages).toHaveBeenCalledWith({
+      since: new Date('2026-03-31T00:00:00Z'),
+      limit: 500,
+    })
     expect(deps.conversationGrouper.groupConversations).toHaveBeenCalledWith(
       ['msg-1', 'msg-2'],
       undefined,
@@ -111,7 +120,9 @@ describe('GenerateSummary', () => {
   it('should return empty result when no messages found', async () => {
     const deps = createStubDeps({
       discord: {
-        getChannelMessages: vi.fn().mockResolvedValue([]),
+        readMessages: vi
+          .fn()
+          .mockResolvedValue({ messages: [], nextCursor: null }),
       },
     })
     const usecase = new GenerateSummary(deps)
@@ -186,9 +197,7 @@ describe('GenerateSummary', () => {
   it('should propagate Discord collection errors without fallback', async () => {
     const deps = createStubDeps({
       discord: {
-        getChannelMessages: vi
-          .fn()
-          .mockRejectedValue(new Error('discord down')),
+        readMessages: vi.fn().mockRejectedValue(new Error('discord down')),
       },
     })
     const usecase = new GenerateSummary(deps)

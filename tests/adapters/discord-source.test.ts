@@ -1,6 +1,6 @@
 import { http, HttpResponse } from 'msw'
 import { container } from 'tsyringe'
-import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
+import { describe, it, expect, vi, afterEach } from 'vitest'
 import {
   DiscordSourceAdapter,
   formatMessageToXml,
@@ -11,7 +11,25 @@ import { network } from '../msw-server'
 const DISCORD_EPOCH = 1420070400000n
 const MESSAGES_URL = 'https://discord.com/api/v10/channels/channel-123/messages'
 
-beforeEach(() => {})
+const lastDay = () => ({
+  since: new Date(Date.now() - 24 * 3600 * 1000),
+  limit: 500,
+})
+
+const snowflakeAt = (time: Date) =>
+  (BigInt(time.getTime()) - DISCORD_EPOCH) << 22n
+
+const idOf = (xml: string) => /<item id="(\d+)">/.exec(xml)?.[1]
+
+/** A full page of the messages right after `after`, newest first as Discord answers. */
+function pageFollowing(request: Request) {
+  const params = new URL(request.url).searchParams
+  const after = BigInt(params.get('after') ?? '0')
+  const size = Number(params.get('limit'))
+  return Array.from({ length: size }, (_, i) =>
+    makeMessage(String(after + BigInt(size - i)), 'message'),
+  )
+}
 
 function makeMessage(
   id: string,
@@ -69,7 +87,7 @@ describe('DiscordSourceAdapter', () => {
     )
 
     const adapter = new DiscordSourceAdapter('bot-token', 'channel-123')
-    await adapter.getChannelMessages(24)
+    await adapter.readMessages(lastDay())
 
     expect(capturedUrl?.searchParams.get('after')).toBe(expectedSnowflake)
     expect(capturedUrl?.searchParams.get('limit')).toBe('100')
@@ -88,7 +106,7 @@ describe('DiscordSourceAdapter', () => {
     )
 
     const adapter = new DiscordSourceAdapter('bot-token', 'channel-123')
-    const result = await adapter.getChannelMessages(24)
+    const { messages: result } = await adapter.readMessages(lastDay())
 
     expect(result).toHaveLength(2)
     expect(result[0]).toContain('<item id="1">')
@@ -109,7 +127,7 @@ describe('DiscordSourceAdapter', () => {
 
     const adapter = new DiscordSourceAdapter('bot-token', 'channel-123')
 
-    await expect(adapter.getChannelMessages(24)).rejects.toThrow(
+    await expect(adapter.readMessages(lastDay())).rejects.toThrow(
       /Discord API error: 403 Forbidden.*Missing Access/,
     )
   })
@@ -124,7 +142,7 @@ describe('DiscordSourceAdapter', () => {
     )
 
     const adapter = new DiscordSourceAdapter('bot-token', 'channel-123')
-    const result = await adapter.getChannelMessages(24)
+    const { messages: result } = await adapter.readMessages(lastDay())
 
     expect(result).toHaveLength(0)
     expect(warnSpy).toHaveBeenCalledWith(
@@ -146,7 +164,7 @@ describe('DiscordSourceAdapter', () => {
     )
 
     const adapter = new DiscordSourceAdapter('bot-token', 'channel-123')
-    const result = await adapter.getChannelMessages(24)
+    const { messages: result } = await adapter.readMessages(lastDay())
 
     expect(result.map((xml) => /<item id="(\d+)">/.exec(xml)?.[1])).toEqual([
       '1',
@@ -177,7 +195,7 @@ describe('DiscordSourceAdapter', () => {
     )
 
     const adapter = new DiscordSourceAdapter('bot-token', 'channel-123')
-    const result = await adapter.getChannelMessages(24)
+    const { messages: result } = await adapter.readMessages(lastDay())
 
     expect(requestCount).toBe(2)
     expect(result).toHaveLength(101)
@@ -185,25 +203,90 @@ describe('DiscordSourceAdapter', () => {
     expect(secondRequestAfter).toBe('100')
   })
 
-  it('should stop paginating after reaching max pages', async () => {
-    const fullPage = Array.from({ length: 100 }, (_, i) =>
-      makeMessage(String(i + 1), `msg-${i + 1}`),
-    )
-
+  it('should stop at the limit and hand back a cursor when more remain', async () => {
     let requestCount = 0
-
     network.use(
-      http.get(MESSAGES_URL, () => {
+      http.get(MESSAGES_URL, ({ request }) => {
         requestCount++
-        return HttpResponse.json(fullPage)
+        return HttpResponse.json(pageFollowing(request))
       }),
     )
 
     const adapter = new DiscordSourceAdapter('bot-token', 'channel-123')
-    const result = await adapter.getChannelMessages(24)
+    const page = await adapter.readMessages(lastDay())
 
     expect(requestCount).toBe(5)
-    expect(result).toHaveLength(500)
+    expect(page.messages).toHaveLength(500)
+    expect(page.nextCursor).toBe(idOf(page.messages[499]))
+  })
+
+  it('should ask Discord for no more than the limit', async () => {
+    let requestedLimit: string | null = null
+    network.use(
+      http.get(MESSAGES_URL, ({ request }) => {
+        requestedLimit = new URL(request.url).searchParams.get('limit')
+        return HttpResponse.json(pageFollowing(request))
+      }),
+    )
+
+    const adapter = new DiscordSourceAdapter('bot-token', 'channel-123')
+    const page = await adapter.readMessages({ ...lastDay(), limit: 50 })
+
+    expect(requestedLimit).toBe('50')
+    expect(page.messages).toHaveLength(50)
+  })
+
+  it('should report no cursor once the range is exhausted', async () => {
+    network.use(
+      http.get(MESSAGES_URL, () =>
+        HttpResponse.json([makeMessage('2', 'b'), makeMessage('1', 'a')]),
+      ),
+    )
+
+    const adapter = new DiscordSourceAdapter('bot-token', 'channel-123')
+    const page = await adapter.readMessages(lastDay())
+
+    expect(page.nextCursor).toBeNull()
+  })
+
+  it('should continue from a cursor instead of the start of the range', async () => {
+    let after: string | null = null
+    network.use(
+      http.get(MESSAGES_URL, ({ request }) => {
+        after = new URL(request.url).searchParams.get('after')
+        return HttpResponse.json([])
+      }),
+    )
+
+    const adapter = new DiscordSourceAdapter('bot-token', 'channel-123')
+    await adapter.readMessages({ ...lastDay(), cursor: '4242' })
+
+    expect(after).toBe('4242')
+  })
+
+  it('should leave out messages sent at or after until', async () => {
+    const until = new Date('2026-03-28T12:00:00Z')
+    const before = snowflakeAt(new Date('2026-03-28T11:59:59Z'))
+    const atUntil = snowflakeAt(until)
+    network.use(
+      http.get(MESSAGES_URL, () =>
+        HttpResponse.json([
+          makeMessage(String(atUntil), 'too late'),
+          makeMessage(String(before), 'in range'),
+        ]),
+      ),
+    )
+
+    const adapter = new DiscordSourceAdapter('bot-token', 'channel-123')
+    const page = await adapter.readMessages({
+      since: new Date('2026-03-28T00:00:00Z'),
+      until,
+      limit: 2,
+    })
+
+    expect(page.messages).toHaveLength(1)
+    expect(page.messages[0]).toContain('<content>in range</content>')
+    expect(page.nextCursor).toBeNull()
   })
 })
 
@@ -323,7 +406,7 @@ describe('DiscordSourceAdapter DI integration', () => {
     child.register(TOKENS.DiscordChannelId, { useValue: 'channel-123' })
     const adapter = child.resolve(DiscordSourceAdapter)
 
-    const result = await adapter.getChannelMessages(24)
+    const { messages: result } = await adapter.readMessages(lastDay())
 
     expect(result).toHaveLength(1)
     expect(result[0]).toContain('<content>hello from DI</content>')

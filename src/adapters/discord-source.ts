@@ -1,12 +1,20 @@
 import { injectable, inject } from 'tsyringe'
-import type { DiscordSource } from '../usecases/ports'
+import type {
+  DiscordSource,
+  MessagePage,
+  ReadMessagesQuery,
+} from '../usecases/ports'
 import { assertDiscordResponse, escapeXml } from './shared'
 import { withRetry } from '../services/retry'
 import { TOKENS } from '../tokens'
 
 const DISCORD_EPOCH = 1420070400000n
 const MAX_MESSAGES_PER_REQUEST = 100
-const MAX_PAGES = 5
+
+/** The smallest message id Discord could have issued at that instant. */
+function snowflakeAt(time: Date): bigint {
+  return (BigInt(time.getTime()) - DISCORD_EPOCH) << 22n
+}
 
 interface DiscordAuthor {
   id: string
@@ -78,37 +86,47 @@ export class DiscordSourceAdapter implements DiscordSource {
     @inject(TOKENS.DiscordChannelId) private channelId: string,
   ) {}
 
-  async getChannelMessages(hours: number): Promise<string[]> {
-    const sinceMs = BigInt(Date.now() - hours * 3600 * 1000)
-    let afterSnowflake = String((sinceMs - DISCORD_EPOCH) << 22n)
+  async readMessages({
+    since,
+    until,
+    limit,
+    cursor,
+  }: ReadMessagesQuery): Promise<MessagePage> {
+    const end = until ? snowflakeAt(until) : null
+    let after = cursor ?? String(snowflakeAt(since))
+    let exhausted = false
+    let fetched = 0
     const collected: DiscordMessage[] = []
-    let totalFetched = 0
 
-    for (let page = 0; page < MAX_PAGES; page++) {
-      const batch = await this.fetchMessages(afterSnowflake)
-      totalFetched += batch.length
-      for (const msg of batch) {
-        if (msg.content) {
-          collected.push(msg)
-        }
-      }
+    while (!exhausted && fetched < limit) {
+      const pageSize = Math.min(MAX_MESSAGES_PER_REQUEST, limit - fetched)
+      const batch = await this.fetchMessages(after, pageSize)
+      const inRange = end ? batch.filter((msg) => BigInt(msg.id) < end) : batch
+      fetched += inRange.length
+      collected.push(...inRange.filter((msg) => msg.content))
 
-      if (batch.length < MAX_MESSAGES_PER_REQUEST) break
-      afterSnowflake = batch[batch.length - 1].id
+      exhausted = batch.length < pageSize || inRange.length < batch.length
+      if (!exhausted) after = batch[batch.length - 1].id
     }
 
-    if (totalFetched > 0 && collected.length === 0) {
+    if (fetched > 0 && collected.length === 0) {
       console.warn(
-        `Discord returned ${totalFetched} messages but all had empty content. ` +
+        `Discord returned ${fetched} messages but all had empty content. ` +
           'Ensure the MESSAGE_CONTENT privileged intent is enabled in the Discord Developer Portal.',
       )
     }
 
-    return collected.map(formatMessageToXml)
+    return {
+      messages: collected.map(formatMessageToXml),
+      nextCursor: exhausted ? null : after,
+    }
   }
 
-  private async fetchMessages(after: string): Promise<DiscordMessage[]> {
-    const url = `https://discord.com/api/v10/channels/${this.channelId}/messages?after=${after}&limit=${MAX_MESSAGES_PER_REQUEST}`
+  private async fetchMessages(
+    after: string,
+    limit: number,
+  ): Promise<DiscordMessage[]> {
+    const url = `https://discord.com/api/v10/channels/${this.channelId}/messages?after=${after}&limit=${limit}`
 
     return withRetry(
       async () => {

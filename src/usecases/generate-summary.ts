@@ -8,6 +8,8 @@ import type {
   SummaryResult,
 } from './ports'
 
+const COLLECTION_MESSAGE_LIMIT = 500
+
 class PipelineError extends Error {
   constructor(
     readonly phase: string,
@@ -38,7 +40,10 @@ export class GenerateSummary {
   constructor(private deps: GenerateSummaryDeps) {}
 
   async execute(hours: number): Promise<SummaryResult> {
-    const messages = await this.deps.discord.getChannelMessages(hours)
+    const { messages } = await this.deps.discord.readMessages({
+      since: new Date(Date.now() - hours * 3600 * 1000),
+      limit: COLLECTION_MESSAGE_LIMIT,
+    })
 
     if (messages.length === 0) {
       return { kind: 'empty' }

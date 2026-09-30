@@ -13,12 +13,13 @@ function registerStubPorts() {
 
   container.register(TOKENS.DiscordSource, {
     useValue: {
-      getChannelMessages: vi
-        .fn()
-        .mockResolvedValue([
+      readMessages: vi.fn().mockResolvedValue({
+        messages: [
           '<item id="1"><user bot="false">Alice</user><content>來討論官網改版</content></item>',
           '<item id="2"><user bot="false">Bob</user><content>好，我來整理 issue</content></item>',
-        ]),
+        ],
+        nextCursor: null,
+      }),
     },
   })
 
@@ -98,7 +99,9 @@ describe('scheduled pipeline integration', () => {
   it('should present empty result when no messages', async () => {
     container.register(TOKENS.DiscordSource, {
       useValue: {
-        getChannelMessages: vi.fn().mockResolvedValue([]),
+        readMessages: vi
+          .fn()
+          .mockResolvedValue({ messages: [], nextCursor: null }),
       },
     })
 

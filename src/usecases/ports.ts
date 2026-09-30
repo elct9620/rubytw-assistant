@@ -20,8 +20,25 @@ export interface GitHubSource {
   readIssues(numbers: number[], bodyLimit: number): Promise<IssueDetail[]>
 }
 
+export interface ReadMessagesQuery {
+  /** Inclusive. */
+  since: Date
+  /** Exclusive; omitted means up to now. */
+  until?: Date
+  limit: number
+  /** A `nextCursor` from an earlier page of the same range. */
+  cursor?: string
+}
+
+export interface MessagePage {
+  /** Oldest first. */
+  messages: string[]
+  /** Null once the range is exhausted. */
+  nextCursor: string | null
+}
+
 export interface DiscordSource {
-  getChannelMessages(hours: number): Promise<string[]>
+  readMessages(query: ReadMessagesQuery): Promise<MessagePage>
 }
 
 export interface ConversationGrouper {
