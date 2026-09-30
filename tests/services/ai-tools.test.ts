@@ -67,6 +67,7 @@ describe('createAITools', () => {
         'list_issues',
         'read_issues',
         'read_messages',
+        'search_messages',
       ]),
     )
   })
@@ -523,6 +524,103 @@ describe('createAITools', () => {
       })
       warnSpy.mockRestore()
     })
+
+    it('search_messages should return the matches with count, total and cursor', async () => {
+      const tools = createTools({
+        discordSource: createStubDiscordSource({
+          searchMessages: vi.fn().mockResolvedValue({
+            messages: ['<item/>', '<item/>'],
+            total: 40,
+            nextCursor: '25',
+          }),
+        }),
+      })
+
+      const result = await getTool(tools, 'search_messages').execute({})
+
+      expect(result).toEqual({
+        messages: ['<item/>', '<item/>'],
+        count: 2,
+        total: 40,
+        next_cursor: '25',
+      })
+    })
+
+    it('search_messages should pass every condition to the source', async () => {
+      const searchMessages = vi
+        .fn()
+        .mockResolvedValue({ messages: [], total: 0, nextCursor: null })
+      const tools = createTools({
+        discordSource: createStubDiscordSource({ searchMessages }),
+      })
+
+      await getTool(tools, 'search_messages').execute({
+        query: 'venue',
+        author: 'self',
+        involves_self: 'reply',
+        since: '2026-03-01T00:00:00Z',
+        until: '2026-03-02T00:00:00Z',
+        cursor: '25',
+      })
+
+      expect(searchMessages).toHaveBeenCalledWith({
+        query: 'venue',
+        author: 'self',
+        involvesSelf: 'reply',
+        since: new Date('2026-03-01T00:00:00Z'),
+        until: new Date('2026-03-02T00:00:00Z'),
+        cursor: '25',
+      })
+    })
+
+    it('search_messages should return error object on failure', async () => {
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+      const tools = createTools({
+        discordSource: createStubDiscordSource({
+          searchMessages: vi.fn().mockRejectedValue(new Error('not ready')),
+        }),
+      })
+
+      const result = await getTool(tools, 'search_messages').execute({})
+
+      expect(result).toEqual({
+        messages: [],
+        count: 0,
+        total: 0,
+        next_cursor: null,
+        error: 'query failed',
+      })
+      warnSpy.mockRestore()
+    })
+
+    it.each([
+      ['an author that is neither self nor a member id', { author: 'Alice' }],
+      ['an unknown involves_self value', { involves_self: 'any' }],
+      ['a time that is not ISO 8601', { until: 'tomorrow' }],
+      ['a cursor that is not numeric', { cursor: 'next' }],
+      ['an empty query', { query: '' }],
+    ])('search_messages schema should reject %s', (_, input) => {
+      const tools = createTools()
+
+      const result = getTool(tools, 'search_messages').inputSchema.safeParse(
+        input,
+      )
+
+      expect(result.success).toBe(false)
+    })
+
+    it.each([[{ author: 'self' }], [{ author: '1219974039108456472' }]])(
+      'search_messages schema should accept %o',
+      (input) => {
+        const tools = createTools()
+
+        const result = getTool(tools, 'search_messages').inputSchema.safeParse(
+          input,
+        )
+
+        expect(result.success).toBe(true)
+      },
+    )
 
     it.each([
       ['a time that is not ISO 8601', { since: 'yesterday' }],

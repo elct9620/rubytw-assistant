@@ -166,7 +166,14 @@ function createGitHubTools({
 }
 
 const isoTime = z.iso.datetime({ offset: true })
-const messageId = z.string().regex(/^\d+$/)
+const numericId = z.string().regex(/^\d+$/)
+
+const noMessages = (error: string) => ({
+  messages: [],
+  count: 0,
+  next_cursor: null,
+  error,
+})
 
 function createDiscordTools({
   discordSource,
@@ -193,7 +200,7 @@ function createDiscordTools({
           .describe(
             `Messages per call (1–${READ_MESSAGES_MAX_LIMIT}). Defaults to ${READ_MESSAGES_DEFAULT_LIMIT}.`,
           ),
-        cursor: messageId
+        cursor: numericId
           .optional()
           .describe('next_cursor from the previous call of the same range'),
       }),
@@ -203,12 +210,7 @@ function createDiscordTools({
           : new Date(Date.now() - summaryHours * 3600 * 1000)
         const end = until ? new Date(until) : undefined
         if (end && start > end) {
-          return {
-            messages: [],
-            count: 0,
-            next_cursor: null,
-            error: 'since must not be later than until',
-          }
+          return noMessages('since must not be later than until')
         }
 
         try {
@@ -225,12 +227,67 @@ function createDiscordTools({
           }
         } catch (error) {
           console.warn('Discord read messages failed', error)
+          return noMessages('query failed')
+        }
+      },
+    }),
+    search_messages: tool({
+      description:
+        "Search the channel's messages, newest first, up to 25 per call. Every condition given must match; give none to get the most recent messages. When next_cursor is not null, call again with the same conditions plus that cursor for older matches.",
+      inputSchema: z.object({
+        query: z
+          .string()
+          .min(1)
+          .optional()
+          .describe('keywords the message text must contain'),
+        author: z
+          .union([z.literal('self'), numericId])
+          .optional()
+          .describe(
+            'who sent the message: "self" for your own messages, or a member id',
+          ),
+        involves_self: z
+          .enum(['mention', 'reply'])
+          .optional()
+          .describe(
+            '"mention" for messages that mention you, "reply" for messages replying to one of yours',
+          ),
+        since: isoTime
+          .optional()
+          .describe('ISO 8601 start of the range, inclusive'),
+        until: isoTime
+          .optional()
+          .describe('ISO 8601 end of the range, exclusive'),
+        cursor: numericId
+          .optional()
+          .describe('next_cursor from the previous call of the same search'),
+      }),
+      execute: async ({
+        query,
+        author,
+        involves_self,
+        since,
+        until,
+        cursor,
+      }) => {
+        try {
+          const page = await discordSource.searchMessages({
+            query,
+            author,
+            involvesSelf: involves_self,
+            since: since ? new Date(since) : undefined,
+            until: until ? new Date(until) : undefined,
+            cursor,
+          })
           return {
-            messages: [],
-            count: 0,
-            next_cursor: null,
-            error: 'query failed',
+            messages: page.messages,
+            count: page.messages.length,
+            total: page.total,
+            next_cursor: page.nextCursor,
           }
+        } catch (error) {
+          console.warn('Discord search messages failed', error)
+          return { ...noMessages('query failed'), total: 0 }
         }
       },
     }),

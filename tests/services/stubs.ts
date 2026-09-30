@@ -16,6 +16,9 @@ export function createStubDiscordSource(
 ): DiscordSource {
   return {
     readMessages: vi.fn().mockResolvedValue({ messages: [], nextCursor: null }),
+    searchMessages: vi
+      .fn()
+      .mockResolvedValue({ messages: [], total: 0, nextCursor: null }),
     ...overrides,
   }
 }

@@ -2,14 +2,26 @@ import { injectable, inject } from 'tsyringe'
 import type {
   DiscordSource,
   MessagePage,
+  MessageSearchPage,
   ReadMessagesQuery,
+  SearchMessagesQuery,
 } from '../usecases/ports'
 import { assertDiscordResponse, escapeXml } from './shared'
 import { withRetry } from '../services/retry'
 import { TOKENS } from '../tokens'
 
 const DISCORD_EPOCH = 1420070400000n
+const DISCORD_API = 'https://discord.com/api/v10'
 const MAX_MESSAGES_PER_REQUEST = 100
+
+// https://docs.discord.com/developers/resources/message#search-guild-messages
+const SEARCH_PAGE_SIZE = 25
+const SEARCH_MAX_OFFSET = 9975
+const SEARCH_INDEX_NOT_READY = 202
+const SELF_FILTERS = {
+  mention: 'mentions',
+  reply: 'replied_to_user_id',
+} as const
 
 /** The smallest message id Discord could have issued at that instant. */
 function snowflakeAt(time: Date): bigint {
@@ -42,6 +54,12 @@ interface DiscordMessage {
   message_reference?: { message_id?: string }
   /** Null once the replied-to message has been deleted. */
   referenced_message?: { id: string; author: DiscordUser } | null
+}
+
+/** Each hit arrives wrapped in its own array. */
+interface DiscordSearchResult {
+  total_results: number
+  messages: DiscordMessage[][]
 }
 
 const displayName = (user: DiscordUser) =>
@@ -102,6 +120,7 @@ export class DiscordSourceAdapter implements DiscordSource {
     @inject(TOKENS.DiscordChannelId) private channelId: string,
     // The bot's user id is its application's client id.
     @inject(TOKENS.DiscordClientId) private selfId: string,
+    @inject(TOKENS.DiscordGuildId) private guildId: string,
   ) {}
 
   async readMessages({
@@ -140,27 +159,87 @@ export class DiscordSourceAdapter implements DiscordSource {
     }
   }
 
-  private async fetchMessages(
+  async searchMessages({
+    query,
+    author,
+    involvesSelf,
+    since,
+    until,
+    cursor,
+  }: SearchMessagesQuery): Promise<MessageSearchPage> {
+    const offset = Number(cursor ?? 0)
+    const params = new URLSearchParams({
+      channel_id: this.channelId,
+      limit: String(SEARCH_PAGE_SIZE),
+      sort_by: 'timestamp',
+      sort_order: 'desc',
+    })
+    if (query) params.set('content', query)
+    if (author) {
+      params.set('author_id', author === 'self' ? this.selfId : author)
+    }
+    if (involvesSelf) {
+      params.set(SELF_FILTERS[involvesSelf], this.selfId)
+    }
+    if (since) params.set('min_id', String(snowflakeAt(since)))
+    if (until) params.set('max_id', String(snowflakeAt(until) - 1n))
+    if (offset > 0) params.set('offset', String(offset))
+
+    const result = await this.request(
+      'searchMessages',
+      `${DISCORD_API}/guilds/${this.guildId}/messages/search?${params}`,
+      async (response) => {
+        if (response.status === SEARCH_INDEX_NOT_READY) {
+          throw new Error('Discord search index is not ready')
+        }
+        return (await response.json()) as DiscordSearchResult
+      },
+    )
+
+    const next = offset + SEARCH_PAGE_SIZE
+    return {
+      messages: result.messages
+        .flat()
+        .filter((msg) => msg.content)
+        .map((msg) => formatMessageToXml(msg, this.selfId)),
+      total: result.total_results,
+      nextCursor:
+        next < result.total_results && next <= SEARCH_MAX_OFFSET
+          ? String(next)
+          : null,
+    }
+  }
+
+  private fetchMessages(
     after: string,
     limit: number,
   ): Promise<DiscordMessage[]> {
-    const url = `https://discord.com/api/v10/channels/${this.channelId}/messages?after=${after}&limit=${limit}`
+    return this.request(
+      'fetchMessages',
+      `${DISCORD_API}/channels/${this.channelId}/messages?after=${after}&limit=${limit}`,
+      // Discord answers newest first, even when paging forward with `after`.
+      async (response) =>
+        ((await response.json()) as DiscordMessage[]).reverse(),
+    )
+  }
 
+  private request<T>(
+    label: string,
+    url: string,
+    read: (response: Response) => Promise<T>,
+  ): Promise<T> {
     return withRetry(
       async () => {
         const response = await fetch(url, {
-          headers: {
-            Authorization: `Bot ${this.botToken}`,
-          },
+          headers: { Authorization: `Bot ${this.botToken}` },
         })
         await assertDiscordResponse(response)
-        // Discord answers newest first, even when paging forward with `after`.
-        return ((await response.json()) as DiscordMessage[]).reverse()
+        return read(response)
       },
       {
         onRetry: (error, attempt) => {
           console.warn(
-            `Discord fetchMessages retry ${attempt}:`,
+            `Discord ${label} retry ${attempt}:`,
             error instanceof Error ? error.message : error,
           )
         },

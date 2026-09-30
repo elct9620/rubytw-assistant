@@ -29,7 +29,7 @@ function formatPipelineError(error: unknown): string {
 }
 
 export interface GenerateSummaryDeps {
-  discord: DiscordSource
+  discord: Pick<DiscordSource, 'readMessages'>
   conversationGrouper: ConversationGrouper
   actionItemGenerator: ActionItemGenerator
   memorySummaryStore: MemorySummaryStore

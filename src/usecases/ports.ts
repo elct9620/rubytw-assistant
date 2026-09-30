@@ -37,8 +37,33 @@ export interface MessagePage {
   nextCursor: string | null
 }
 
+/** Every condition given must hold; none given matches the whole channel. */
+export interface SearchMessagesQuery {
+  query?: string
+  /** A member id, or `self` for the assistant. */
+  author?: string
+  /** `reply` also finds replies that did not notify the assistant. */
+  involvesSelf?: 'mention' | 'reply'
+  /** Inclusive. */
+  since?: Date
+  /** Exclusive. */
+  until?: Date
+  /** A `nextCursor` from an earlier page of the same search. */
+  cursor?: string
+}
+
+export interface MessageSearchPage {
+  /** Newest first. */
+  messages: string[]
+  /** All matches, as Discord approximates it. */
+  total: number
+  /** Null once the matches are exhausted. */
+  nextCursor: string | null
+}
+
 export interface DiscordSource {
   readMessages(query: ReadMessagesQuery): Promise<MessagePage>
+  searchMessages(query: SearchMessagesQuery): Promise<MessageSearchPage>
 }
 
 export interface ConversationGrouper {
