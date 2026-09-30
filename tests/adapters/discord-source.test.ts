@@ -80,9 +80,9 @@ describe('DiscordSourceAdapter', () => {
     network.use(
       http.get(MESSAGES_URL, () => {
         return HttpResponse.json([
-          makeMessage('1', 'hello'),
-          makeMessage('2', ''),
           makeMessage('3', 'world'),
+          makeMessage('2', ''),
+          makeMessage('1', 'hello'),
         ])
       }),
     )
@@ -134,9 +134,30 @@ describe('DiscordSourceAdapter', () => {
     warnSpy.mockRestore()
   })
 
-  it('should paginate when API returns 100 messages', async () => {
+  it('should return messages oldest first when Discord answers newest first', async () => {
+    network.use(
+      http.get(MESSAGES_URL, () => {
+        return HttpResponse.json([
+          makeMessage('3', 'third'),
+          makeMessage('2', 'second'),
+          makeMessage('1', 'first'),
+        ])
+      }),
+    )
+
+    const adapter = new DiscordSourceAdapter('bot-token', 'channel-123')
+    const result = await adapter.getChannelMessages(24)
+
+    expect(result.map((xml) => /<item id="(\d+)">/.exec(xml)?.[1])).toEqual([
+      '1',
+      '2',
+      '3',
+    ])
+  })
+
+  it('should continue after the newest message when a page is full', async () => {
     const page1 = Array.from({ length: 100 }, (_, i) =>
-      makeMessage(String(i + 1), `msg-${i + 1}`),
+      makeMessage(String(100 - i), `msg-${100 - i}`),
     )
     const page2 = [makeMessage('200', 'last-msg')]
 

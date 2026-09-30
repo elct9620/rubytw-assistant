@@ -118,7 +118,8 @@ export class DiscordSourceAdapter implements DiscordSource {
           },
         })
         await assertDiscordResponse(response)
-        return (await response.json()) as DiscordMessage[]
+        // Discord answers newest first, even when paging forward with `after`.
+        return ((await response.json()) as DiscordMessage[]).reverse()
       },
       {
         onRetry: (error, attempt) => {
