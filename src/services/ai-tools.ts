@@ -253,7 +253,7 @@ function createDiscordTools({
     }),
     search_messages: tool({
       description:
-        "Search the channel's messages, newest first, up to 25 per call. Every condition given must match; give none to get the most recent messages. When next_cursor is not null, call again with the same conditions plus that cursor for older matches.",
+        "Search the channel's messages, newest first, up to 25 per call. Every condition given must match; give none to get the most recent messages. When next_cursor is not null, call again with the same conditions plus that cursor for older matches. A reply in the results names only the id of the message it answers, not its author; use involves_self or read_messages when you need to know who was answered.",
       inputSchema: z.object({
         query: z
           .string()

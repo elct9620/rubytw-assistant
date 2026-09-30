@@ -65,7 +65,7 @@ export interface SearchMessagesQuery {
 }
 
 export interface MessageSearchPage {
-  /** Newest first. */
+  /** Newest first. A reply names its target by id only: search does not return it. */
   messages: string[]
   /** All matches, as Discord approximates it. */
   total: number

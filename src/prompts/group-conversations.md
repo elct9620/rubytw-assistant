@@ -17,7 +17,7 @@ Following tools are available to you:
 
 Use tools to get necessary information for organizing the conversation effectively.
 
-Messages mark the assistant itself with `self="true"` — on the author, on a mention, or on `<reply-to>`, which names the message a reply answers and its author.
+Messages mark the assistant itself with `self="true"` — on the author, on a mention, or on `<reply-to>`, which names the message a reply answers and its author. Messages returned by `search_messages` name only the id of the message a reply answers.
 
 # Memory Usage
 
