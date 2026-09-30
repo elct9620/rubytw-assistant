@@ -79,7 +79,7 @@ async function generateOnce<S extends z.ZodTypeAny>({
     output: Output.object({ schema }),
     instructions: system,
     prompt,
-    providerOptions: { openai: { reasoningEffort: 'medium' } },
+    providerOptions: { openai: { reasoningEffort: 'high' } },
     tools,
     stopWhen: isStepCount(MAX_TOOL_STEPS),
     // `@ai-sdk/otel` fixes the span name to `${operation} ${model}`, so this

@@ -81,7 +81,7 @@ describe('ConversationGrouperService', () => {
           '32',
         ).replace('{{today}}', today),
         prompt: 'msg-1\nmsg-2',
-        providerOptions: { openai: { reasoningEffort: 'medium' } },
+        providerOptions: { openai: { reasoningEffort: 'high' } },
       }),
     )
   })
