@@ -693,4 +693,95 @@ describe('createAITools', () => {
       expect(result.success).toBe(false)
     })
   })
+
+  describe('optional parameters the model cannot leave out', () => {
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    it.each([
+      ['list_issues', { state: null }],
+      [
+        'read_messages',
+        { since: null, until: null, limit: null, cursor: null },
+      ],
+      [
+        'search_messages',
+        {
+          query: null,
+          author: null,
+          involves_self: null,
+          since: null,
+          until: null,
+          cursor: null,
+        },
+      ],
+    ])('%s schema should accept null for each of them', (name, input) => {
+      const result = getTool(createTools(), name).inputSchema.safeParse(input)
+
+      expect(result.success).toBe(true)
+    })
+
+    it('list_issues should treat a null state as no filter', async () => {
+      const listIssues = vi.fn().mockResolvedValue([])
+      const tools = createTools({
+        githubSource: createStubGitHubSource({ listIssues }),
+      })
+
+      await getTool(tools, 'list_issues').execute({ state: null })
+
+      expect(listIssues).toHaveBeenCalledWith(undefined)
+    })
+
+    it('read_messages should fall back to its defaults for null parameters', async () => {
+      vi.setSystemTime(new Date('2026-04-02T00:00:00Z'))
+      const readMessages = vi
+        .fn()
+        .mockResolvedValue({ messages: [], nextCursor: null })
+      const tools = createTools({
+        discordSource: createStubDiscordSource({ readMessages }),
+      })
+
+      await getTool(tools, 'read_messages').execute({
+        since: null,
+        until: null,
+        limit: null,
+        cursor: null,
+      })
+
+      expect(readMessages).toHaveBeenCalledWith({
+        since: new Date('2026-04-01T00:00:00Z'),
+        until: undefined,
+        limit: 50,
+        cursor: undefined,
+      })
+    })
+
+    it('search_messages should not pass a null condition to the source', async () => {
+      const searchMessages = vi
+        .fn()
+        .mockResolvedValue({ messages: [], total: 0, nextCursor: null })
+      const tools = createTools({
+        discordSource: createStubDiscordSource({ searchMessages }),
+      })
+
+      await getTool(tools, 'search_messages').execute({
+        query: 'RubyKaigi',
+        author: 'people',
+        involves_self: null,
+        since: null,
+        until: null,
+        cursor: null,
+      })
+
+      expect(searchMessages).toHaveBeenCalledWith({
+        query: 'RubyKaigi',
+        author: 'people',
+        involvesSelf: undefined,
+        since: undefined,
+        until: undefined,
+        cursor: undefined,
+      })
+    })
+  })
 })

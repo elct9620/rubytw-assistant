@@ -20,6 +20,8 @@ export interface AIToolsDeps {
 const READ_MESSAGES_DEFAULT_LIMIT = 50
 const READ_MESSAGES_MAX_LIMIT = 100
 
+// The model fills in every parameter of a call, so optional ones are nullish:
+// null is how it says it has nothing to give.
 export function createAITools(deps: AIToolsDeps): ToolSet {
   return {
     ...createMemoryTools(deps),
@@ -126,12 +128,12 @@ function createGitHubTools({
       inputSchema: z.object({
         state: z
           .enum(['OPEN', 'CLOSED'])
-          .optional()
-          .describe('Filter issues by state. Returns all if omitted.'),
+          .nullish()
+          .describe('Filter issues by state. Null returns all.'),
       }),
       execute: async ({ state }) => {
         try {
-          const issues = await githubSource.listIssues(state)
+          const issues = await githubSource.listIssues(state ?? undefined)
           return { issues, count: issues.length }
         } catch (error) {
           console.warn('GitHub list issues failed', error)
@@ -206,24 +208,24 @@ function createDiscordTools({
       description: `Read the channel's messages in a time range, oldest first, one bounded page per call. Defaults to the last ${summaryHours} hours. When next_cursor is not null, call again with the same range plus that cursor to continue.`,
       inputSchema: z.object({
         since: isoTime
-          .optional()
+          .nullish()
           .describe(
             `ISO 8601 start of the range, inclusive. Defaults to ${summaryHours} hours ago.`,
           ),
         until: isoTime
-          .optional()
+          .nullish()
           .describe('ISO 8601 end of the range, exclusive. Defaults to now.'),
         limit: z
           .number()
           .int()
           .min(1)
           .max(READ_MESSAGES_MAX_LIMIT)
-          .optional()
+          .nullish()
           .describe(
             `Messages per call (1–${READ_MESSAGES_MAX_LIMIT}). Defaults to ${READ_MESSAGES_DEFAULT_LIMIT}.`,
           ),
         cursor: numericId
-          .optional()
+          .nullish()
           .describe('next_cursor from the previous call of the same range'),
       }),
       execute: async ({ since, until, limit, cursor }) => {
@@ -240,7 +242,7 @@ function createDiscordTools({
             since: start,
             until: end,
             limit: limit ?? READ_MESSAGES_DEFAULT_LIMIT,
-            cursor,
+            cursor: cursor ?? undefined,
           })
           return {
             messages: page.messages,
@@ -255,33 +257,33 @@ function createDiscordTools({
     }),
     search_messages: tool({
       description:
-        "Search the channel's messages, newest first, up to 25 per call. Every condition given must match, so each extra one removes results: pass only the conditions you need and leave the rest out. Give none to get the most recent messages. When next_cursor is not null, call again with the same conditions plus that cursor for older matches. A reply in the results names only the id of the message it answers, not its author; use involves_self or read_messages when you need to know who was answered.",
+        "Search the channel's messages, newest first, up to 25 per call. Every condition given must match, so each extra one removes results: pass only the conditions you need and set every other parameter to null. Give none to get the most recent messages. When next_cursor is not null, call again with the same conditions plus that cursor for older matches. A reply in the results names only the id of the message it answers, not its author; use involves_self or read_messages when you need to know who was answered.",
       inputSchema: z.object({
         query: z
           .string()
           .min(1)
-          .optional()
+          .nullish()
           .describe('keywords the message text must contain'),
         author: z
           .union([z.literal('self'), z.literal('people'), numericId])
-          .optional()
+          .nullish()
           .describe(
             'who sent the message: "people" for members only (leaves out your own summaries and other bots), "self" for your own messages, or a member id',
           ),
         involves_self: z
           .enum(['mention', 'reply'])
-          .optional()
+          .nullish()
           .describe(
             '"mention" for messages that mention you, "reply" for messages replying to one of yours',
           ),
         since: isoTime
-          .optional()
+          .nullish()
           .describe('ISO 8601 start of the range, inclusive'),
         until: isoTime
-          .optional()
+          .nullish()
           .describe('ISO 8601 end of the range, exclusive'),
         cursor: numericId
-          .optional()
+          .nullish()
           .describe('next_cursor from the previous call of the same search'),
       }),
       execute: async ({
@@ -294,12 +296,12 @@ function createDiscordTools({
       }) => {
         try {
           const page = await discordSource.searchMessages({
-            query,
-            author,
-            involvesSelf: involves_self,
+            query: query ?? undefined,
+            author: author ?? undefined,
+            involvesSelf: involves_self ?? undefined,
             since: since ? new Date(since) : undefined,
             until: until ? new Date(until) : undefined,
-            cursor,
+            cursor: cursor ?? undefined,
           })
           return {
             messages: page.messages,

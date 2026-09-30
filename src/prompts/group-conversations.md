@@ -47,8 +47,8 @@ Messages whose author is marked `self="true"` are summaries you posted earlier: 
 | Any item is carried forward from your summary                     | Call `search_messages` once with only `involves_self="reply"` to see whether anyone answered or corrected a summary                        |
 | A message replies to one that is not in the provided conversation | Call `read_messages` with `until` at the start of the provided conversation and `since` one or two days earlier                            |
 
-- Give `search_messages` only the conditions that row names and leave every other parameter out (or null). Conditions narrow each other, so each extra one hides messages you are looking for.
-- Do not set `since`, `until`, or `cursor` for these lookups. Everything sent after your last summary is already in the provided conversation; what you are looking for is older.
+- Give `search_messages` only the conditions that row names and set every other parameter to `null`. Conditions narrow each other, so each extra one hides messages you are looking for.
+- Keep `since`, `until`, and `cursor` `null` for these lookups. Everything sent after your last summary is already in the provided conversation; what you are looking for is older.
 - Every word of `query` must match, so keep it to one or two keywords in the language people wrote in (usually Chinese, or a proper noun such as an event name).
 - Look up each item at most once. Discord queries may fail silently — continue processing without them if needed.
 - For each item you carry forward, state in that group's summary the date people last discussed it, or that no discussion by people was found.
