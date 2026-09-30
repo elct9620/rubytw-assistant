@@ -263,7 +263,9 @@ function createDiscordTools({
           .string()
           .min(1)
           .nullish()
-          .describe('keywords the message text must contain'),
+          .describe(
+            'a single keyword the message text must contain; every word given must match, so two words together usually match nothing',
+          ),
         author: z
           .union([z.literal('self'), z.literal('people'), numericId])
           .nullish()
