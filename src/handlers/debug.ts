@@ -194,14 +194,28 @@ debug.get('/discord-probe', async (c) => {
       ),
     }
   }
+  const content = c.req.query('q')
   const searches = [
+    ...(content ? [await search('content', { content })] : []),
     await search('channel only', {}),
     await search('min_id', { min_id: sinceSnowflake }),
     await search('author_id=self', { author_id: selfId }),
     await search('mentions=self', { mentions: selfId }),
     await search('replied_to_user_id=self', { replied_to_user_id: selfId }),
     await search('sort asc', { sort_by: 'timestamp', sort_order: 'asc' }),
+    await search('offset=5', { offset: '5' }),
   ]
+  const userId = c.req.query('user_id')
+  if (userId) {
+    searches.push(
+      await search('mentions=user', { mentions: userId }),
+      await search('replied_to_user_id=user', { replied_to_user_id: userId }),
+      await search('mentions+replied_to_user_id', {
+        mentions: userId,
+        replied_to_user_id: userId,
+      }),
+    )
+  }
 
   return c.json({ pagination, replyShape, identity, searches })
 })
