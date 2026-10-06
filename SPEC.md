@@ -198,17 +198,17 @@ A single agent run takes the collected messages and produces the follow-up list.
 | Memory checked | `list_memories` and `read_memories` were both called                                                                                                                     |
 | Issues checked | A collected message references an Issue by `#` followed by its number, and a GitHub Tool operation was called; a run whose messages reference no Issue passes this check |
 
-**Follow-up Item:**
+**Follow-up Item:** an item is work Ruby Taiwan or its organizers must act on, with a concrete next step — a deliverable, a purchase, a communication, or a decision. One piece of work is one item. A good item reads at a glance:
 
-| Field         | Content                                                                                                  |
-| ------------- | -------------------------------------------------------------------------------------------------------- |
-| Status        | to-do, in-progress, stalled, or abandoned                                                                |
-| Description   | What remains to be done                                                                                  |
-| Assignee      | Person name exactly as it appears in conversation, or none when unassigned                               |
-| Last Progress | Date people last moved the item (discussed it, or its Issue changed), or none when no movement was found |
-| Reason        | Why the item has this status                                                                             |
+| Field         | A Good Value                                                                                          | Example                    |
+| ------------- | ----------------------------------------------------------------------------------------------------- | -------------------------- |
+| Status        | to-do, in-progress, stalled, or abandoned                                                             | stalled                    |
+| Description   | The one next action, starting with a verb, within 20 characters                                       | 追問 PicCollage 11/24 場地 |
+| Assignee      | The person who spoke in the channel and owns the action; none when nobody who spoke owns it           | Kasa                       |
+| Last Progress | Date people last moved the item (discussed it, or its Issue changed); none when no movement was found | 2026-09-28                 |
+| Reason        | What the item waits on, or why it matters, within 15 characters                                       | 場地方未回覆               |
 
-**Follow-up Item Display:** `- [狀態] Description (Assignee) — 最後進展 YYYY-MM-DD — Reason`. The assignee part is omitted when there is none; the last-progress part reads `尚無進展紀錄` when there is none.
+**Follow-up Item Display:** `- [狀態] Description (Assignee) — Reason`, one line per item. The assignee part is omitted when there is none. A stalled or abandoned item adds its last progress to the reason as `，最後進展 M/D`, or `，尚無進展紀錄` when there is none; other items show no date.
 
 | Status      | Display Text |
 | ----------- | ------------ |
