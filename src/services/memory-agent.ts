@@ -19,7 +19,7 @@ export class MemoryAgentService implements MemoryAgent {
     private memoryDescriptionLimit: number,
     @inject(TOKENS.MemorySummaryLengthLimit)
     private lengthLimit: number,
-    @inject(TOKENS.Telemetry) private telemetry: Telemetry | null,
+    @inject(TOKENS.Telemetry) private telemetry: Telemetry[],
   ) {}
 
   async tidyAndSummarize(): Promise<string | null> {
@@ -43,9 +43,7 @@ export class MemoryAgentService implements MemoryAgent {
       }),
       stopWhen: isStepCount(MAX_STEPS),
       providerOptions: { openai: { reasoningEffort: 'high' } },
-      ...(this.telemetry && {
-        telemetry: { integrations: this.telemetry, functionId: 'memoryAgent' },
-      }),
+      telemetry: { integrations: this.telemetry, functionId: 'memoryAgent' },
     })
 
     const { text } = await agent.generate({

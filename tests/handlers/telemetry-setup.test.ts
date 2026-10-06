@@ -11,7 +11,10 @@ import {
   LANGFUSE_TEST_CONFIG,
 } from '../helpers/langfuse-otlp'
 
-beforeEach(() => {})
+beforeEach(() => {
+  // The composition root always registers the platform integrations.
+  container.register(TOKENS.Telemetry, { useValue: [] })
+})
 
 describe('setupTrace', () => {
   it('should stay inactive when Langfuse is not configured', () => {
@@ -26,6 +29,21 @@ describe('setupTrace', () => {
     // Silently skipping telemetry is indistinguishable from telemetry that
     // ran and reported nothing, which is the harder failure to diagnose.
     expect(warnings.length).toBeGreaterThan(0)
+  })
+
+  it('should keep the platform integration alongside Langfuse', () => {
+    const platform = {}
+    const child = container.createChildContainer()
+    child.register(TOKENS.Telemetry, { useValue: [platform] })
+    child.register(TOKENS.LangfuseConfig, {
+      useFactory: () => LANGFUSE_TEST_CONFIG,
+    })
+
+    setupTrace(child)
+
+    const integrations = child.resolve<unknown[]>(TOKENS.Telemetry)
+    expect(integrations).toHaveLength(2)
+    expect(integrations[0]).toBe(platform)
   })
 
   it('should nest spans started inside the root span', async () => {

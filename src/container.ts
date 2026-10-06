@@ -14,6 +14,7 @@ import { DiscordGuildRoleAdapter } from './adapters/discord-guild-role'
 import { DiscordOAuthAdapter } from './adapters/discord-oauth'
 import { KVLoginStateStoreAdapter } from './adapters/kv-login-state-store'
 import { DiscordRateLimiter } from './adapters/discord-rate-limit'
+import { createCloudflareAITelemetry } from './adapters/cloudflare-ai-telemetry'
 import { DiscordSourceAdapter } from './adapters/discord-source'
 import { DiscordSummaryPresenter } from './adapters/discord-summary-presenter'
 import { GitHubSourceAdapter } from './adapters/github-source'
@@ -83,8 +84,10 @@ container.register(TOKENS.LangfuseConfig, {
       : null,
 })
 
-// AI SDK telemetry integration (default: null — no telemetry)
-container.register(TOKENS.Telemetry, { useValue: null })
+// Platform traces always record AI calls; setupTrace adds Langfuse when configured
+container.register(TOKENS.Telemetry, {
+  useValue: [createCloudflareAITelemetry()],
+})
 
 // Port → Adapter mappings (infrastructure)
 container.register(TOKENS.MemoryStore, { useClass: KVMemoryStoreAdapter })

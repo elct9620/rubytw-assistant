@@ -7,6 +7,7 @@ import {
   type ObservationLevel,
 } from '@langfuse/tracing'
 import { context } from '@opentelemetry/api'
+import type { Telemetry } from 'ai'
 import { BasicTracerProvider } from '@opentelemetry/sdk-trace-base'
 import { TOKENS, type LangfuseConfig } from '../tokens'
 import { WorkerContextManager } from './worker-context-manager'
@@ -72,7 +73,10 @@ export function setupTrace(child: DependencyContainer): TraceSetup | undefined {
   // what Langfuse shows as `metadata.scope.name`.
   const tracer = provider.getTracer('ai')
   child.register(TOKENS.Telemetry, {
-    useValue: new LangfuseVercelAiSdkIntegration({ tracer }),
+    useValue: [
+      ...child.resolve<Telemetry[]>(TOKENS.Telemetry),
+      new LangfuseVercelAiSdkIntegration({ tracer }),
+    ],
   })
 
   // Telemetry here has two lifetimes. The integration above is scoped to this

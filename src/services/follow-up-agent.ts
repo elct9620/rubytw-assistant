@@ -60,7 +60,7 @@ export class FollowUpAgentService implements FollowUpAgent {
     @inject(TOKENS.MemoryEntryLimit) private memoryEntryLimit: number,
     @inject(TOKENS.FollowUpTokenBudget) private tokenBudget: number,
     @inject(TOKENS.AIToolsFactory) private toolsFactory: AIToolsFactory,
-    @inject(TOKENS.Telemetry) private telemetry: Telemetry | null,
+    @inject(TOKENS.Telemetry) private telemetry: Telemetry[],
   ) {}
 
   async followUp(
@@ -91,9 +91,7 @@ export class FollowUpAgentService implements FollowUpAgent {
         isStepCount(MAX_STEPS),
       ],
       providerOptions: { openai: { reasoningEffort: 'high' } },
-      ...(this.telemetry && {
-        telemetry: { integrations: this.telemetry, functionId: 'followUp' },
-      }),
+      telemetry: { integrations: this.telemetry, functionId: 'followUp' },
     })
 
     const { steps } = await agent.generate({ prompt: messages.join('\n') })

@@ -44,7 +44,7 @@ function createService(budget = 1_000) {
         memoryDescriptionLimit: 128,
         issueBodyLengthLimit: 500,
       }),
-    null,
+    [],
   )
   return { service }
 }

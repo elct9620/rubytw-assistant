@@ -24,7 +24,7 @@ function createService() {
     ENTRY_LIMIT,
     128,
     LENGTH_LIMIT,
-    null,
+    [],
   )
   return { service, memoryStore }
 }
