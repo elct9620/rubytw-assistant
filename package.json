@@ -24,7 +24,6 @@
     "@opentelemetry/core": "^2.10.0",
     "@opentelemetry/exporter-trace-otlp-http": "^0.221.0",
     "@opentelemetry/sdk-trace-base": "^2.10.0",
-    "agents": "^0.22.0",
     "ai": "^7.0.83",
     "ai-gateway-provider": "^4.0.0",
     "discord-api-types": "^0.38.54",

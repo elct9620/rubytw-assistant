@@ -8,6 +8,7 @@ import { container } from 'tsyringe'
 import { TOKENS } from '../../src/tokens'
 import { GenerateSummary } from '../../src/usecases/generate-summary'
 import worker from '../../src/index'
+import { mcpApiHandler } from '../../src/handlers/mcp'
 import { mcpRequest } from '../helpers/mcp-rpc'
 
 describe('OAuth-protected MCP endpoint', () => {
@@ -59,6 +60,34 @@ describe('OAuth-protected MCP endpoint', () => {
 
     expect(response.error).toBeUndefined()
     expect(response.result).toEqual({})
+  })
+
+  it('should not serve MCP on paths that only share its prefix', async () => {
+    const res = await mcpApiHandler.fetch(
+      new Request('http://localhost/mcp-other', { method: 'POST' }),
+    )
+
+    expect(res.status).toBe(404)
+  })
+
+  it('should offer the memory tools to a served client', async () => {
+    const response = await mcpRequest(
+      'tools/list',
+      {},
+      {
+        userId: '42',
+        username: 'operator',
+      },
+    )
+
+    const tools = (response.result?.tools as { name: string }[]) ?? []
+    expect(tools.map((tool) => tool.name).sort()).toEqual([
+      'list_memories',
+      'read_memories',
+      'read_memory_summary',
+      'update_memories',
+      'write_memory_summary',
+    ])
   })
 
   it('should leave unclaimed paths with the existing Hono app', async () => {

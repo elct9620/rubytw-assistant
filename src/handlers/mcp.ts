@@ -1,5 +1,4 @@
-import { McpServer } from '@modelcontextprotocol/server'
-import { createMcpHandler } from 'agents/mcp/server'
+import { createMcpHandler, McpServer } from '@modelcontextprotocol/server'
 import { registerMemoryTools } from './mcp-tools'
 
 export const MCP_ROUTE = '/mcp'
@@ -13,10 +12,15 @@ function createServer(): McpServer {
   return server
 }
 
-const handler = createMcpHandler(createServer, { route: MCP_ROUTE })
+const handler = createMcpHandler(createServer)
 
-/** OAuthProvider accepts an ExportedHandler, not the callable createMcpHandler returns. */
+/**
+ * OAuthProvider accepts an ExportedHandler, and routes every path that merely
+ * starts with MCP_ROUTE here, so anything else is turned away.
+ */
 export const mcpApiHandler = {
-  fetch: (request: Request, env: Env, ctx: ExecutionContext) =>
-    handler(request, env, ctx),
+  fetch: (request: Request) =>
+    new URL(request.url).pathname === MCP_ROUTE
+      ? handler.fetch(request)
+      : Promise.resolve(new Response('Not Found', { status: 404 })),
 }
