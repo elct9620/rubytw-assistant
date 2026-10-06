@@ -182,6 +182,7 @@ A single agent run takes the collected messages and produces the follow-up list.
 | A collected message references an Issue, or a tracked item is linked to one                                                                                      | AI checks the Issue through GitHub Tool                                                                        | A change to the Issue counts as progress; a closed Issue finishes the item                                       |
 | People commit to something in the collected messages                                                                                                             | AI adds it as a tracked item                                                                                   | The new item appears on this run's list, with the commitment's date as its last progress                         |
 | An item is found finished                                                                                                                                        | AI leaves it off the list and clears its memory slot                                                           | A finished item never appears on the list                                                                        |
+| People agree on a date for an item's next step                                                                                                                   | AI notes the date in the item's slot                                                                           | The item waits as planned until that date; its 7 days count from the later of that date and its last progress    |
 | A tracked item's last progress — or, when it has none, the date it was first recorded — is more than 7 days ago and it has no reminder (fixed design constraint) | AI marks it stalled and records today as its reminder date                                                     | The item is listed as stalled, reminding operators it has not moved                                              |
 | A reminded item gains no progress for 7 days after its reminder date (fixed design constraint)                                                                   | AI marks it abandoned and clears its memory slot                                                               | The item is listed once as abandoned, then no longer tracked                                                     |
 | An item's status, last progress, or reminder date changes, or an item is added or cleared                                                                        | AI writes that item's slot                                                                                     | A slot is written only when the item's state changes; an unchanged item's slot is left as it is                  |
@@ -200,13 +201,13 @@ A single agent run takes the collected messages and produces the follow-up list.
 
 **Follow-up Item:** an item is work Ruby Taiwan or its organizers must act on, with a concrete next step — a deliverable, a purchase, a communication, or a decision. One piece of work is one item. A good item reads at a glance:
 
-| Field         | A Good Value                                                                                          | Example                    |
-| ------------- | ----------------------------------------------------------------------------------------------------- | -------------------------- |
-| Status        | to-do, in-progress, stalled, or abandoned                                                             | stalled                    |
-| Description   | The one next action, starting with a verb, within 20 characters                                       | 追問 PicCollage 11/24 場地 |
-| Assignee      | The person who spoke in the channel and owns the action; none when nobody who spoke owns it           | Kasa                       |
-| Last Progress | Date people last moved the item (discussed it, or its Issue changed); none when no movement was found | 2026-09-28                 |
-| Reason        | What the item waits on, or why it matters, within 15 characters                                       | 場地方未回覆               |
+| Field         | A Good Value                                                                                          | Example              |
+| ------------- | ----------------------------------------------------------------------------------------------------- | -------------------- |
+| Status        | to-do, in-progress, stalled, or abandoned                                                             | stalled              |
+| Description   | The one next action, starting with a verb, within 20 characters                                       | 追問 PicCollage 場地 |
+| Assignee      | The person who spoke in the channel and owns the action; none when nobody who spoke owns it           | Kasa                 |
+| Last Progress | Date people last moved the item (discussed it, or its Issue changed); none when no movement was found | 2026-09-28           |
+| Reason        | What the item waits on, or why it matters, within 15 characters                                       | 場地方未回覆         |
 
 **Follow-up Item Display:** `- [狀態] Description (Assignee) — Reason`, one line per item. The assignee part is omitted when there is none. A stalled or abandoned item adds its last progress to the reason as `，最後進展 M/D`, or `，尚無進展紀錄` when there is none; other items show no date.
 
