@@ -43,8 +43,8 @@ function registerStubPorts() {
     },
   })
 
-  container.register(TOKENS.MemorySummarizer, {
-    useValue: { summarize: vi.fn().mockResolvedValue(null) },
+  container.register(TOKENS.MemoryAgent, {
+    useValue: { tidyAndSummarize: vi.fn().mockResolvedValue(null) },
   })
 
   container.register(TOKENS.LangfuseConfig, { useFactory: () => null })

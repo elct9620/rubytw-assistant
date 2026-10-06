@@ -8,7 +8,7 @@ import { KVMemoryStoreAdapter } from './adapters/kv-memory-store'
 import { KVMemorySummaryStoreAdapter } from './adapters/kv-memory-summary-store'
 import { createAITools, type AIToolsDeps } from './services/ai-tools'
 import { FollowUpAgentService } from './services/follow-up-agent'
-import { MemorySummarizerService } from './services/memory-summarizer'
+import { MemoryAgentService } from './services/memory-agent'
 import { DiscordNotifierAdapter } from './adapters/discord-notifier'
 import { DiscordGuildRoleAdapter } from './adapters/discord-guild-role'
 import { DiscordOAuthAdapter } from './adapters/discord-oauth'
@@ -129,8 +129,8 @@ container.register(TOKENS.AIToolsFactory, {
 container.register(TOKENS.FollowUpAgent, {
   useClass: FollowUpAgentService,
 })
-container.register(TOKENS.MemorySummarizer, {
-  useClass: MemorySummarizerService,
+container.register(TOKENS.MemoryAgent, {
+  useClass: MemoryAgentService,
 })
 
 // GitHub source — Octokit with App auth strategy
@@ -165,7 +165,7 @@ container.register(GenerateSummary, {
       discord: c.resolve(TOKENS.DiscordSource),
       followUpAgent: c.resolve(TOKENS.FollowUpAgent),
       memorySummaryStore: c.resolve(TOKENS.MemorySummaryStore),
-      memorySummarizer: c.resolve(TOKENS.MemorySummarizer),
+      memoryAgent: c.resolve(TOKENS.MemoryAgent),
     }),
 })
 

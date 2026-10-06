@@ -2,7 +2,7 @@ import type {
   DiscordSource,
   FollowUpAgent,
   MemorySummaryStore,
-  MemorySummarizer,
+  MemoryAgent,
   SummaryResult,
 } from './ports'
 
@@ -13,7 +13,7 @@ export interface GenerateSummaryDeps {
   discord: Pick<DiscordSource, 'readMessages'>
   followUpAgent: FollowUpAgent
   memorySummaryStore: MemorySummaryStore
-  memorySummarizer: MemorySummarizer
+  memoryAgent: MemoryAgent
 }
 
 export class GenerateSummary {
@@ -61,7 +61,7 @@ export class GenerateSummary {
 
   private async runMemoryAgent(): Promise<void> {
     try {
-      const summary = await this.deps.memorySummarizer.summarize()
+      const summary = await this.deps.memoryAgent.tidyAndSummarize()
       if (summary) {
         await this.deps.memorySummaryStore.write(summary)
       }

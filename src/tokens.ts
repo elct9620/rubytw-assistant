@@ -57,7 +57,7 @@ export const TOKENS = {
   // Port interfaces
   MemoryStore: 'MemoryStore',
   MemorySummaryStore: 'MemorySummaryStore',
-  MemorySummarizer: 'MemorySummarizer',
+  MemoryAgent: 'MemoryAgent',
   GitHubSource: 'GitHubSource',
   DiscordSource: 'DiscordSource',
   FollowUpAgent: 'FollowUpAgent',

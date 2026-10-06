@@ -30,11 +30,14 @@ export function createAITools(deps: AIToolsDeps): ToolSet {
   }
 }
 
-function createMemoryTools({
+export function createMemoryTools({
   memoryStore,
   memoryEntryLimit,
   memoryDescriptionLimit,
-}: AIToolsDeps): ToolSet {
+}: Pick<
+  AIToolsDeps,
+  'memoryStore' | 'memoryEntryLimit' | 'memoryDescriptionLimit'
+>): ToolSet {
   const readIndices = new Set<number>()
 
   return {

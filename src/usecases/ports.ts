@@ -154,6 +154,7 @@ export interface MemorySummaryStore {
   write(summary: string): Promise<void>
 }
 
-export interface MemorySummarizer {
-  summarize(): Promise<string | null>
+/** Tidies memory slots, then condenses what remains; null when nothing remains. */
+export interface MemoryAgent {
+  tidyAndSummarize(): Promise<string | null>
 }

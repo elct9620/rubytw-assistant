@@ -1,0 +1,135 @@
+import { env } from 'cloudflare:workers'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import type { LanguageModel } from 'ai'
+import { MemoryAgentService } from '../../src/services/memory-agent'
+import {
+  KVMemoryStoreAdapter,
+  KV_KEY,
+} from '../../src/adapters/kv-memory-store'
+import { scriptedModel } from '../helpers/scripted-model'
+
+let model: LanguageModel
+vi.mock('../../src/services/ai-model', () => ({
+  createAIModel: () => model,
+}))
+
+const ENTRY_LIMIT = 4
+const LENGTH_LIMIT = 300
+
+function createService() {
+  const memoryStore = new KVMemoryStoreAdapter(env.MEMORY_KV, ENTRY_LIMIT, 128)
+  const service = new MemoryAgentService(
+    { gateway: {} as AiGateway, modelId: 'test-model' },
+    memoryStore,
+    ENTRY_LIMIT,
+    128,
+    LENGTH_LIMIT,
+    null,
+  )
+  return { service, memoryStore }
+}
+
+async function seedSlots(
+  slots: Array<{ description: string; content: string }>,
+): Promise<void> {
+  const padded = Array.from(
+    { length: ENTRY_LIMIT },
+    (_, i) => slots[i] ?? { description: '', content: '' },
+  )
+  await env.MEMORY_KV.put(KV_KEY, JSON.stringify(padded))
+}
+
+const READ_ALL = [
+  { toolName: 'list_memories', input: {} },
+  { toolName: 'read_memories', input: { indices: [0, 1] } },
+]
+
+describe('MemoryAgentService', () => {
+  beforeEach(async () => {
+    await env.MEMORY_KV.delete(KV_KEY)
+  })
+
+  it('should not call the model when memory is empty', async () => {
+    const scripted = scriptedModel(['unused'])
+    model = scripted
+
+    const result = await createService().service.tidyAndSummarize()
+
+    expect(result).toBeNull()
+    expect(scripted.doGenerateCalls).toHaveLength(0)
+  })
+
+  it('should let the agent clear a slot and return the summary of what remains', async () => {
+    await seedSlots([
+      { description: 'Kasa: RT organizer', content: 'Handles promotion' },
+      { description: '車輪餅團購', content: '2026-05-08: 待分發' },
+    ])
+    model = scriptedModel([
+      READ_ALL,
+      [
+        {
+          toolName: 'update_memory',
+          input: { index: 1, description: '', content: '' },
+        },
+      ],
+      'Kasa 負責宣傳（#0）。',
+    ])
+    const { service, memoryStore } = createService()
+
+    const result = await service.tidyAndSummarize()
+
+    expect(result).toBe('Kasa 負責宣傳（#0）。')
+    const slots = await memoryStore.list()
+    expect(slots.map((slot) => slot.description)).toEqual([
+      'Kasa: RT organizer',
+      '',
+      '',
+      '',
+    ])
+  })
+
+  it('should offer the agent the memory tools only', async () => {
+    await seedSlots([{ description: 'Kasa', content: 'organizer' }])
+    const scripted = scriptedModel(['summary'])
+    model = scripted
+
+    await createService().service.tidyAndSummarize()
+
+    const tools = (scripted.doGenerateCalls[0].tools ?? []).map((t) => t.name)
+    expect(tools.sort()).toEqual([
+      'list_memories',
+      'read_memories',
+      'update_memory',
+    ])
+  })
+
+  it('should return null when tidying leaves memory empty', async () => {
+    await seedSlots([{ description: '舊任務', content: '2026-01-01: 已完成' }])
+    model = scriptedModel([
+      [
+        { toolName: 'list_memories', input: {} },
+        { toolName: 'read_memories', input: { indices: [0] } },
+      ],
+      [
+        {
+          toolName: 'update_memory',
+          input: { index: 0, description: '', content: '' },
+        },
+      ],
+      'nothing left',
+    ])
+
+    const result = await createService().service.tidyAndSummarize()
+
+    expect(result).toBeNull()
+  })
+
+  it('should cut the summary to the configured length', async () => {
+    await seedSlots([{ description: 'Kasa', content: 'organizer' }])
+    model = scriptedModel(['字'.repeat(LENGTH_LIMIT + 50)])
+
+    const result = await createService().service.tidyAndSummarize()
+
+    expect(result).toHaveLength(LENGTH_LIMIT)
+  })
+})

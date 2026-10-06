@@ -29,8 +29,8 @@ function createStubDeps(
       read: vi.fn().mockResolvedValue(null),
       write: vi.fn().mockResolvedValue(undefined),
     },
-    memorySummarizer: {
-      summarize: vi.fn().mockResolvedValue(null),
+    memoryAgent: {
+      tidyAndSummarize: vi.fn().mockResolvedValue(null),
     },
     ...overrides,
   }
@@ -69,7 +69,7 @@ describe('GenerateSummary', () => {
 
     expect(result).toEqual({ kind: 'empty' })
     expect(deps.followUpAgent.followUp).not.toHaveBeenCalled()
-    expect(deps.memorySummarizer.summarize).not.toHaveBeenCalled()
+    expect(deps.memoryAgent.tidyAndSummarize).not.toHaveBeenCalled()
   })
 
   it('should fall back to raw messages and leave memory alone when the Follow-up Agent fails', async () => {
@@ -87,7 +87,7 @@ describe('GenerateSummary', () => {
       rawMessages: ['msg-1', 'msg-2'],
       reason: '[Follow-up Agent] token budget exceeded',
     })
-    expect(deps.memorySummarizer.summarize).not.toHaveBeenCalled()
+    expect(deps.memoryAgent.tidyAndSummarize).not.toHaveBeenCalled()
     vi.restoreAllMocks()
   })
 
@@ -140,8 +140,8 @@ describe('GenerateSummary', () => {
 
   it('should run the Memory Agent and store its summary after a successful follow-up', async () => {
     const deps = createStubDeps({
-      memorySummarizer: {
-        summarize: vi.fn().mockResolvedValue('new summary'),
+      memoryAgent: {
+        tidyAndSummarize: vi.fn().mockResolvedValue('new summary'),
       },
     })
 
@@ -155,15 +155,15 @@ describe('GenerateSummary', () => {
 
     await new GenerateSummary(deps).execute(24)
 
-    expect(deps.memorySummarizer.summarize).toHaveBeenCalled()
+    expect(deps.memoryAgent.tidyAndSummarize).toHaveBeenCalled()
     expect(deps.memorySummaryStore.write).not.toHaveBeenCalled()
   })
 
   it('should still return the list when the Memory Agent fails', async () => {
     vi.spyOn(console, 'warn').mockImplementation(() => {})
     const deps = createStubDeps({
-      memorySummarizer: {
-        summarize: vi.fn().mockRejectedValue(new Error('AI down')),
+      memoryAgent: {
+        tidyAndSummarize: vi.fn().mockRejectedValue(new Error('AI down')),
       },
     })
 
@@ -177,8 +177,8 @@ describe('GenerateSummary', () => {
   it('should still return the list when the summary store write fails', async () => {
     vi.spyOn(console, 'warn').mockImplementation(() => {})
     const deps = createStubDeps({
-      memorySummarizer: {
-        summarize: vi.fn().mockResolvedValue('new summary'),
+      memoryAgent: {
+        tidyAndSummarize: vi.fn().mockResolvedValue('new summary'),
       },
       memorySummaryStore: {
         read: vi.fn().mockResolvedValue(null),

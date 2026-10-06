@@ -45,7 +45,7 @@ pnpm vitest run tests/index.test.ts
 - `src/handlers/` — **Inbound Handlers**: bridge framework/runtime calls to use cases (e.g., `scheduled.ts` for cron, `health.ts` for HTTP). Hono HTTP handlers use the sub-app pattern (`app.route()`).
 - `src/services/` — **Application Services**: orchestrate multiple ports and libraries to implement use case port interfaces (e.g., `FollowUpAgentService` runs an AI SDK `ToolLoopAgent` over the tools to implement the `FollowUpAgent` port). Services use `@inject()` decorators for DI, same as adapters.
 - `src/adapters/` — **Outbound Gateways**: thin wrappers for external API communication (Discord API, GitHub API, KV). Adapters use `@inject()` decorators for DI. Unlike services, adapters only handle data format conversion — no orchestration logic.
-- `src/prompts/` — **Prompt Templates**: markdown files used as AI prompt templates (e.g., `follow-up.md`, `summarize-memory.md`)
+- `src/prompts/` — **Prompt Templates**: markdown files used as AI prompt templates (e.g., `follow-up.md`, `memory-agent.md`)
 
 Dependencies point inward: handlers/services/adapters → usecases. Port interfaces are defined in the use case layer (`usecases/ports.ts`), not in handlers, services, or adapters.
 
