@@ -2,7 +2,10 @@ import { describe, it, expect } from 'vitest'
 import { isStepCount, tool, ToolLoopAgent } from 'ai'
 import { MockLanguageModelV4 } from 'ai/test'
 import { z } from 'zod'
-import { createCloudflareAITelemetry } from '../../src/adapters/cloudflare-ai-telemetry'
+import {
+  createCloudflareAITelemetry,
+  invokeAgent,
+} from '../../src/services/cloudflare-ai-telemetry'
 import { scriptedModel } from '../helpers/scripted-model'
 import { recordingTracer } from '../helpers/recording-tracer'
 
@@ -85,6 +88,28 @@ describe('createCloudflareAITelemetry', () => {
         'cloudflare.ai_gateway.log.id'
       ],
     ).toBe('log-123')
+  })
+
+  it('should nest model calls and tool runs under the agent that made them', async () => {
+    const recording = recordingTracer()
+
+    await invokeAgent(
+      'followUp',
+      () =>
+        runAgent(
+          scriptedModel([[{ toolName: 'echo', input: {} }], 'done']),
+          recording.tracer,
+        ),
+      recording.tracer,
+    )
+
+    const agent = recording.find('invoke_agent followUp')
+    expect(agent?.attributes).toMatchObject({
+      'gen_ai.operation.name': 'invoke_agent',
+      'gen_ai.agent.name': 'followUp',
+    })
+    expect(recording.find('chat mock-model-id')?.parent).toBe(agent)
+    expect(recording.find('execute_tool echo')?.parent).toBe(agent)
   })
 
   it('should mark a failed model call as an error and let the failure through', async () => {

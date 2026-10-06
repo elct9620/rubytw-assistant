@@ -4,10 +4,12 @@ import type { Telemetry } from 'ai'
 import type { MemoryAgent, MemoryStore } from '../usecases/ports'
 import { TOKENS, type AiGatewayConfig } from '../tokens'
 import { createAIModel } from './ai-model'
+import { invokeAgent } from './cloudflare-ai-telemetry'
 import { createMemoryTools } from './ai-tools'
 import MEMORY_AGENT_PROMPT from '../prompts/memory-agent.md'
 
 const MAX_STEPS = 30
+const AGENT_NAME = 'memoryAgent'
 
 @injectable()
 export class MemoryAgentService implements MemoryAgent {
@@ -43,12 +45,12 @@ export class MemoryAgentService implements MemoryAgent {
       }),
       stopWhen: isStepCount(MAX_STEPS),
       providerOptions: { openai: { reasoningEffort: 'high' } },
-      telemetry: { integrations: this.telemetry, functionId: 'memoryAgent' },
+      telemetry: { integrations: this.telemetry, functionId: AGENT_NAME },
     })
 
-    const { text } = await agent.generate({
-      prompt: 'Tidy memory, then summarize what remains.',
-    })
+    const { text } = await invokeAgent(AGENT_NAME, () =>
+      agent.generate({ prompt: 'Tidy memory, then summarize what remains.' }),
+    )
 
     if (!(await this.hasMemory())) {
       return null

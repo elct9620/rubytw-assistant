@@ -31,6 +31,21 @@ async function recordFailure<T>(span: Span, run: () => PromiseLike<T>) {
   }
 }
 
+/** Runs one agent inside its own span, so its model calls and tool runs nest under it. */
+export function invokeAgent<T>(
+  agentName: string,
+  run: () => PromiseLike<T>,
+  tracer: Pick<Tracing, 'enterSpan'> = tracing,
+): Promise<T> {
+  return tracer.enterSpan(spanName('invoke_agent', agentName), (span) => {
+    span.setAttributes({
+      'gen_ai.operation.name': 'invoke_agent',
+      'gen_ai.agent.name': agentName,
+    })
+    return recordFailure(span, run)
+  })
+}
+
 /**
  * Mirrors AI model calls and tool runs into the platform's traces under GenAI
  * semantic-convention names; prompts and tool payloads are left out.

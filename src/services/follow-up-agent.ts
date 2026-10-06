@@ -6,6 +6,7 @@ import type { FollowUpAgent } from '../usecases/ports'
 import type { FollowUpItem } from '../entities/follow-up-item'
 import { TOKENS, type AiGatewayConfig, type AIToolsFactory } from '../tokens'
 import { createAIModel } from './ai-model'
+import { invokeAgent } from './cloudflare-ai-telemetry'
 import {
   acceptedSubmission,
   createSubmitTool,
@@ -18,6 +19,7 @@ import FOLLOW_UP_PROMPT from '../prompts/follow-up.md'
 
 /** Guards against a loop that never spends its budget, e.g. one stuck on empty tool results. */
 const MAX_STEPS = 50
+const AGENT_NAME = 'followUp'
 
 const FollowUpListSchema = z.object({
   items: z.array(
@@ -91,10 +93,12 @@ export class FollowUpAgentService implements FollowUpAgent {
         isStepCount(MAX_STEPS),
       ],
       providerOptions: { openai: { reasoningEffort: 'high' } },
-      telemetry: { integrations: this.telemetry, functionId: 'followUp' },
+      telemetry: { integrations: this.telemetry, functionId: AGENT_NAME },
     })
 
-    const { steps } = await agent.generate({ prompt: messages.join('\n') })
+    const { steps } = await invokeAgent(AGENT_NAME, () =>
+      agent.generate({ prompt: messages.join('\n') }),
+    )
 
     const spent = tokensSpent(steps)
     if (spent > this.tokenBudget) {
