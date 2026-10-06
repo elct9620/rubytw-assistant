@@ -62,10 +62,7 @@ describe('Follow-up Goal Check', () => {
     const [refused, accepted] = submitResults(result)
     expect(refused).toEqual({
       accepted: false,
-      unmet: [
-        expect.stringMatching(/^Memory/),
-        expect.stringMatching(/^History/),
-      ],
+      unmet: [expect.stringMatching(/^Memory/)],
     })
     expect(accepted).toEqual({ accepted: true })
     expect(acceptedSubmission(result.steps)).toEqual({
@@ -73,22 +70,10 @@ describe('Follow-up Goal Check', () => {
     })
   })
 
-  it('should not count a message search that includes the assistant as history checked', async () => {
-    const result = await runFollowUp(
-      [
-        [
-          ...CHECKS.slice(0, 2),
-          { toolName: 'search_messages', input: { author: 'self' } },
-        ],
-        [SUBMIT],
-      ],
-      [],
-    )
+  it('should accept a list without any message search once memory was read', async () => {
+    const result = await runFollowUp([CHECKS.slice(0, 2), [SUBMIT]], [])
 
-    expect(submitResults(result)[0]).toEqual({
-      accepted: false,
-      unmet: [expect.stringMatching(/^History/)],
-    })
+    expect(submitResults(result)[0]).toEqual({ accepted: true })
   })
 
   it('should require an Issue lookup when the collected messages reference one', async () => {
@@ -125,10 +110,7 @@ describe('Follow-up Goal Check', () => {
 
   it('should not count listing memory without reading it as memory checked', () => {
     const unmet = unmetGoals(
-      [
-        { toolName: 'list_memories', input: {} },
-        { toolName: 'search_messages', input: { author: 'people' } },
-      ],
+      [{ toolName: 'list_memories', input: {} }],
       [],
     )
 

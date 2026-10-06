@@ -113,7 +113,7 @@ Tests use `cloudflare:test` helpers for the Workers runtime environment:
 - ESLint ignores `dist/`, `.wrangler/`, and `worker-configuration.d.ts`
 - Production secrets are deployed via `wrangler secret put`; local secrets go in `.dev.vars` (see Configuration Files above)
 - Cron trigger runs at `0 16 * * *` UTC (midnight Taiwan time, UTC+8)
-- The Follow-up Agent hands in its list through a `submit` tool whose input schema is the output; the Goal Check (`follow-up-goal.ts`) accepts it only after the run's tool calls show memory, people's history, and referenced Issues were checked, and the loop stops on acceptance, on `FOLLOWUP_TOKEN_BUDGET`, or on a step cap
+- The Follow-up Agent hands in its list through a `submit` tool whose input schema is the output; the Goal Check (`follow-up-goal.ts`) accepts it only after the run's tool calls show memory and referenced Issues were checked, and the loop stops on acceptance, on `FOLLOWUP_TOKEN_BUDGET`, or on a step cap
 - AI model is created via `createAIModel(config)`, which reaches the shared AI Gateway through the `AI` binding and tags each request with this service's metadata
 - Debug endpoint at `/debug/summary?channel_id=X&hours=Y` for dev-only follow-up previews
 - Compatibility flag `nodejs_compat` is enabled for crypto API support

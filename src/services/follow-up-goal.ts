@@ -42,17 +42,6 @@ export function unmetGoals(
     )
   }
 
-  const searchedPeople = calls.some(
-    (call) =>
-      call.toolName === 'search_messages' &&
-      (call.input as { author?: unknown } | null)?.author === 'people',
-  )
-  if (!searchedPeople) {
-    unmet.push(
-      'History not checked: call search_messages with author "people" to find when people last discussed the items.',
-    )
-  }
-
   const referencesIssue = collectedMessages.some((m) => ISSUE_REFERENCE.test(m))
   const checkedGitHub = calls.some((call) => GITHUB_TOOLS.has(call.toolName))
   if (referencesIssue && !checkedGitHub) {
@@ -71,7 +60,7 @@ export function createSubmitTool<S extends z.ZodTypeAny>(
 ) {
   return tool({
     description:
-      "Hand in the follow-up list. It is accepted only when memory, people's history, and any referenced Issue have been checked earlier in this run; otherwise you are told what is missing and must do it, then submit again.",
+      'Hand in the follow-up list. It is accepted only when memory and any referenced Issue have been checked earlier in this run; otherwise you are told what is missing and must do it, then submit again.',
     inputSchema: schema,
     execute: async (_input, { messages }): Promise<SubmitResult> => {
       const unmet = unmetGoals(toolCallsIn(messages), collectedMessages)
