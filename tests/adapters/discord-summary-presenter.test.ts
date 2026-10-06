@@ -6,10 +6,9 @@ import { DiscordNotifierAdapter } from '../../src/adapters/discord-notifier'
 import { TOKENS } from '../../src/tokens'
 import type { SummaryResult } from '../../src/usecases/ports'
 import {
-  formatActionItems,
-  type ActionItem,
-} from '../../src/entities/action-item'
-import type { TopicGroup } from '../../src/entities/topic-group'
+  formatFollowUpItems,
+  type FollowUpItem,
+} from '../../src/entities/follow-up-item'
 import { network } from '../msw-server'
 
 const MESSAGES_URL = 'https://discord.com/api/v10/channels/channel-123/messages'
@@ -20,50 +19,41 @@ function createMockNotifier() {
   }
 }
 
-const actionableGroup: TopicGroup = {
-  topic: '官網更新',
-  summary: '討論官網改版',
-  communityRelated: 'yes',
-  smallTalk: 'no',
-  lostContext: 'no',
-}
-
-const sampleActionItem: ActionItem = {
+const sampleItem: FollowUpItem = {
   status: 'to-do',
   description: '更新官網',
   assignee: 'Alice',
+  lastProgress: '2026-10-01',
   reason: '官網資訊過舊',
 }
 
 beforeEach(() => {})
 
 describe('DiscordSummaryPresenter', () => {
-  it('should send formatted action items to the channel', async () => {
+  it('should send the formatted follow-up list to the channel', async () => {
     const notifier = createMockNotifier()
     const presenter = new DiscordSummaryPresenter(notifier, 'channel-123', 30)
 
     const result: SummaryResult = {
       kind: 'success',
-      topicGroups: [actionableGroup],
-      actionItems: [sampleActionItem],
+      items: [sampleItem],
     }
 
     await presenter.present(result)
 
     expect(notifier.sendMessage).toHaveBeenCalledWith(
       'channel-123',
-      '- [待辦] 更新官網 (Alice) — 官網資訊過舊',
+      '- [待辦] 更新官網 (Alice) — 最後進展 2026-10-01 — 官網資訊過舊',
     )
   })
 
-  it('should send no-action-items notice when action items are empty', async () => {
+  it('should send nothing-pending notice when the list is empty', async () => {
     const notifier = createMockNotifier()
     const presenter = new DiscordSummaryPresenter(notifier, 'channel-123', 30)
 
     const result: SummaryResult = {
       kind: 'success',
-      topicGroups: [actionableGroup],
-      actionItems: [],
+      items: [],
     }
 
     await presenter.present(result)
@@ -74,7 +64,7 @@ describe('DiscordSummaryPresenter', () => {
     )
   })
 
-  it('should send no-action-items notice for empty result', async () => {
+  it('should send nothing-pending notice for an empty window', async () => {
     const notifier = createMockNotifier()
     const presenter = new DiscordSummaryPresenter(notifier, 'channel-123', 30)
 
@@ -86,21 +76,21 @@ describe('DiscordSummaryPresenter', () => {
     )
   })
 
-  it('should cap action items at the configured limit', async () => {
+  it('should cap the list at the configured limit', async () => {
     const notifier = createMockNotifier()
     const presenter = new DiscordSummaryPresenter(notifier, 'channel-123', 5)
 
-    const manyItems: ActionItem[] = Array.from({ length: 10 }, (_, i) => ({
+    const manyItems: FollowUpItem[] = Array.from({ length: 10 }, (_, i) => ({
       status: 'to-do' as const,
       description: `任務 ${i + 1}`,
       assignee: 'X',
+      lastProgress: null,
       reason: '原因',
     }))
 
     const result: SummaryResult = {
       kind: 'success',
-      topicGroups: [actionableGroup],
-      actionItems: manyItems,
+      items: manyItems,
     }
 
     await presenter.present(result)
@@ -116,20 +106,20 @@ describe('DiscordSummaryPresenter', () => {
     const notifier = createMockNotifier()
     const presenter = new DiscordSummaryPresenter(notifier, 'channel-123', 30)
 
-    const longItems: ActionItem[] = Array.from({ length: 30 }, (_, i) => ({
+    const longItems: FollowUpItem[] = Array.from({ length: 30 }, (_, i) => ({
       status: 'to-do' as const,
       description: `長任務描述第${i + 1}項${'詳'.repeat(40)}`,
       assignee: `負責人${i + 1}`,
+      lastProgress: null,
       reason: `原因說明需要足夠長${'補'.repeat(40)}`,
     }))
 
     // Precondition: ensure test data actually exceeds Discord limit
-    expect(formatActionItems(longItems).length).toBeGreaterThan(2000)
+    expect(formatFollowUpItems(longItems).length).toBeGreaterThan(2000)
 
     const result: SummaryResult = {
       kind: 'success',
-      topicGroups: [actionableGroup],
-      actionItems: longItems,
+      items: longItems,
     }
 
     await presenter.present(result)
@@ -199,24 +189,24 @@ describe('DiscordSummaryPresenter', () => {
     }
   })
 
-  it('should truncate a single action item that exceeds 2000 chars', async () => {
+  it('should truncate a single item that exceeds 2000 chars', async () => {
     const notifier = createMockNotifier()
     const presenter = new DiscordSummaryPresenter(notifier, 'channel-123', 30)
 
-    const oversizedItem: ActionItem = {
+    const oversizedItem: FollowUpItem = {
       status: 'to-do',
       description: '任'.repeat(2000),
       assignee: 'Alice',
+      lastProgress: null,
       reason: '原因',
     }
 
     // Precondition: single formatted line exceeds limit
-    expect(formatActionItems([oversizedItem]).length).toBeGreaterThan(2000)
+    expect(formatFollowUpItems([oversizedItem]).length).toBeGreaterThan(2000)
 
     await presenter.present({
       kind: 'success',
-      topicGroups: [actionableGroup],
-      actionItems: [oversizedItem],
+      items: [oversizedItem],
     })
 
     expect(notifier.sendMessage).toHaveBeenCalledOnce()
@@ -249,14 +239,15 @@ describe('DiscordSummaryPresenter DI integration', () => {
 
     const result: SummaryResult = {
       kind: 'success',
-      topicGroups: [actionableGroup],
-      actionItems: [sampleActionItem],
+      items: [sampleItem],
     }
 
     await presenter.present(result)
 
     expect(sentMessages).toHaveLength(1)
-    expect(sentMessages[0]).toBe('- [待辦] 更新官網 (Alice) — 官網資訊過舊')
+    expect(sentMessages[0]).toBe(
+      '- [待辦] 更新官網 (Alice) — 最後進展 2026-10-01 — 官網資訊過舊',
+    )
   })
 
   it('should send chunked messages via Discord API when content is long', async () => {
@@ -279,20 +270,20 @@ describe('DiscordSummaryPresenter DI integration', () => {
     child.register(TOKENS.SummaryItemLimit, { useValue: 30 })
     const presenter = child.resolve(DiscordSummaryPresenter)
 
-    const longItems: ActionItem[] = Array.from({ length: 30 }, (_, i) => ({
+    const longItems: FollowUpItem[] = Array.from({ length: 30 }, (_, i) => ({
       status: 'to-do' as const,
       description: `長任務描述第${i + 1}項${'詳'.repeat(40)}`,
       assignee: `負責人${i + 1}`,
+      lastProgress: null,
       reason: `原因說明需要足夠長${'補'.repeat(40)}`,
     }))
 
     // Precondition: ensure test data actually exceeds Discord limit
-    expect(formatActionItems(longItems).length).toBeGreaterThan(2000)
+    expect(formatFollowUpItems(longItems).length).toBeGreaterThan(2000)
 
     await presenter.present({
       kind: 'success',
-      topicGroups: [actionableGroup],
-      actionItems: longItems,
+      items: longItems,
     })
 
     expect(sentMessages.length).toBeGreaterThan(1)

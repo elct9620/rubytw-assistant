@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Ruby Taiwan Assistant — a Cloudflare Worker that provides automated information aggregation and query tools for Ruby Taiwan community operators. It integrates with Discord (Interaction Webhook, Bot API) and GitHub (App) to deliver daily AI summaries and slash command queries. See SPEC.md for full specification.
+Ruby Taiwan Assistant — a Cloudflare Worker that provides automated information aggregation and query tools for Ruby Taiwan community operators. It integrates with Discord (Interaction Webhook, Bot API) and GitHub (App) to deliver a daily AI follow-up of unfinished work and slash command queries. See SPEC.md for full specification.
 
 ## Tech Stack
 
@@ -41,11 +41,11 @@ pnpm vitest run tests/index.test.ts
 - `src/container.ts` — **Composition root**: registers all DI bindings (env values, port→adapter mappings, use case factories) using tsyringe
 - `src/tokens.ts` — **DI tokens**: string-based injection tokens for env bindings and port interfaces
 - `src/usecases/` — **Use Cases**: application logic. Port interfaces live in `ports.ts`. Use cases accept deps via constructor (plain object), not DI decorators.
-- `src/entities/` — **Domain Entities**: value objects and domain logic (e.g., `TopicGroup`, `ActionItem`, `MemoryEntry`)
+- `src/entities/` — **Domain Entities**: value objects and domain logic (e.g., `FollowUpItem`)
 - `src/handlers/` — **Inbound Handlers**: bridge framework/runtime calls to use cases (e.g., `scheduled.ts` for cron, `health.ts` for HTTP). Hono HTTP handlers use the sub-app pattern (`app.route()`).
-- `src/services/` — **Application Services**: orchestrate multiple ports and libraries to implement use case port interfaces (e.g., `ConversationGrouperService` coordinates AI SDK + tools to implement `ConversationGrouper` port). Services use `@inject()` decorators for DI, same as adapters.
+- `src/services/` — **Application Services**: orchestrate multiple ports and libraries to implement use case port interfaces (e.g., `FollowUpAgentService` runs an AI SDK `ToolLoopAgent` over the tools to implement the `FollowUpAgent` port). Services use `@inject()` decorators for DI, same as adapters.
 - `src/adapters/` — **Outbound Gateways**: thin wrappers for external API communication (Discord API, GitHub API, KV). Adapters use `@inject()` decorators for DI. Unlike services, adapters only handle data format conversion — no orchestration logic.
-- `src/prompts/` — **Prompt Templates**: markdown files used as AI prompt templates (e.g., `generate-action-items.md`, `group-conversations.md`)
+- `src/prompts/` — **Prompt Templates**: markdown files used as AI prompt templates (e.g., `follow-up.md`, `summarize-memory.md`)
 
 Dependencies point inward: handlers/services/adapters → usecases. Port interfaces are defined in the use case layer (`usecases/ports.ts`), not in handlers, services, or adapters.
 
@@ -65,7 +65,7 @@ Handlers create a **child container** per request/cron trigger via `container.cr
 - Spans batch until the handler's `finally` force-flushes them, so one invocation costs one HTTP request; `exportMode: 'immediate'` would spend a subrequest per span
 - `WorkerContextManager` (`src/handlers/worker-context-manager.ts`) backs the OTel active context with the runtime's `AsyncLocalStorage`, which is what lets the AI SDK's spans nest under the root span
 - Handlers wrap use case execution in `@langfuse/tracing`'s `startActiveObservation`, which owns the root observation's attributes, error status and lifetime; `setupTrace` hands it the per-invocation provider via `setLangfuseTracerProvider`
-- The AI SDK's `generateText` is instrumented by passing that integration as `telemetry: { integrations }`, producing a trace hierarchy: root observation → generation → tool spans. Per-call integrations take precedence over globally registered ones, which is what keeps telemetry scoped to the invocation that owns it
+- The AI SDK's calls are instrumented by passing that integration as `telemetry: { integrations }`, producing a trace hierarchy: root observation → generation → tool spans. Per-call integrations take precedence over globally registered ones, which is what keeps telemetry scoped to the invocation that owns it
 
 ### Prompt Templates
 
@@ -113,8 +113,7 @@ Tests use `cloudflare:test` helpers for the Workers runtime environment:
 - ESLint ignores `dist/`, `.wrangler/`, and `worker-configuration.d.ts`
 - Production secrets are deployed via `wrangler secret put`; local secrets go in `.dev.vars` (see Configuration Files above)
 - Cron trigger runs at `0 16 * * *` UTC (midnight Taiwan time, UTC+8)
-- Services use AI SDK's `generateText()` with Zod schemas for structured output extraction
-- Services constrain AI tool loops with `isStepCount(MAX_TOOL_STEPS)`
+- The Follow-up Agent hands in its list through a `submit` tool whose input schema is the output; the Goal Check (`follow-up-goal.ts`) accepts it only after the run's tool calls show memory, people's history, and referenced Issues were checked, and the loop stops on acceptance, on `FOLLOWUP_TOKEN_BUDGET`, or on a step cap
 - AI model is created via `createAIModel(config)`, which reaches the shared AI Gateway through the `AI` binding and tags each request with this service's metadata
-- Debug endpoint at `/debug/summary?channel_id=X&hours=Y` for dev-only summary previews
+- Debug endpoint at `/debug/summary?channel_id=X&hours=Y` for dev-only follow-up previews
 - Compatibility flag `nodejs_compat` is enabled for crypto API support

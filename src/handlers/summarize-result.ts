@@ -15,8 +15,7 @@ export function summarizeResult(
     case 'success':
       return {
         kind: 'success',
-        topicGroupCount: result.topicGroups.length,
-        actionItemCount: result.actionItems.length,
+        itemCount: result.items.length,
       }
     case 'fallback':
       return {

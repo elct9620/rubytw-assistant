@@ -38,6 +38,7 @@ export const TOKENS = {
   IssueBodyLengthLimit: 'IssueBodyLengthLimit',
   SummaryHours: 'SummaryHours',
   SummaryItemLimit: 'SummaryItemLimit',
+  FollowUpTokenBudget: 'FollowUpTokenBudget',
 
   GitHubAppId: 'GitHubAppId',
   GitHubPrivateKey: 'GitHubPrivateKey',
@@ -59,8 +60,7 @@ export const TOKENS = {
   MemorySummarizer: 'MemorySummarizer',
   GitHubSource: 'GitHubSource',
   DiscordSource: 'DiscordSource',
-  ConversationGrouper: 'ConversationGrouper',
-  ActionItemGenerator: 'ActionItemGenerator',
+  FollowUpAgent: 'FollowUpAgent',
   DiscordNotifier: 'DiscordNotifier',
   GuildRoleChecker: 'GuildRoleChecker',
   DiscordIdentityProvider: 'DiscordIdentityProvider',

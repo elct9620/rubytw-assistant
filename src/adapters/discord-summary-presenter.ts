@@ -6,7 +6,7 @@ import type {
   SummaryFallback,
   DiscordNotifier,
 } from '../usecases/ports'
-import { formatActionItems } from '../entities/action-item'
+import { formatFollowUpItems } from '../entities/follow-up-item'
 import { TOKENS } from '../tokens'
 
 const DISCORD_MAX_CONTENT_LENGTH = 2000
@@ -35,13 +35,13 @@ export class DiscordSummaryPresenter implements SummaryPresenter {
   }
 
   private async presentSuccess(result: SummarySuccess): Promise<void> {
-    if (result.actionItems.length === 0) {
+    if (result.items.length === 0) {
       await this.notifier.sendMessage(this.channelId, NO_ACTION_ITEMS_NOTICE)
       return
     }
 
-    const capped = result.actionItems.slice(0, this.summaryItemLimit)
-    const body = formatActionItems(capped)
+    const capped = result.items.slice(0, this.summaryItemLimit)
+    const body = formatFollowUpItems(capped)
     await this.sendChunked(body)
   }
 

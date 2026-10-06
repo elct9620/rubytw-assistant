@@ -4,38 +4,26 @@ import {
   summarizeResult,
 } from '../../src/handlers/summarize-result'
 import type { SummaryResult } from '../../src/usecases/ports'
-import type { ActionItem } from '../../src/entities/action-item'
-import type { TopicGroup } from '../../src/entities/topic-group'
+import type { FollowUpItem } from '../../src/entities/follow-up-item'
 
-const topicGroup = (topic: string): TopicGroup =>
-  ({
-    topic,
-    summary: 'summary',
-    communityRelated: 'yes',
-    smallTalk: 'no',
-    lostContext: 'no',
-  }) as TopicGroup
-
-const actionItem = (description: string): ActionItem =>
-  ({
-    status: 'to-do',
-    description,
-    assignee: 'someone',
-    reason: 'reason',
-  }) as ActionItem
+const item = (description: string): FollowUpItem => ({
+  status: 'to-do',
+  description,
+  assignee: 'someone',
+  lastProgress: null,
+  reason: 'reason',
+})
 
 describe('summarizeResult', () => {
   it('should reduce a success to its counts', () => {
     const result: SummaryResult = {
       kind: 'success',
-      topicGroups: [topicGroup('a'), topicGroup('b')],
-      actionItems: [actionItem('do it')],
+      items: [item('do it'), item('and this')],
     }
 
     expect(summarizeResult(result)).toEqual({
       kind: 'success',
-      topicGroupCount: 2,
-      actionItemCount: 1,
+      itemCount: 2,
     })
   })
 
@@ -70,7 +58,7 @@ describe('classifySummaryResult', () => {
   })
 
   it.each([
-    ['success', { kind: 'success', topicGroups: [], actionItems: [] }],
+    ['success', { kind: 'success', items: [] }],
     ['empty', { kind: 'empty' }],
   ] as const)('should leave a %s run unclassified', (_kind, result) => {
     expect(classifySummaryResult(result as SummaryResult)).toBeUndefined()

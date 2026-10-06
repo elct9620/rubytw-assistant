@@ -1,37 +1,17 @@
-import { isActionable } from '../entities/topic-group'
 import type {
   DiscordSource,
-  ConversationGrouper,
-  ActionItemGenerator,
+  FollowUpAgent,
   MemorySummaryStore,
   MemorySummarizer,
   SummaryResult,
 } from './ports'
 
 const COLLECTION_MESSAGE_LIMIT = 500
-
-class PipelineError extends Error {
-  constructor(
-    readonly phase: string,
-    cause: unknown,
-  ) {
-    const message = cause instanceof Error ? cause.message : 'unknown error'
-    super(`[${phase}] ${message}`, { cause })
-    this.name = 'PipelineError'
-  }
-}
-
-function formatPipelineError(error: unknown): string {
-  if (error instanceof PipelineError) {
-    return error.message
-  }
-  return error instanceof Error ? error.message : 'AI pipeline failed'
-}
+const FOLLOW_UP_AGENT = 'Follow-up Agent'
 
 export interface GenerateSummaryDeps {
   discord: Pick<DiscordSource, 'readMessages'>
-  conversationGrouper: ConversationGrouper
-  actionItemGenerator: ActionItemGenerator
+  followUpAgent: FollowUpAgent
   memorySummaryStore: MemorySummaryStore
   memorySummarizer: MemorySummarizer
 }
@@ -49,13 +29,9 @@ export class GenerateSummary {
       return { kind: 'empty' }
     }
 
-    // Memory Summary Injection — read previous summary
     let memorySummary: string | undefined
     try {
-      const stored = await this.deps.memorySummaryStore.read()
-      if (stored) {
-        memorySummary = stored
-      }
+      memorySummary = (await this.deps.memorySummaryStore.read()) ?? undefined
     } catch (error) {
       console.warn(
         'Memory Summary Store read failed, skipping injection:',
@@ -63,43 +39,34 @@ export class GenerateSummary {
       )
     }
 
+    let items
     try {
-      const groups = await this.deps.conversationGrouper
-        .groupConversations(messages, memorySummary)
-        .catch((error) => {
-          throw new PipelineError('Conversation Grouping', error)
-        })
-
-      const actionableGroups = groups.filter(isActionable)
-
-      if (actionableGroups.length === 0) {
-        await this.runMemorySummaryPhase()
-        return { kind: 'success', topicGroups: groups, actionItems: [] }
-      }
-
-      const actionItems = await this.deps.actionItemGenerator
-        .generateActionItems(actionableGroups, memorySummary)
-        .catch((error) => {
-          throw new PipelineError('Action Item Generation', error)
-        })
-
-      await this.runMemorySummaryPhase()
-      return { kind: 'success', topicGroups: groups, actionItems }
+      items = await this.deps.followUpAgent.followUp(messages, memorySummary)
     } catch (error) {
-      const reason = formatPipelineError(error)
-      console.error('AI pipeline failed, falling back to raw messages:', error)
-      return { kind: 'fallback', rawMessages: messages, reason }
+      const message = error instanceof Error ? error.message : 'unknown error'
+      console.error(
+        `${FOLLOW_UP_AGENT} failed, falling back to raw messages:`,
+        error,
+      )
+      return {
+        kind: 'fallback',
+        rawMessages: messages,
+        reason: `[${FOLLOW_UP_AGENT}] ${message}`,
+      }
     }
+
+    await this.runMemoryAgent()
+    return { kind: 'success', items }
   }
 
-  private async runMemorySummaryPhase(): Promise<void> {
+  private async runMemoryAgent(): Promise<void> {
     try {
       const summary = await this.deps.memorySummarizer.summarize()
       if (summary) {
         await this.deps.memorySummaryStore.write(summary)
       }
     } catch (error) {
-      console.warn('Memory Summary phase failed, skipping:', error)
+      console.warn('Memory Agent failed, skipping:', error)
     }
   }
 }

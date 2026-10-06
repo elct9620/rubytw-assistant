@@ -7,8 +7,7 @@ import { TOKENS } from './tokens'
 import { KVMemoryStoreAdapter } from './adapters/kv-memory-store'
 import { KVMemorySummaryStoreAdapter } from './adapters/kv-memory-summary-store'
 import { createAITools, type AIToolsDeps } from './services/ai-tools'
-import { ConversationGrouperService } from './services/conversation-grouper'
-import { ActionItemGeneratorService } from './services/action-item-generator'
+import { FollowUpAgentService } from './services/follow-up-agent'
 import { MemorySummarizerService } from './services/memory-summarizer'
 import { DiscordNotifierAdapter } from './adapters/discord-notifier'
 import { DiscordGuildRoleAdapter } from './adapters/discord-guild-role'
@@ -58,6 +57,9 @@ container.register(TOKENS.SummaryHours, {
 })
 container.register(TOKENS.SummaryItemLimit, {
   useValue: Number(env.SUMMARY_ITEM_LIMIT),
+})
+container.register(TOKENS.FollowUpTokenBudget, {
+  useValue: Number(env.FOLLOWUP_TOKEN_BUDGET),
 })
 container.register(TOKENS.GitHubAppId, { useValue: env.GITHUB_APP_ID })
 container.register(TOKENS.GitHubPrivateKey, {
@@ -124,11 +126,8 @@ container.register(TOKENS.AIToolsFactory, {
 })
 
 // Port → Service mappings (orchestration)
-container.register(TOKENS.ConversationGrouper, {
-  useClass: ConversationGrouperService,
-})
-container.register(TOKENS.ActionItemGenerator, {
-  useClass: ActionItemGeneratorService,
+container.register(TOKENS.FollowUpAgent, {
+  useClass: FollowUpAgentService,
 })
 container.register(TOKENS.MemorySummarizer, {
   useClass: MemorySummarizerService,
@@ -164,8 +163,7 @@ container.register(GenerateSummary, {
   useFactory: (c) =>
     new GenerateSummary({
       discord: c.resolve(TOKENS.DiscordSource),
-      conversationGrouper: c.resolve(TOKENS.ConversationGrouper),
-      actionItemGenerator: c.resolve(TOKENS.ActionItemGenerator),
+      followUpAgent: c.resolve(TOKENS.FollowUpAgent),
       memorySummaryStore: c.resolve(TOKENS.MemorySummaryStore),
       memorySummarizer: c.resolve(TOKENS.MemorySummarizer),
     }),

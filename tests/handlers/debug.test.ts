@@ -16,8 +16,7 @@ const enableTelemetry = () =>
   })
 
 beforeEach(() => {
-  container.register(TOKENS.ConversationGrouper, { useValue: {} })
-  container.register(TOKENS.ActionItemGenerator, { useValue: {} })
+  container.register(TOKENS.FollowUpAgent, { useValue: {} })
   container.register(TOKENS.DiscordSource, { useValue: {} })
   container.register(TOKENS.LangfuseConfig, { useFactory: () => null })
   container.register(GenerateSummary, {
@@ -40,7 +39,7 @@ describe('debug handler', () => {
   })
 
   it('should accept requests on 127.0.0.1', async () => {
-    mockExecute.mockResolvedValue({ topicGroups: [], actionItems: [] })
+    mockExecute.mockResolvedValue({ kind: 'success', items: [] })
 
     const res = await debug.request(
       'http://127.0.0.1:8787/summary?channel_id=ch-1',
@@ -60,25 +59,20 @@ describe('debug handler', () => {
     expect(body).toHaveProperty('error')
   })
 
-  it('should return topic groups and action items as JSON', async () => {
-    const topicGroups = [
-      {
-        topic: 'Test',
-        summary: 'Test summary',
-        communityRelated: 'yes',
-        smallTalk: 'no',
-        lostContext: 'no',
-      },
-    ]
-    const actionItems = [
-      {
-        status: 'to-do',
-        description: 'Do thing',
-        assignee: 'Bob',
-        reason: 'Needed',
-      },
-    ]
-    mockExecute.mockResolvedValue({ topicGroups, actionItems })
+  it('should return the follow-up list as JSON', async () => {
+    const result = {
+      kind: 'success',
+      items: [
+        {
+          status: 'to-do',
+          description: 'Do thing',
+          assignee: 'Bob',
+          lastProgress: '2026-10-05',
+          reason: 'Needed',
+        },
+      ],
+    }
+    mockExecute.mockResolvedValue(result)
 
     const res = await debug.request('/summary?channel_id=ch-1', undefined, {
       SUMMARY_HOURS: '24',
@@ -86,12 +80,12 @@ describe('debug handler', () => {
 
     expect(res.status).toBe(200)
     const body = await res.json()
-    expect(body).toEqual({ topicGroups, actionItems })
+    expect(body).toEqual(result)
     expect(mockExecute).toHaveBeenCalled()
   })
 
   it('should use custom hours when provided', async () => {
-    mockExecute.mockResolvedValue({ topicGroups: [], actionItems: [] })
+    mockExecute.mockResolvedValue({ kind: 'success', items: [] })
 
     await debug.request('/summary?channel_id=ch-1&hours=12', {
       SUMMARY_HOURS: '24',
@@ -116,7 +110,7 @@ describe('debug handler', () => {
     enableTelemetry()
     const langfuse = captureLangfuseSpans()
 
-    mockExecute.mockResolvedValue({ topicGroups: [], actionItems: [] })
+    mockExecute.mockResolvedValue({ kind: 'success', items: [] })
 
     const res = await debug.request('/summary?channel_id=ch-1', undefined, {
       SUMMARY_HOURS: '24',
@@ -130,7 +124,7 @@ describe('debug handler', () => {
     enableTelemetry()
     const langfuse = captureLangfuseSpans()
 
-    mockExecute.mockResolvedValue({ topicGroups: [], actionItems: [] })
+    mockExecute.mockResolvedValue({ kind: 'success', items: [] })
 
     await debug.request('/summary?channel_id=ch-1&hours=12', undefined, {
       SUMMARY_HOURS: '24',

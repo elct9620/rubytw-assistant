@@ -32,7 +32,7 @@ beforeEach(() => {
 
 describe('scheduledHandler', () => {
   it('should call use case execute and pass result to presenter', async () => {
-    const result = { topicGroups: [], actionItems: [] }
+    const result = { kind: 'success', items: [] }
     mockExecute.mockResolvedValue(result)
     mockPresent.mockResolvedValue(undefined)
 
@@ -63,7 +63,7 @@ describe('scheduledHandler', () => {
     enableTelemetry()
     const langfuse = captureLangfuseSpans()
 
-    mockExecute.mockResolvedValue({ topicGroups: [], actionItems: [] })
+    mockExecute.mockResolvedValue({ kind: 'success', items: [] })
     mockPresent.mockRejectedValue(new Error('Discord API error'))
 
     const controller = { cron: '0 16 * * *', scheduledTime: Date.now() }

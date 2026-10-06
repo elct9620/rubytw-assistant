@@ -1,5 +1,4 @@
-import type { TopicGroup } from '../entities/topic-group'
-import type { ActionItem } from '../entities/action-item'
+import type { FollowUpItem } from '../entities/follow-up-item'
 
 export interface IssueOverview {
   title: string
@@ -78,18 +77,8 @@ export interface DiscordSource {
   searchMessages(query: SearchMessagesQuery): Promise<MessageSearchPage>
 }
 
-export interface ConversationGrouper {
-  groupConversations(
-    messages: string[],
-    memorySummary?: string,
-  ): Promise<TopicGroup[]>
-}
-
-export interface ActionItemGenerator {
-  generateActionItems(
-    groups: TopicGroup[],
-    memorySummary?: string,
-  ): Promise<ActionItem[]>
+export interface FollowUpAgent {
+  followUp(messages: string[], memorySummary?: string): Promise<FollowUpItem[]>
 }
 
 export interface DiscordNotifier {
@@ -98,8 +87,7 @@ export interface DiscordNotifier {
 
 export interface SummarySuccess {
   kind: 'success'
-  topicGroups: TopicGroup[]
-  actionItems: ActionItem[]
+  items: FollowUpItem[]
 }
 
 export interface SummaryEmpty {

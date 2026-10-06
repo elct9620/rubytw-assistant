@@ -3,38 +3,14 @@ import {
   GenerateSummary,
   type GenerateSummaryDeps,
 } from '../../src/usecases/generate-summary'
-import type { TopicGroup } from '../../src/entities/topic-group'
-import type { ActionItem } from '../../src/entities/action-item'
+import type { FollowUpItem } from '../../src/entities/follow-up-item'
 
-const actionableGroup: TopicGroup = {
-  topic: '官網更新',
-  summary: '討論官網改版',
-  communityRelated: 'yes',
-  smallTalk: 'no',
-  lostContext: 'no',
-}
-
-const smallTalkGroup: TopicGroup = {
-  topic: '閒聊',
-  summary: '聊天內容',
-  communityRelated: 'yes',
-  smallTalk: 'yes',
-  lostContext: 'no',
-}
-
-const nonCommunityGroup: TopicGroup = {
-  topic: '其他',
-  summary: '非社群相關',
-  communityRelated: 'no',
-  smallTalk: 'no',
-  lostContext: 'no',
-}
-
-const sampleActionItem: ActionItem = {
+const sampleItem: FollowUpItem = {
   status: 'to-do',
-  description: '更新官網',
-  assignee: 'Alice',
-  reason: '官網資訊過舊',
+  description: '寄出贊助報告',
+  assignee: 'Kasa',
+  lastProgress: '2026-03-30',
+  reason: '贊助商等待中',
 }
 
 function createStubDeps(
@@ -46,13 +22,8 @@ function createStubDeps(
         .fn()
         .mockResolvedValue({ messages: ['msg-1', 'msg-2'], nextCursor: null }),
     },
-    conversationGrouper: {
-      groupConversations: vi
-        .fn()
-        .mockResolvedValue([actionableGroup, smallTalkGroup]),
-    },
-    actionItemGenerator: {
-      generateActionItems: vi.fn().mockResolvedValue([sampleActionItem]),
+    followUpAgent: {
+      followUp: vi.fn().mockResolvedValue([sampleItem]),
     },
     memorySummaryStore: {
       read: vi.fn().mockResolvedValue(null),
@@ -66,13 +37,11 @@ function createStubDeps(
 }
 
 describe('GenerateSummary', () => {
-  it('should run two-phase pipeline and return success result', async () => {
+  it('should hand the collected window to the Follow-up Agent and return its list', async () => {
     const deps = createStubDeps()
     const usecase = new GenerateSummary(deps)
 
-    const now = new Date('2026-04-01T00:00:00Z')
-    vi.setSystemTime(now)
-
+    vi.setSystemTime(new Date('2026-04-01T00:00:00Z'))
     const result = await usecase.execute(24)
     vi.useRealTimers()
 
@@ -80,44 +49,14 @@ describe('GenerateSummary', () => {
       since: new Date('2026-03-31T00:00:00Z'),
       limit: 500,
     })
-    expect(deps.conversationGrouper.groupConversations).toHaveBeenCalledWith(
+    expect(deps.followUpAgent.followUp).toHaveBeenCalledWith(
       ['msg-1', 'msg-2'],
       undefined,
     )
-    expect(deps.actionItemGenerator.generateActionItems).toHaveBeenCalledWith(
-      [actionableGroup],
-      undefined,
-    )
-    expect(result).toEqual({
-      kind: 'success',
-      topicGroups: [actionableGroup, smallTalkGroup],
-      actionItems: [sampleActionItem],
-    })
+    expect(result).toEqual({ kind: 'success', items: [sampleItem] })
   })
 
-  it('should filter out non-community and small-talk groups', async () => {
-    const deps = createStubDeps({
-      conversationGrouper: {
-        groupConversations: vi
-          .fn()
-          .mockResolvedValue([
-            actionableGroup,
-            smallTalkGroup,
-            nonCommunityGroup,
-          ]),
-      },
-    })
-    const usecase = new GenerateSummary(deps)
-
-    await usecase.execute(12)
-
-    expect(deps.actionItemGenerator.generateActionItems).toHaveBeenCalledWith(
-      [actionableGroup],
-      undefined,
-    )
-  })
-
-  it('should return empty result when no messages found', async () => {
+  it('should run neither agent when no messages were found', async () => {
     const deps = createStubDeps({
       discord: {
         readMessages: vi
@@ -125,73 +64,31 @@ describe('GenerateSummary', () => {
           .mockResolvedValue({ messages: [], nextCursor: null }),
       },
     })
-    const usecase = new GenerateSummary(deps)
 
-    const result = await usecase.execute(24)
+    const result = await new GenerateSummary(deps).execute(24)
 
     expect(result).toEqual({ kind: 'empty' })
-    expect(deps.conversationGrouper.groupConversations).not.toHaveBeenCalled()
+    expect(deps.followUpAgent.followUp).not.toHaveBeenCalled()
+    expect(deps.memorySummarizer.summarize).not.toHaveBeenCalled()
   })
 
-  it('should return success with empty action items when all groups are filtered out', async () => {
+  it('should fall back to raw messages and leave memory alone when the Follow-up Agent fails', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
     const deps = createStubDeps({
-      conversationGrouper: {
-        groupConversations: vi
-          .fn()
-          .mockResolvedValue([smallTalkGroup, nonCommunityGroup]),
+      followUpAgent: {
+        followUp: vi.fn().mockRejectedValue(new Error('token budget exceeded')),
       },
     })
-    const usecase = new GenerateSummary(deps)
 
-    const result = await usecase.execute(24)
-
-    expect(result).toEqual({
-      kind: 'success',
-      topicGroups: [smallTalkGroup, nonCommunityGroup],
-      actionItems: [],
-    })
-    expect(deps.actionItemGenerator.generateActionItems).not.toHaveBeenCalled()
-  })
-
-  it('should fall back to raw messages when conversation grouping fails', async () => {
-    const deps = createStubDeps({
-      conversationGrouper: {
-        groupConversations: vi
-          .fn()
-          .mockRejectedValue(new Error('grouper down')),
-      },
-    })
-    const usecase = new GenerateSummary(deps)
-
-    const result = await usecase.execute(24)
+    const result = await new GenerateSummary(deps).execute(24)
 
     expect(result).toEqual({
       kind: 'fallback',
       rawMessages: ['msg-1', 'msg-2'],
-      reason: '[Conversation Grouping] grouper down',
-    })
-    expect(deps.actionItemGenerator.generateActionItems).not.toHaveBeenCalled()
-    expect(deps.memorySummarizer.summarize).not.toHaveBeenCalled()
-  })
-
-  it('should fall back to raw messages when action item generation fails', async () => {
-    const deps = createStubDeps({
-      actionItemGenerator: {
-        generateActionItems: vi
-          .fn()
-          .mockRejectedValue(new Error('generator down')),
-      },
-    })
-    const usecase = new GenerateSummary(deps)
-
-    const result = await usecase.execute(24)
-
-    expect(result).toEqual({
-      kind: 'fallback',
-      rawMessages: ['msg-1', 'msg-2'],
-      reason: '[Action Item Generation] generator down',
+      reason: '[Follow-up Agent] token budget exceeded',
     })
     expect(deps.memorySummarizer.summarize).not.toHaveBeenCalled()
+    vi.restoreAllMocks()
   })
 
   it('should propagate Discord collection errors without fallback', async () => {
@@ -200,110 +97,85 @@ describe('GenerateSummary', () => {
         readMessages: vi.fn().mockRejectedValue(new Error('discord down')),
       },
     })
-    const usecase = new GenerateSummary(deps)
 
-    await expect(usecase.execute(24)).rejects.toThrow('discord down')
+    await expect(new GenerateSummary(deps).execute(24)).rejects.toThrow(
+      'discord down',
+    )
   })
 
-  it('should inject stored memory summary into Phase 1 and Phase 2', async () => {
+  it('should inject the stored memory summary into the Follow-up Agent', async () => {
     const deps = createStubDeps({
       memorySummaryStore: {
         read: vi.fn().mockResolvedValue('previous summary context'),
         write: vi.fn().mockResolvedValue(undefined),
       },
     })
-    const usecase = new GenerateSummary(deps)
 
-    await usecase.execute(24)
+    await new GenerateSummary(deps).execute(24)
 
-    expect(deps.conversationGrouper.groupConversations).toHaveBeenCalledWith(
+    expect(deps.followUpAgent.followUp).toHaveBeenCalledWith(
       ['msg-1', 'msg-2'],
-      'previous summary context',
-    )
-    expect(deps.actionItemGenerator.generateActionItems).toHaveBeenCalledWith(
-      [actionableGroup],
       'previous summary context',
     )
   })
 
-  it('should skip injection when no stored summary exists', async () => {
-    const deps = createStubDeps()
-    const usecase = new GenerateSummary(deps)
-
-    await usecase.execute(24)
-
-    expect(deps.conversationGrouper.groupConversations).toHaveBeenCalledWith(
-      ['msg-1', 'msg-2'],
-      undefined,
-    )
-  })
-
-  it('should skip injection when memory summary store read fails', async () => {
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+  it('should continue without memory context when the summary store read fails', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
     const deps = createStubDeps({
       memorySummaryStore: {
         read: vi.fn().mockRejectedValue(new Error('KV down')),
         write: vi.fn().mockResolvedValue(undefined),
       },
     })
-    const usecase = new GenerateSummary(deps)
 
-    const result = await usecase.execute(24)
+    const result = await new GenerateSummary(deps).execute(24)
 
     expect(result.kind).toBe('success')
-    expect(deps.conversationGrouper.groupConversations).toHaveBeenCalledWith(
+    expect(deps.followUpAgent.followUp).toHaveBeenCalledWith(
       ['msg-1', 'msg-2'],
       undefined,
     )
-    warnSpy.mockRestore()
+    vi.restoreAllMocks()
   })
 
-  it('should run Phase 3 and write summary after successful pipeline', async () => {
+  it('should run the Memory Agent and store its summary after a successful follow-up', async () => {
     const deps = createStubDeps({
       memorySummarizer: {
         summarize: vi.fn().mockResolvedValue('new summary'),
       },
     })
-    const usecase = new GenerateSummary(deps)
 
-    await usecase.execute(24)
+    await new GenerateSummary(deps).execute(24)
 
-    expect(deps.memorySummarizer.summarize).toHaveBeenCalled()
     expect(deps.memorySummaryStore.write).toHaveBeenCalledWith('new summary')
   })
 
-  it('should skip write when summarizer returns null (all slots empty)', async () => {
-    const deps = createStubDeps({
-      memorySummarizer: {
-        summarize: vi.fn().mockResolvedValue(null),
-      },
-    })
-    const usecase = new GenerateSummary(deps)
+  it('should skip the write when the Memory Agent leaves no summary', async () => {
+    const deps = createStubDeps()
 
-    await usecase.execute(24)
+    await new GenerateSummary(deps).execute(24)
 
     expect(deps.memorySummarizer.summarize).toHaveBeenCalled()
     expect(deps.memorySummaryStore.write).not.toHaveBeenCalled()
   })
 
-  it('should continue when Phase 3 summarizer fails', async () => {
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+  it('should still return the list when the Memory Agent fails', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
     const deps = createStubDeps({
       memorySummarizer: {
         summarize: vi.fn().mockRejectedValue(new Error('AI down')),
       },
     })
-    const usecase = new GenerateSummary(deps)
 
-    const result = await usecase.execute(24)
+    const result = await new GenerateSummary(deps).execute(24)
 
-    expect(result.kind).toBe('success')
+    expect(result).toEqual({ kind: 'success', items: [sampleItem] })
     expect(deps.memorySummaryStore.write).not.toHaveBeenCalled()
-    warnSpy.mockRestore()
+    vi.restoreAllMocks()
   })
 
-  it('should continue when Phase 3 store write fails', async () => {
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+  it('should still return the list when the summary store write fails', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
     const deps = createStubDeps({
       memorySummarizer: {
         summarize: vi.fn().mockResolvedValue('new summary'),
@@ -313,32 +185,10 @@ describe('GenerateSummary', () => {
         write: vi.fn().mockRejectedValue(new Error('KV write failed')),
       },
     })
-    const usecase = new GenerateSummary(deps)
 
-    const result = await usecase.execute(24)
+    const result = await new GenerateSummary(deps).execute(24)
 
     expect(result.kind).toBe('success')
-    warnSpy.mockRestore()
-  })
-
-  it('should run Phase 3 even when all groups are filtered out', async () => {
-    const deps = createStubDeps({
-      conversationGrouper: {
-        groupConversations: vi
-          .fn()
-          .mockResolvedValue([smallTalkGroup, nonCommunityGroup]),
-      },
-      memorySummarizer: {
-        summarize: vi.fn().mockResolvedValue('summary from memory'),
-      },
-    })
-    const usecase = new GenerateSummary(deps)
-
-    await usecase.execute(24)
-
-    expect(deps.memorySummarizer.summarize).toHaveBeenCalled()
-    expect(deps.memorySummaryStore.write).toHaveBeenCalledWith(
-      'summary from memory',
-    )
+    vi.restoreAllMocks()
   })
 })
