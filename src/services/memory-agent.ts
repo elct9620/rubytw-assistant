@@ -30,12 +30,12 @@ export class MemoryAgentService implements MemoryAgent {
     const today = new Date().toISOString().slice(0, 10)
     const agent = new ToolLoopAgent({
       model: createAIModel(this.aiGatewayConfig),
-      instructions: MEMORY_AGENT_PROMPT.replace(
+      instructions: MEMORY_AGENT_PROMPT.replaceAll(
         '{{memoryEntryLimit}}',
         String(this.memoryEntryLimit),
       )
-        .replace('{{memorySummaryLengthLimit}}', String(this.lengthLimit))
-        .replace('{{today}}', today),
+        .replaceAll('{{memorySummaryLengthLimit}}', String(this.lengthLimit))
+        .replaceAll('{{today}}', today),
       tools: createMemoryTools({
         memoryStore: this.memoryStore,
         memoryEntryLimit: this.memoryEntryLimit,

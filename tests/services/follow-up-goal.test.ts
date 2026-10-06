@@ -109,10 +109,7 @@ describe('Follow-up Goal Check', () => {
   })
 
   it('should not count listing memory without reading it as memory checked', () => {
-    const unmet = unmetGoals(
-      [{ toolName: 'list_memories', input: {} }],
-      [],
-    )
+    const unmet = unmetGoals([{ toolName: 'list_memories', input: {} }], [])
 
     expect(unmet).toEqual([expect.stringMatching(/^Memory/)])
   })

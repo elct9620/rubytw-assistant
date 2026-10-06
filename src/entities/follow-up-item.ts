@@ -1,4 +1,4 @@
-export type FollowUpStatus = 'to-do' | 'in-progress' | 'stalled'
+export type FollowUpStatus = 'to-do' | 'in-progress' | 'stalled' | 'abandoned'
 
 export interface FollowUpItem {
   status: FollowUpStatus
@@ -13,6 +13,7 @@ const STATUS_LABELS: Record<FollowUpStatus, string> = {
   'to-do': '待辦',
   'in-progress': '進行中',
   stalled: '停滯',
+  abandoned: '已放棄',
 }
 
 export function formatFollowUpItems(items: FollowUpItem[]): string {

@@ -78,6 +78,23 @@ describe('FollowUpAgentService', () => {
     )
   })
 
+  it('should hand back an item the agent abandoned this run', async () => {
+    const abandoned = {
+      ...ITEM,
+      status: 'abandoned',
+      reason: '提醒後一週仍無進展',
+    }
+    model = scriptedModel([
+      LOOKED_UP,
+      [{ toolName: 'submit', input: { items: [abandoned] } }],
+    ])
+    const { service } = createService()
+
+    const items = await service.followUp(['msg'])
+
+    expect(items).toEqual([abandoned])
+  })
+
   it('should keep working after a refused submission and return the list it later hands in', async () => {
     model = scriptedModel([[SUBMIT], LOOKED_UP, [SUBMIT]])
     const { service } = createService()
@@ -132,6 +149,7 @@ describe('FollowUpAgentService', () => {
     const system = firstCall.prompt.find((m) => m.role === 'system')
     const user = firstCall.prompt.find((m) => m.role === 'user')
     expect(system?.content).toContain('previous summary context')
+    expect(system?.content).not.toMatch(/\{\{\w+\}\}/)
     expect(JSON.stringify(user?.content)).toContain('msg-1\\nmsg-2')
   })
 })

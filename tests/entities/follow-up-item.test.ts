@@ -5,6 +5,22 @@ import {
 } from '../../src/entities/follow-up-item'
 
 describe('formatFollowUpItems', () => {
+  it('should mark an abandoned item so operators see it was let go', () => {
+    const items: FollowUpItem[] = [
+      {
+        status: 'abandoned',
+        description: '確認 SITCON 照片素材',
+        assignee: 'Kasa',
+        lastProgress: '2026-09-10',
+        reason: '提醒後一週仍無人回應',
+      },
+    ]
+
+    expect(formatFollowUpItems(items)).toBe(
+      '- [已放棄] 確認 SITCON 照片素材 (Kasa) — 最後進展 2026-09-10 — 提醒後一週仍無人回應',
+    )
+  })
+
   it('should show status, description, assignee, last progress, and reason on one line each', () => {
     const items: FollowUpItem[] = [
       {

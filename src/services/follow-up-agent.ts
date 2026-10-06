@@ -23,9 +23,9 @@ const FollowUpListSchema = z.object({
   items: z.array(
     z.object({
       status: z
-        .enum(['to-do', 'in-progress', 'stalled'])
+        .enum(['to-do', 'in-progress', 'stalled', 'abandoned'])
         .describe(
-          'to-do: not started; in-progress: moved recently; stalled: no movement or blocked',
+          'to-do: not started; in-progress: moved recently; stalled: reminded after 7 days without progress; abandoned: no progress 7 days after the reminder, listed this once',
         ),
       description: z
         .string()
@@ -62,10 +62,10 @@ export class FollowUpAgentService implements FollowUpAgent {
     memorySummary?: string,
   ): Promise<FollowUpItem[]> {
     const today = new Date().toISOString().slice(0, 10)
-    let instructions = FOLLOW_UP_PROMPT.replace(
+    let instructions = FOLLOW_UP_PROMPT.replaceAll(
       '{{memoryEntryLimit}}',
       String(this.memoryEntryLimit),
-    ).replace('{{today}}', today)
+    ).replaceAll('{{today}}', today)
     if (memorySummary) {
       instructions += `\n\n# Memory Summary\n\n${memorySummary}`
     }
