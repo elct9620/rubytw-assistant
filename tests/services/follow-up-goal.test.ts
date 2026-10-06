@@ -22,7 +22,6 @@ const noop = tool({
 const CHECKS: ScriptedCall[] = [
   { toolName: 'list_memories', input: {} },
   { toolName: 'read_memories', input: { indices: [0] } },
-  { toolName: 'search_messages', input: { author: 'people' } },
 ]
 const SUBMIT: ScriptedCall = {
   toolName: SUBMIT_TOOL,
@@ -71,7 +70,7 @@ describe('Follow-up Goal Check', () => {
   })
 
   it('should accept a list without any message search once memory was read', async () => {
-    const result = await runFollowUp([CHECKS.slice(0, 2), [SUBMIT]], [])
+    const result = await runFollowUp([CHECKS, [SUBMIT]], [])
 
     expect(submitResults(result)[0]).toEqual({ accepted: true })
   })

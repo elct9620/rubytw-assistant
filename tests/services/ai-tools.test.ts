@@ -649,6 +649,22 @@ describe('createAITools', () => {
       warnSpy.mockRestore()
     })
 
+    it('read_messages should say the channel is rate limited rather than that the query failed', async () => {
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+      const tools = createTools({
+        discordSource: createStubDiscordSource({
+          readMessages: vi
+            .fn()
+            .mockRejectedValue(new RateLimitedError('Discord')),
+        }),
+      })
+
+      const result = await getTool(tools, 'read_messages').execute({})
+
+      expect(result.error).toMatch(/^rate limited/)
+      warnSpy.mockRestore()
+    })
+
     it('search_messages should say the channel is rate limited rather than that the query failed', async () => {
       const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
       const tools = createTools({

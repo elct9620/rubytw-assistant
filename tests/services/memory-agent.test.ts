@@ -103,6 +103,19 @@ describe('MemoryAgentService', () => {
     ])
   })
 
+  it('should give the agent instructions with every placeholder filled', async () => {
+    await seedSlots([{ description: 'Kasa', content: 'organizer' }])
+    const scripted = scriptedModel(['summary'])
+    model = scripted
+
+    await createService().service.tidyAndSummarize()
+
+    const system = scripted.doGenerateCalls[0].prompt.find(
+      (m) => m.role === 'system',
+    )
+    expect(system?.content).not.toMatch(/\{\{\w+\}\}/)
+  })
+
   it('should return null when tidying leaves memory empty', async () => {
     await seedSlots([{ description: '舊任務', content: '2026-01-01: 已完成' }])
     model = scriptedModel([

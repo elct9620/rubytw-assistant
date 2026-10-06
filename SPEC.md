@@ -50,12 +50,12 @@ The list reminds operators of what has not moved, rather than restating what was
 
 **AI Available Tools:**
 
-| Tool         | Capability                                                                                  | Available To                  | Purpose                                                                     |
-| ------------ | ------------------------------------------------------------------------------------------- | ----------------------------- | --------------------------------------------------------------------------- |
-| Memory Tool  | Read and write index-based context memory (see Memory Tool Interface below)                 | Follow-up Agent, Memory Agent | Track unfinished items and lasting knowledge across executions              |
-| GitHub Tool  | List, search, and read Issues (see GitHub Tool Query below)                                 | Follow-up Agent               | Verify task status, relate conversations to existing issues                 |
-| Discord Tool | Read and search the designated channel's messages in bounded pages (see Discord Tool Query) | Follow-up Agent               | Find when people last discussed an item; recover context outside the window |
-| Submit       | Hand in the follow-up list (see Goal Check below)                                           | Follow-up Agent               | End the run once the Goal Check accepts the work                            |
+| Tool         | Capability                                                                                  | Available To                  | Purpose                                                        |
+| ------------ | ------------------------------------------------------------------------------------------- | ----------------------------- | -------------------------------------------------------------- |
+| Memory Tool  | Read and write index-based context memory (see Memory Tool Interface below)                 | Follow-up Agent, Memory Agent | Track unfinished items and lasting knowledge across executions |
+| GitHub Tool  | List, search, and read Issues (see GitHub Tool Query below)                                 | Follow-up Agent               | Verify task status, relate conversations to existing issues    |
+| Discord Tool | Read and search the designated channel's messages in bounded pages (see Discord Tool Query) | Follow-up Agent               | Recover context the window and memory cannot explain           |
+| Submit       | Hand in the follow-up list (see Goal Check below)                                           | Follow-up Agent               | End the run once the Goal Check accepts the work               |
 
 **User Journey:**
 

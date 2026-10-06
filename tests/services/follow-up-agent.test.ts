@@ -26,22 +26,10 @@ const ITEM = {
 const LOOKED_UP: ScriptedCall[] = [
   { toolName: 'list_memories', input: {} },
   { toolName: 'read_memories', input: { indices: [0] } },
-  {
-    toolName: 'search_messages',
-    input: {
-      query: '贊助',
-      author: 'people',
-      involves_self: null,
-      since: null,
-      until: null,
-      cursor: null,
-    },
-  },
 ]
 const SUBMIT: ScriptedCall = { toolName: 'submit', input: { items: [ITEM] } }
 
 function createService(budget = 1_000) {
-  const discordSource = createStubDiscordSource()
   const service = new FollowUpAgentService(
     { gateway: {} as AiGateway, modelId: 'test-model' },
     32,
@@ -50,7 +38,7 @@ function createService(budget = 1_000) {
       createAITools({
         memoryStore: new KVMemoryStoreAdapter(env.MEMORY_KV, 32, 128),
         githubSource: createStubGitHubSource(),
-        discordSource,
+        discordSource: createStubDiscordSource(),
         summaryHours: 24,
         memoryEntryLimit: 32,
         memoryDescriptionLimit: 128,
@@ -58,7 +46,7 @@ function createService(budget = 1_000) {
       }),
     null,
   )
-  return { service, discordSource }
+  return { service }
 }
 
 describe('FollowUpAgentService', () => {
@@ -68,14 +56,11 @@ describe('FollowUpAgentService', () => {
 
   it('should return the submitted list once the Goal Check accepts it', async () => {
     model = scriptedModel([LOOKED_UP, [SUBMIT]])
-    const { service, discordSource } = createService()
+    const { service } = createService()
 
     const items = await service.followUp(['[2026-10-05] Kasa: 報告晚點寄'])
 
     expect(items).toEqual([ITEM])
-    expect(discordSource.searchMessages).toHaveBeenCalledWith(
-      expect.objectContaining({ query: '贊助', author: 'people' }),
-    )
   })
 
   it('should hand back an item the agent abandoned this run', async () => {
