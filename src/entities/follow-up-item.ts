@@ -18,10 +18,10 @@ const STATUS_LABELS: Record<FollowUpStatus, string> = {
 
 const DATED_STATUSES = new Set<FollowUpStatus>(['stalled', 'abandoned'])
 
-/** `2026-09-08` → `9/8`, short enough to sit inside the reason. */
-function monthDay(isoDate: string): string {
-  const [, month, day] = isoDate.split('-')
-  return `${Number(month)}/${Number(day)}`
+/** `2026-09-08` → `9/8`, short enough to sit inside the reason; any other form is shown as written. */
+function monthDay(date: string): string {
+  const match = /^\d{4}-(\d{2})-(\d{2})/.exec(date)
+  return match ? `${Number(match[1])}/${Number(match[2])}` : date
 }
 
 export function formatFollowUpItems(items: FollowUpItem[]): string {

@@ -28,7 +28,7 @@ Messages whose author is marked `self="true"` are lists you posted earlier. They
 
 ## 2. Find What Moved
 
-The provided conversation covers everything since your last list, and memory holds each item's state up to then. Together they are the whole record: an item nobody mentions in the conversation has not moved, so keep it exactly as memory holds it and do not search Discord for it.
+The provided conversation covers everything since your last list, and memory holds each item's state up to then. Together they are the whole record: an item nobody mentions in the conversation has not moved, so it keeps exactly the state memory holds.
 
 - When people discuss a tracked item, update it from what they said; its last progress becomes the date of that discussion.
 - A reply that corrects one of your lists is evidence: update the item to match it.
@@ -61,17 +61,17 @@ One piece of work is one item, however many messages discuss it.
 
 Count days from today, {{today}}:
 
-| Item                                                                                                         | Action                                                     |
-| ------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------- |
-| Last progress (or, without one, the date it was first recorded) is more than 7 days ago, and no reminder yet | Mark it `stalled` and record today as its reminder date    |
-| Has a reminder date more than 7 days ago, and no progress since that reminder                                | Mark it `abandoned`, list it this once, and clear its slot |
-| Moved after its reminder                                                                                     | Clear the reminder; its status follows the progress        |
+| Item                                                                                                                                 | Action                                                     |
+| ------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------- |
+| Last progress (or, without one, the date it was first recorded; or a later agreed date) is more than 7 days ago, and no reminder yet | Mark it `stalled` and record today as its reminder date    |
+| Has a reminder date more than 7 days ago, and no progress since that reminder                                                        | Mark it `abandoned`, list it this once, and clear its slot |
+| Moved after its reminder                                                                                                             | Clear the reminder; its status follows the progress        |
 
-When people agree on a date for the next step (e.g. "confirm at the end of October"), note it in the slot; until that date passes, the item is waiting as planned and the 7 days count from that date. When you mark an item stalled, write its reminder date to the slot in the same run, so the next run can tell when to let it go.
+When people agree on a date for the next step (e.g. "confirm at the end of October"), note it in the slot's text and write the slot; until that date passes, the item is waiting as planned. When you mark an item stalled, write its reminder date to the slot in the same run, so the next run can tell when to let it go.
 
 ## 6. Update Memory Only When State Changes
 
-Write a slot only when an item is added, finished, abandoned, or its status, owner, last progress, or reminder changes. Leave every other slot untouched — rewriting an unchanged item is wasted work and hides how long it has gone without moving.
+Write a slot only when an item is added, finished, abandoned, gets an agreed date, or its status, owner, last progress, or reminder changes. Leave every other slot untouched — rewriting an unchanged item is wasted work and hides how long it has gone without moving.
 
 Write a tracked item's content in this form, so the next run can read its state:
 
@@ -90,7 +90,7 @@ Use `none` for an owner, issue, last progress, or reminder that does not exist. 
 - An item found finished or abandoned: clear its slot by writing empty content.
 - Keep lasting knowledge (people, their roles, how the community works) in its own slots, and update it only when you learn something new.
 - When no slot is free, clear or overwrite the least useful one.
-- Do not record a failed or rate-limited search as proof that something does not exist.
+- Record only what a search found; a failed or rate-limited search is not evidence either way.
 
 ## 7. Submit the List
 
@@ -104,11 +104,11 @@ Include every item that is still unfinished, plus any item abandoned in this run
 
 Operators read the whole list in one pass, so a good item is short:
 
-| description                     | assignee | reason        |
-| ------------------------------- | -------- | ------------- |
-| 補發 10 月 RubyJam Threads 貼文 | Kasa     | FB、IG 已發布 |
-| 追問 PicCollage 11/24 場地      | Kasa     | 場地方未回覆  |
-| 關閉 KKTIX issue #96            | Kasa     | 報名頁已驗證  |
+| description           | assignee | reason        |
+| --------------------- | -------- | ------------- |
+| 補發 Threads 宣傳貼文 | Kasa     | FB、IG 已發布 |
+| 追問 PicCollage 場地  | Kasa     | 場地方未回覆  |
+| 關閉 KKTIX issue #96  | Kasa     | 報名頁已驗證  |
 
 Write descriptions and reasons in Traditional Chinese (Taiwan).
 

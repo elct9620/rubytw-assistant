@@ -21,11 +21,19 @@ describe('formatFollowUpItems', () => {
         lastProgress: '2026-10-05',
         reason: '已聯絡場地方',
       },
+      {
+        status: 'to-do',
+        description: '訂購杯套',
+        assignee: null,
+        lastProgress: null,
+        reason: '活動前需到貨',
+      },
     ]
 
     expect(formatFollowUpItems(items)).toBe(
       '- [待辦] 寄出贊助報告 (Kasa) — 贊助商等待中\n' +
-        '- [進行中] 確認 11 月場地 (竜堂) — 已聯絡場地方',
+        '- [進行中] 確認 11 月場地 (竜堂) — 已聯絡場地方\n' +
+        '- [待辦] 訂購杯套 — 活動前需到貨',
     )
   })
 
@@ -45,6 +53,22 @@ describe('formatFollowUpItems', () => {
     )
   })
 
+  it('should show a last progress the model wrote in another form as it was written', () => {
+    const items: FollowUpItem[] = [
+      {
+        status: 'stalled',
+        description: '追問 PicCollage 場地',
+        assignee: 'Kasa',
+        lastProgress: '9/28',
+        reason: '場地方未回覆',
+      },
+    ]
+
+    expect(formatFollowUpItems(items)).toBe(
+      '- [停滯] 追問 PicCollage 場地 (Kasa) — 場地方未回覆，最後進展 9/28',
+    )
+  })
+
   it('should mark an abandoned item so operators see it was let go', () => {
     const items: FollowUpItem[] = [
       {
@@ -52,12 +76,12 @@ describe('formatFollowUpItems', () => {
         description: '確認 SITCON 照片素材',
         assignee: 'Kasa',
         lastProgress: '2026-09-10',
-        reason: '提醒後無人回應',
+        reason: '素材來源未定',
       },
     ]
 
     expect(formatFollowUpItems(items)).toBe(
-      '- [已放棄] 確認 SITCON 照片素材 (Kasa) — 提醒後無人回應，最後進展 9/10',
+      '- [已放棄] 確認 SITCON 照片素材 (Kasa) — 素材來源未定，最後進展 9/10',
     )
   })
 
