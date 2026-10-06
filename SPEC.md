@@ -387,7 +387,7 @@ Memory Store provides a fixed number of slots indexed from 0 to Memory Entry Lim
 | Scenario                                                                                     | System Behavior                                                                                                                                                  |
 | -------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Discord message history collection fails                                                     | Apply "exponential backoff retry"; after all retries fail, log error, do not send summary                                                                        |
-| Discord API request fails (sending summary)                                                  | Apply "exponential backoff retry"; permanent failure logged                                                                                                      |
+| Discord API request fails (sending summary)                                                  | Apply "exponential backoff retry"; permanent failure logged as error                                                                                             |
 | No messages found in collection time window                                                  | Send a plain text notice to the designated Discord channel indicating nothing was found in the time window; do not run either agent                              |
 | An AI request fails during the Follow-up Agent run                                           | Apply "exponential backoff retry" to that request; the run continues from where it was; after all retries fail, the run fails and "raw message fallback" applies |
 | AI output does not conform to expected structure                                             | Treat as AI service failure; apply same fallback behavior                                                                                                        |
@@ -407,9 +407,9 @@ Memory Store provides a fixed number of slots indexed from 0 to Memory Entry Lim
 | Debug endpoint: Discord message collection fails                                             | Return error with failure reason; no retry (debug context favors fast feedback over resilience)                                                                  |
 | Debug endpoint: the Follow-up Agent fails                                                    | Return error with the agent's name and failure reason; no fallback message sent (unlike Daily Follow-up)                                                         |
 | Memory Summary Store read fails (at run start)                                               | Log warning; the run continues without memory context (degraded but not interrupted)                                                                             |
-| Memory Agent cannot read memory                                                              | Log warning; skip Memory Summary generation; next run uses previous summary or none                                                                              |
-| Memory Agent run fails                                                                       | Log warning; slots already tidied stay tidied; stored summary not updated; next run uses previous summary or none                                                |
-| Memory Summary Store write fails                                                             | Log warning; summary lost; next run uses previous summary or none                                                                                                |
+| Memory Agent cannot read memory                                                              | Log error; skip Memory Summary generation; next run uses previous summary or none                                                                                |
+| Memory Agent run fails                                                                       | Log error; slots already tidied stay tidied; stored summary not updated; next run uses previous summary or none                                                  |
+| Memory Summary Store write fails                                                             | Log error; summary lost; next run uses previous summary or none                                                                                                  |
 | Memory Store read or write fails during an MCP tool call                                     | The tool call reports the failure to the operator; no slot changes and nothing degrades silently                                                                 |
 | Memory Summary Store read or write fails during an MCP tool call                             | The tool call reports the failure to the operator; the stored summary is unchanged                                                                               |
 
@@ -422,6 +422,10 @@ When external service calls (GitHub API, Discord API, AI service) encounter tran
 ### Rate Limit Pacing
 
 Every Discord API response reports how many requests its rate limit still allows and when that limit resets. The system holds a request until the limit it falls under has room, so requests issued together wait their turn instead of being refused. The limits are read from each response, never fixed in configuration. A request Discord still refuses for its rate limit is waited out for the time Discord names before it is retried under "exponential backoff retry".
+
+### Failure Logging Level
+
+A failure is logged as an error when an operator has to act on it: the run lost one of its products — the follow-up message or the Memory Summary — or a credential the system depends on was refused. A failure is logged as a warning when the run worked around it and the next run is expected to recover without anyone acting. Errors are surfaced to operators; warnings stay in the logs for diagnosis.
 
 ### Raw Message Fallback
 
