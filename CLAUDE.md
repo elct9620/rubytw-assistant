@@ -54,13 +54,20 @@ Dependencies point inward: handlers/services/adapters → usecases. Port interfa
 Handlers create a **child container** per request/cron trigger via `container.createChildContainer()` for isolation. The flow:
 
 1. Handler creates child container
-2. `setupTrace()` (in `src/handlers/telemetry-setup.ts`) creates a `BasicTracerProvider` fed by `@langfuse/otel`'s `LangfuseSpanProcessor` (if Langfuse keys are configured) and registers a `LangfuseVercelAiSdkIntegration` bound to that provider's tracer under `TOKENS.Telemetry` in the child container
-3. Use case is resolved from child container, executed inside a root Langfuse observation, and result presented
+2. `setupTrace()` (in `src/handlers/telemetry-setup.ts`) creates a `BasicTracerProvider` fed by `@langfuse/otel`'s `LangfuseSpanProcessor` (if Langfuse keys are configured) and appends a `LangfuseVercelAiSdkIntegration` bound to that provider's tracer to the platform integration already under `TOKENS.Telemetry`
+3. Use case is resolved from child container, executed inside a root Langfuse observation (whose trace id is logged once), and result presented
 4. `finally` block flushes telemetry via `provider.forceFlush()`
+
+### Observability (Cloudflare)
+
+- `wrangler.jsonc` enables Workers logs, traces and Issues. Issues collects uncaught exceptions and `console.error` output, so log level is a decision: SPEC's "Failure Logging Level" pattern says when a failure is an error (an operator must act) versus a warning
+- `src/services/cloudflare-ai-telemetry.ts` mirrors AI calls into the platform's native tracer (`tracing.enterSpan` from `cloudflare:workers`), always on regardless of Langfuse: each agent run is an `invoke_agent <name>` span, with `chat <model>` and `execute_tool <name>` spans under it. Attributes follow the GenAI semantic conventions (as the `agents` package names them); chat spans carry `cloudflare.ai_gateway.log.id` to reach the AI Gateway log. No prompts or tool payloads are recorded
+- The integration hooks the AI SDK's `executeLanguageModelCall` / `executeTool` wrappers, which chain across integrations, so it coexists with Langfuse. `wrapAISDK` from `agents` is not used: it only wraps the bare `generateText` family, not `ToolLoopAgent`
+- Local check: `pnpm run dev` exposes Local Explorer at `/cdn-cgi/explorer`; its SQL API (`/cdn-cgi/local/explorer/api/local/observability/query`) stores span attributes as blobs, so read them with `json(attributes)`
 
 ### Telemetry (Langfuse)
 
-- **Optional**: telemetry activates only when both `LANGFUSE_PUBLIC_KEY` and `LANGFUSE_SECRET_KEY` are present; otherwise `setupTrace()` returns `undefined` and handlers run without instrumentation
+- **Optional**: Langfuse activates only when both `LANGFUSE_PUBLIC_KEY` and `LANGFUSE_SECRET_KEY` are present; otherwise `setupTrace()` returns `undefined` and only the platform spans are recorded
 - Traces are emitted via the standard OTel API (`@opentelemetry/api`) and exported by `@langfuse/otel`'s `LangfuseSpanProcessor`
 - Spans batch until the handler's `finally` force-flushes them, so one invocation costs one HTTP request; `exportMode: 'immediate'` would spend a subrequest per span
 - `WorkerContextManager` (`src/handlers/worker-context-manager.ts`) backs the OTel active context with the runtime's `AsyncLocalStorage`, which is what lets the AI SDK's spans nest under the root span
