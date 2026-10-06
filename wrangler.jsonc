@@ -51,6 +51,9 @@
     "traces": {
       "enabled": true
     },
+    "issues": {
+      "enabled": true
+    },
   },
   "triggers": {
     "crons": ["0 16 * * *"],
