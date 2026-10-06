@@ -16,14 +16,24 @@ const STATUS_LABELS: Record<FollowUpStatus, string> = {
   abandoned: '已放棄',
 }
 
+const DATED_STATUSES = new Set<FollowUpStatus>(['stalled', 'abandoned'])
+
+/** `2026-09-08` → `9/8`, short enough to sit inside the reason. */
+function monthDay(isoDate: string): string {
+  const [, month, day] = isoDate.split('-')
+  return `${Number(month)}/${Number(day)}`
+}
+
 export function formatFollowUpItems(items: FollowUpItem[]): string {
   return items
     .map((item) => {
       const assignee = item.assignee ? ` (${item.assignee})` : ''
-      const progress = item.lastProgress
-        ? `最後進展 ${item.lastProgress}`
-        : '尚無進展紀錄'
-      return `- [${STATUS_LABELS[item.status]}] ${item.description}${assignee} — ${progress} — ${item.reason}`
+      const progress = !DATED_STATUSES.has(item.status)
+        ? ''
+        : item.lastProgress
+          ? `，最後進展 ${monthDay(item.lastProgress)}`
+          : '，尚無進展紀錄'
+      return `- [${STATUS_LABELS[item.status]}] ${item.description}${assignee} — ${item.reason}${progress}`
     })
     .join('\n')
 }

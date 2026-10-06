@@ -29,12 +29,14 @@ const FollowUpListSchema = z.object({
         ),
       description: z
         .string()
-        .describe('the next action the assignee must take'),
+        .describe(
+          'the one next action, starting with a verb, within 20 characters',
+        ),
       assignee: z
         .string()
         .nullable()
         .describe(
-          'person name exactly as it appears in conversation, or null if unassigned',
+          'the person who spoke in the channel and owns the action, or null',
         ),
       lastProgress: z
         .string()
@@ -42,7 +44,11 @@ const FollowUpListSchema = z.object({
         .describe(
           'YYYY-MM-DD people last moved the item, or null when no movement was found',
         ),
-      reason: z.string().describe('why the item has this status'),
+      reason: z
+        .string()
+        .describe(
+          'what the item waits on, or why it matters, within 15 characters',
+        ),
     }),
   ),
 })

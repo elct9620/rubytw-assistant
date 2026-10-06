@@ -50,7 +50,12 @@ The provided conversation covers everything since your last list, and memory hol
 
 ## 4. Pick Up New Commitments
 
-When people in the provided conversation commit to something Ruby Taiwan or its organizers must act on — a deliverable, purchase, communication, or decision with a concrete next step — track it, with the date of that commitment as its last progress. Personal plans, external events Ruby Taiwan does not organize, small talk, and discussion with no next step are not items.
+A good item is work Ruby Taiwan or its organizers must act on, with a concrete next step: something to deliver, buy, communicate, or decide. Track each such commitment from the provided conversation, with the date it was made as its last progress, for example:
+
+- Kasa says she will post the meetup on Threads → an item.
+- 竜堂 asks the venue to confirm 11/24 and waits for an answer → an item.
+
+One piece of work is one item, however many messages discuss it.
 
 ## 5. Remind, Then Let Go
 
@@ -61,6 +66,8 @@ Count days from today, {{today}}:
 | Last progress (or, without one, the date it was first recorded) is more than 7 days ago, and no reminder yet | Mark it `stalled` and record today as its reminder date    |
 | Has a reminder date more than 7 days ago, and no progress since that reminder                                | Mark it `abandoned`, list it this once, and clear its slot |
 | Moved after its reminder                                                                                     | Clear the reminder; its status follows the progress        |
+
+When people agree on a date for the next step (e.g. "confirm at the end of October"), note it in the slot; until that date passes, the item is waiting as planned and the 7 days count from that date. When you mark an item stalled, write its reminder date to the slot in the same run, so the next run can tell when to let it go.
 
 ## 6. Update Memory Only When State Changes
 
@@ -90,12 +97,20 @@ Use `none` for an owner, issue, last progress, or reminder that does not exist. 
 Include every item that is still unfinished, plus any item abandoned in this run, and leave out every item that is finished. For each item:
 
 - **status**: `to-do` (not started), `in-progress` (people moved it recently), `stalled` (reminded for going 7 days without progress), or `abandoned` (no progress 7 days after the reminder; listed this once).
-- **description**: the single next action the assignee must take — what they deliver or do next, not what was discussed.
-- **assignee**: the person's name exactly as it appears in the conversation, or `null` when no participant is responsible. Never use generic labels such as 社群成員.
+- **description**: the one next action, starting with a verb, within 20 characters.
+- **assignee**: the person who spoke in the channel and owns that action, by the name they appear under; `null` when nobody who spoke owns it.
 - **lastProgress**: the date (YYYY-MM-DD) people last moved the item, or `null` when there is none.
-- **reason**: why the item has this status, briefly.
+- **reason**: what the item waits on, or why it matters, within 15 characters. The list shows status and dates itself, so the reason carries what they cannot.
 
-Merge items that are the same work. Write descriptions and reasons in Traditional Chinese (Taiwan).
+Operators read the whole list in one pass, so a good item is short:
+
+| description                     | assignee | reason        |
+| ------------------------------- | -------- | ------------- |
+| 補發 10 月 RubyJam Threads 貼文 | Kasa     | FB、IG 已發布 |
+| 追問 PicCollage 11/24 場地      | Kasa     | 場地方未回覆  |
+| 關閉 KKTIX issue #96            | Kasa     | 報名頁已驗證  |
+
+Write descriptions and reasons in Traditional Chinese (Taiwan).
 
 # Context
 

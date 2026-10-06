@@ -5,23 +5,7 @@ import {
 } from '../../src/entities/follow-up-item'
 
 describe('formatFollowUpItems', () => {
-  it('should mark an abandoned item so operators see it was let go', () => {
-    const items: FollowUpItem[] = [
-      {
-        status: 'abandoned',
-        description: '確認 SITCON 照片素材',
-        assignee: 'Kasa',
-        lastProgress: '2026-09-10',
-        reason: '提醒後一週仍無人回應',
-      },
-    ]
-
-    expect(formatFollowUpItems(items)).toBe(
-      '- [已放棄] 確認 SITCON 照片素材 (Kasa) — 最後進展 2026-09-10 — 提醒後一週仍無人回應',
-    )
-  })
-
-  it('should show status, description, assignee, last progress, and reason on one line each', () => {
+  it('should show status, description, assignee, and reason without a date for moving items', () => {
     const items: FollowUpItem[] = [
       {
         status: 'to-do',
@@ -40,8 +24,40 @@ describe('formatFollowUpItems', () => {
     ]
 
     expect(formatFollowUpItems(items)).toBe(
-      '- [待辦] 寄出贊助報告 (Kasa) — 最後進展 2026-10-01 — 贊助商等待中\n' +
-        '- [進行中] 確認 11 月場地 (竜堂) — 最後進展 2026-10-05 — 已聯絡場地方',
+      '- [待辦] 寄出贊助報告 (Kasa) — 贊助商等待中\n' +
+        '- [進行中] 確認 11 月場地 (竜堂) — 已聯絡場地方',
+    )
+  })
+
+  it('should add the last progress as month and day to a stalled item', () => {
+    const items: FollowUpItem[] = [
+      {
+        status: 'stalled',
+        description: '追問 PicCollage 11/24 場地',
+        assignee: 'Kasa',
+        lastProgress: '2026-09-08',
+        reason: '場地方未回覆',
+      },
+    ]
+
+    expect(formatFollowUpItems(items)).toBe(
+      '- [停滯] 追問 PicCollage 11/24 場地 (Kasa) — 場地方未回覆，最後進展 9/8',
+    )
+  })
+
+  it('should mark an abandoned item so operators see it was let go', () => {
+    const items: FollowUpItem[] = [
+      {
+        status: 'abandoned',
+        description: '確認 SITCON 照片素材',
+        assignee: 'Kasa',
+        lastProgress: '2026-09-10',
+        reason: '提醒後無人回應',
+      },
+    ]
+
+    expect(formatFollowUpItems(items)).toBe(
+      '- [已放棄] 確認 SITCON 照片素材 (Kasa) — 提醒後無人回應，最後進展 9/10',
     )
   })
 
@@ -57,7 +73,7 @@ describe('formatFollowUpItems', () => {
     ]
 
     expect(formatFollowUpItems(items)).toBe(
-      '- [停滯] 徵求線上聚會主持人 — 尚無進展紀錄 — 無人回應',
+      '- [停滯] 徵求線上聚會主持人 — 無人回應，尚無進展紀錄',
     )
   })
 })

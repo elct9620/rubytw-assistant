@@ -43,7 +43,7 @@ describe('DiscordSummaryPresenter', () => {
 
     expect(notifier.sendMessage).toHaveBeenCalledWith(
       'channel-123',
-      '- [待辦] 更新官網 (Alice) — 最後進展 2026-10-01 — 官網資訊過舊',
+      '- [待辦] 更新官網 (Alice) — 官網資訊過舊',
     )
   })
 
@@ -245,9 +245,7 @@ describe('DiscordSummaryPresenter DI integration', () => {
     await presenter.present(result)
 
     expect(sentMessages).toHaveLength(1)
-    expect(sentMessages[0]).toBe(
-      '- [待辦] 更新官網 (Alice) — 最後進展 2026-10-01 — 官網資訊過舊',
-    )
+    expect(sentMessages[0]).toBe('- [待辦] 更新官網 (Alice) — 官網資訊過舊')
   })
 
   it('should send chunked messages via Discord API when content is long', async () => {
