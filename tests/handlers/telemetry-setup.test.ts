@@ -78,6 +78,30 @@ describe('setupTrace', () => {
     expect(langfuse.requestCount()).toBe(1)
   })
 
+  it('should log the trace id so platform logs lead to the Langfuse trace', async () => {
+    const langfuse = captureLangfuseSpans()
+    const logs: unknown[][] = []
+    vi.spyOn(console, 'log').mockImplementation((...args: unknown[]) => {
+      logs.push(args)
+    })
+    const child = container.createChildContainer()
+    child.register(TOKENS.LangfuseConfig, {
+      useFactory: () => LANGFUSE_TEST_CONFIG,
+    })
+
+    await runWithTrace(setupTrace(child), {
+      spanName: 'root',
+      input: {},
+      summarizeOutput: () => ({}),
+      fn: async () => {},
+    })
+    vi.restoreAllMocks()
+
+    const traceId = langfuse.find('root')?.traceId
+    expect(traceId).toBeDefined()
+    expect(logs.flat().join(' ')).toContain(traceId)
+  })
+
   describe('when Langfuse rejects the export', () => {
     const rejectExports = () =>
       network.use(

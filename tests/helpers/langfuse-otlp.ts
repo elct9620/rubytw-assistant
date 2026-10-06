@@ -12,6 +12,7 @@ export const LANGFUSE_TEST_CONFIG = {
 
 export interface CapturedSpan {
   name: string
+  traceId: string
   spanId: string
   parentSpanId?: string
   attributes: Record<string, unknown>
@@ -33,6 +34,7 @@ interface OtlpKeyValue {
 
 interface OtlpSpan {
   name: string
+  traceId: string
   spanId: string
   parentSpanId?: string
   attributes?: OtlpKeyValue[]
@@ -84,6 +86,7 @@ export function captureLangfuseSpans(): {
           for (const span of scopeSpan.spans ?? []) {
             captured.push({
               name: span.name,
+              traceId: span.traceId,
               spanId: span.spanId,
               parentSpanId: span.parentSpanId,
               attributes: readAttributes(span.attributes),

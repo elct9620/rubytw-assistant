@@ -131,6 +131,8 @@ export async function runWithTrace<T>(
 
   try {
     return await startActiveObservation(spanName, async (span) => {
+      // Platform logs and issues group by invocation, so this one line links them all to Langfuse.
+      console.log(`langfuse trace: ${span.traceId}`)
       span.update({ input })
       const result = await fn()
       span.update({
