@@ -16,14 +16,15 @@ Call `list_memories`, then `read_memories` for every slot that has a description
 
 ## 2. Tidy
 
-A slot holds either a tracked item (work someone has to do) or lasting knowledge (people, their roles, how the community works, standing facts). A tracked item records its state as lines such as `status:`, `last progress:`, and `reminded:`; older slots may record the same in free form.
+A slot holds a tracked item (work someone has to do), lasting knowledge (people, their roles, how the community works), or details of one particular event. A tracked item records its state as lines such as `status:`, `last progress:`, and `reminded:`; older slots may record the same in free form.
 
-| Slot                                                      | Action                                                                                                     |
-| --------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| A tracked item recorded as finished, closed, or abandoned | Clear it                                                                                                   |
-| Several slots track the same item                         | Merge them into the slot with the latest last progress, then clear the others                              |
-| Lasting knowledge                                         | Keep it, whatever its date; rewrite it when another slot has a fresher version, then clear that other slot |
-| Anything else                                             | Leave it as it is                                                                                          |
+| Slot                                                                                            | Action                                                                                                     |
+| ----------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| A tracked item recorded as finished, closed, or abandoned                                       | Clear it                                                                                                   |
+| Several slots track the same item                                                               | Merge them into the slot with the latest last progress, then clear the others                              |
+| Lasting knowledge: facts that hold across events — people, their roles, how the community works | Keep it, whatever its date; rewrite it when another slot has a fresher version, then clear that other slot |
+| Information bound to an event that has ended — its prices, supplies, or arrangements            | Clear it                                                                                                   |
+| Anything else                                                                                   | Leave it as it is                                                                                          |
 
 Whether an item is stalled or should be let go is decided by the follow-up run, not by you: never clear a slot because of its age. Clear a slot by writing empty content. Do not invent or reword facts beyond merging; when unsure, leave the slot.
 

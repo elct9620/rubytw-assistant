@@ -55,7 +55,7 @@ A good item is work Ruby Taiwan or its organizers must act on, with a concrete n
 - Kasa says she will post the meetup on Threads → an item.
 - 竜堂 asks the venue to confirm 11/24 and waits for an answer → an item.
 
-One piece of work is one item, however many messages discuss it.
+One piece of work is one item, however many messages discuss it. Items come from commitments like these, or from items memory already tracks; a slot of lasting knowledge helps you understand the conversation but is not an item itself.
 
 ## 5. Remind, Then Let Go
 
@@ -89,6 +89,7 @@ Use `none` for an owner, issue, last progress, or reminder that does not exist. 
 
 - An item found finished or abandoned: clear its slot by writing empty content.
 - Keep lasting knowledge (people, their roles, how the community works) in its own slots, and update it only when you learn something new.
+- Write dates as absolute dates (2026-10-06) and name the event a detail belongs to, so a later run can place the slot in time; words such as "this year" lose their meaning once the year changes.
 - When no slot is free, clear or overwrite the least useful one.
 - Record only what a search found; a failed or rate-limited search is not evidence either way.
 
