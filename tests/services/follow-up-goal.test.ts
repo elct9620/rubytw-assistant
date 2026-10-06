@@ -114,6 +114,27 @@ describe('Follow-up Goal Check', () => {
     expect(acceptedSubmission(result.steps)).toBeUndefined()
   })
 
+  it('should not take a channel mention for an Issue reference', () => {
+    const unmet = unmetGoals(
+      CHECKS.map(({ toolName, input }) => ({ toolName, input })),
+      ['[2026-10-05] Kasa: 請到 &lt;#1245260528251703346&gt; 討論'],
+    )
+
+    expect(unmet).toEqual([])
+  })
+
+  it('should not count listing memory without reading it as memory checked', () => {
+    const unmet = unmetGoals(
+      [
+        { toolName: 'list_memories', input: {} },
+        { toolName: 'search_messages', input: { author: 'people' } },
+      ],
+      [],
+    )
+
+    expect(unmet).toEqual([expect.stringMatching(/^Memory/)])
+  })
+
   it('should leave the issue check satisfied when no message references an Issue', () => {
     const unmet = unmetGoals(
       CHECKS.map(({ toolName, input }) => ({ toolName, input })),

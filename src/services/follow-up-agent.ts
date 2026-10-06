@@ -92,13 +92,16 @@ export class FollowUpAgentService implements FollowUpAgent {
 
     const { steps } = await agent.generate({ prompt: messages.join('\n') })
 
+    const spent = tokensSpent(steps)
+    if (spent > this.tokenBudget) {
+      throw new Error(
+        `token budget exceeded (${spent} of ${this.tokenBudget} tokens)`,
+      )
+    }
     const submitted = acceptedSubmission(steps)
     if (submitted === undefined) {
-      const spent = tokensSpent(steps)
       throw new Error(
-        spent > this.tokenBudget
-          ? `token budget exceeded (${spent} of ${this.tokenBudget} tokens) before the list was accepted`
-          : `stopped after ${steps.length} steps without an accepted list`,
+        `stopped after ${steps.length} steps without an accepted list`,
       )
     }
 

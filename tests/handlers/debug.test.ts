@@ -106,6 +106,23 @@ describe('debug handler', () => {
     expect(body).toEqual({ error: 'Discord API failed' })
   })
 
+  it('should answer with an error naming the Follow-up Agent when it fails', async () => {
+    mockExecute.mockResolvedValue({
+      kind: 'fallback',
+      rawMessages: ['msg-1'],
+      reason: '[Follow-up Agent] token budget exceeded',
+    })
+
+    const res = await debug.request('/summary?channel_id=ch-1', undefined, {
+      SUMMARY_HOURS: '24',
+    })
+
+    expect(res.status).toBe(500)
+    expect(await res.json()).toEqual({
+      error: '[Follow-up Agent] token budget exceeded',
+    })
+  })
+
   it('should export the root span when telemetry is enabled', async () => {
     enableTelemetry()
     const langfuse = captureLangfuseSpans()

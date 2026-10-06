@@ -64,7 +64,7 @@ describe('DiscordSummaryPresenter', () => {
     )
   })
 
-  it('should send nothing-pending notice for an empty window', async () => {
+  it('should say the window held no messages when it was empty', async () => {
     const notifier = createMockNotifier()
     const presenter = new DiscordSummaryPresenter(notifier, 'channel-123', 30)
 
@@ -72,7 +72,7 @@ describe('DiscordSummaryPresenter', () => {
 
     expect(notifier.sendMessage).toHaveBeenCalledWith(
       'channel-123',
-      '本次摘要期間內無待辦事項。',
+      '本次期間內頻道沒有新訊息。',
     )
   })
 

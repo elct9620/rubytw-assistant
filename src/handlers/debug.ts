@@ -41,6 +41,9 @@ debug.get('/summary', async (c) => {
       classifyResult: classifySummaryResult,
       fn: () => usecase.execute(hours),
     })
+    if (result.kind === 'fallback') {
+      return c.json({ error: result.reason }, 500)
+    }
     return c.json(result)
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error'

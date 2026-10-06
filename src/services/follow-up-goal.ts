@@ -13,7 +13,8 @@ export type SubmitResult =
   { accepted: true } | { accepted: false; unmet: string[] }
 
 const GITHUB_TOOLS = new Set(['list_issues', 'search_issues', 'read_issues'])
-const ISSUE_REFERENCE = /#\d+/
+/** `#123`, but not a channel mention, which reaches the AI escaped as `&lt;#123&gt;`. */
+const ISSUE_REFERENCE = /(?<!&lt;|\w)#\d+/
 
 export function toolCallsIn(messages: ModelMessage[]): ToolCallRecord[] {
   return messages.flatMap((message) =>

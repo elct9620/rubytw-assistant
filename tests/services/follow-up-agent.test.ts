@@ -98,6 +98,29 @@ describe('FollowUpAgentService', () => {
     expect(scripted.doGenerateCalls).toHaveLength(3)
   })
 
+  it('should fail a list accepted on the step that went over the token budget', async () => {
+    model = scriptedModel([LOOKED_UP, [SUBMIT]], 600)
+    const { service } = createService(1_000)
+
+    await expect(service.followUp(['msg'])).rejects.toThrow(
+      /token budget exceeded/,
+    )
+  })
+
+  it('should fail when the step cap is reached without an accepted list', async () => {
+    const scripted = scriptedModel(
+      [[{ toolName: 'list_memories', input: {} }]],
+      1,
+    )
+    model = scripted
+    const { service } = createService(1_000_000)
+
+    await expect(service.followUp(['msg'])).rejects.toThrow(
+      /without an accepted list/,
+    )
+    expect(scripted.doGenerateCalls).toHaveLength(50)
+  })
+
   it('should give the model the collected messages and the stored memory summary', async () => {
     const scripted = scriptedModel([LOOKED_UP, [SUBMIT]])
     model = scripted

@@ -10,7 +10,8 @@ import { formatFollowUpItems } from '../entities/follow-up-item'
 import { TOKENS } from '../tokens'
 
 const DISCORD_MAX_CONTENT_LENGTH = 2000
-const NO_ACTION_ITEMS_NOTICE = '本次摘要期間內無待辦事項。'
+const EMPTY_WINDOW_NOTICE = '本次期間內頻道沒有新訊息。'
+const NOTHING_PENDING_NOTICE = '本次摘要期間內無待辦事項。'
 
 @injectable()
 export class DiscordSummaryPresenter implements SummaryPresenter {
@@ -23,7 +24,7 @@ export class DiscordSummaryPresenter implements SummaryPresenter {
   async present(result: SummaryResult): Promise<void> {
     switch (result.kind) {
       case 'empty':
-        await this.notifier.sendMessage(this.channelId, NO_ACTION_ITEMS_NOTICE)
+        await this.notifier.sendMessage(this.channelId, EMPTY_WINDOW_NOTICE)
         return
       case 'success':
         await this.presentSuccess(result)
@@ -36,7 +37,7 @@ export class DiscordSummaryPresenter implements SummaryPresenter {
 
   private async presentSuccess(result: SummarySuccess): Promise<void> {
     if (result.items.length === 0) {
-      await this.notifier.sendMessage(this.channelId, NO_ACTION_ITEMS_NOTICE)
+      await this.notifier.sendMessage(this.channelId, NOTHING_PENDING_NOTICE)
       return
     }
 
