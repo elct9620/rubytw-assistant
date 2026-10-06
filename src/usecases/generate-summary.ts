@@ -66,7 +66,7 @@ export class GenerateSummary {
         await this.deps.memorySummaryStore.write(summary)
       }
     } catch (error) {
-      console.warn('Memory Agent failed, skipping:', error)
+      console.error('Memory Agent failed, skipping:', error)
     }
   }
 }

@@ -159,8 +159,8 @@ describe('GenerateSummary', () => {
     expect(deps.memorySummaryStore.write).not.toHaveBeenCalled()
   })
 
-  it('should still return the list when the Memory Agent fails', async () => {
-    vi.spyOn(console, 'warn').mockImplementation(() => {})
+  it('should still return the list and log an error when the Memory Agent fails', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     const deps = createStubDeps({
       memoryAgent: {
         tidyAndSummarize: vi.fn().mockRejectedValue(new Error('AI down')),
@@ -171,11 +171,15 @@ describe('GenerateSummary', () => {
 
     expect(result).toEqual({ kind: 'success', items: [sampleItem] })
     expect(deps.memorySummaryStore.write).not.toHaveBeenCalled()
+    expect(errorSpy).toHaveBeenCalledWith(
+      'Memory Agent failed, skipping:',
+      expect.any(Error),
+    )
     vi.restoreAllMocks()
   })
 
-  it('should still return the list when the summary store write fails', async () => {
-    vi.spyOn(console, 'warn').mockImplementation(() => {})
+  it('should still return the list and log an error when the summary store write fails', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     const deps = createStubDeps({
       memoryAgent: {
         tidyAndSummarize: vi.fn().mockResolvedValue('new summary'),
@@ -189,6 +193,7 @@ describe('GenerateSummary', () => {
     const result = await new GenerateSummary(deps).execute(24)
 
     expect(result.kind).toBe('success')
+    expect(errorSpy).toHaveBeenCalled()
     vi.restoreAllMocks()
   })
 })
