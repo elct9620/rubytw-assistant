@@ -7,6 +7,7 @@ import type {
   SearchMessagesQuery,
 } from '../usecases/ports'
 import { assertDiscordResponse, escapeXml } from './shared'
+import { DiscordRateLimiter } from './discord-rate-limit'
 import { withRetry } from '../services/retry'
 import { TOKENS } from '../tokens'
 
@@ -115,6 +116,8 @@ export function formatMessageToXml(
 
 @injectable()
 export class DiscordSourceAdapter implements DiscordSource {
+  private rateLimiter = new DiscordRateLimiter()
+
   constructor(
     @inject(TOKENS.DiscordBotToken) private botToken: string,
     @inject(TOKENS.DiscordChannelId) private channelId: string,
@@ -232,7 +235,7 @@ export class DiscordSourceAdapter implements DiscordSource {
   ): Promise<T> {
     return withRetry(
       async () => {
-        const response = await fetch(url, {
+        const response = await this.rateLimiter.fetch(label, url, {
           headers: { Authorization: `Bot ${this.botToken}` },
         })
         await assertDiscordResponse(response)

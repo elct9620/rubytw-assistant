@@ -1,3 +1,4 @@
+import { RateLimitedError } from '../../src/usecases/ports'
 import { env } from 'cloudflare:workers'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { createAITools } from '../../src/services/ai-tools'
@@ -645,6 +646,22 @@ describe('createAITools', () => {
         next_cursor: null,
         error: 'query failed',
       })
+      warnSpy.mockRestore()
+    })
+
+    it('search_messages should say the channel is rate limited rather than that the query failed', async () => {
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+      const tools = createTools({
+        discordSource: createStubDiscordSource({
+          searchMessages: vi
+            .fn()
+            .mockRejectedValue(new RateLimitedError('Discord')),
+        }),
+      })
+
+      const result = await getTool(tools, 'search_messages').execute({})
+
+      expect(result.error).toMatch(/^rate limited/)
       warnSpy.mockRestore()
     })
 

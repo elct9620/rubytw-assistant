@@ -1,6 +1,7 @@
 import { tool } from 'ai'
 import type { ToolSet } from 'ai'
 import { z } from 'zod'
+import { RateLimitedError } from '../usecases/ports'
 import type {
   DiscordSource,
   GitHubSource,
@@ -202,6 +203,12 @@ const noMessages = (error: string) => ({
   error,
 })
 
+/** Says a refusal for the rate limit is not a miss, so the model does not try other keywords. */
+const queryError = (error: unknown) =>
+  error instanceof RateLimitedError
+    ? 'rate limited: Discord refused more requests for now; this is not an empty result, so do not retry with other keywords'
+    : 'query failed'
+
 function createDiscordTools({
   discordSource,
   summaryHours,
@@ -254,7 +261,7 @@ function createDiscordTools({
           }
         } catch (error) {
           console.warn('Discord read messages failed', error)
-          return noMessages('query failed')
+          return noMessages(queryError(error))
         }
       },
     }),
@@ -316,7 +323,7 @@ function createDiscordTools({
           }
         } catch (error) {
           console.warn('Discord search messages failed', error)
-          return { ...noMessages('query failed'), total: 0 }
+          return { ...noMessages(queryError(error)), total: 0 }
         }
       },
     }),

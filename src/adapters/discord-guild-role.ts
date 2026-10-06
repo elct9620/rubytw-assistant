@@ -1,6 +1,7 @@
 import { injectable, inject } from 'tsyringe'
 import type { GuildRoleChecker } from '../usecases/ports'
 import { assertDiscordResponse } from './shared'
+import { DiscordRateLimiter } from './discord-rate-limit'
 import { withRetry } from '../services/retry'
 import { TOKENS } from '../tokens'
 
@@ -10,6 +11,8 @@ interface DiscordGuildMember {
 
 @injectable()
 export class DiscordGuildRoleAdapter implements GuildRoleChecker {
+  private rateLimiter = new DiscordRateLimiter()
+
   constructor(
     @inject(TOKENS.DiscordBotToken) private botToken: string,
     @inject(TOKENS.DiscordGuildId) private guildId: string,
@@ -19,7 +22,8 @@ export class DiscordGuildRoleAdapter implements GuildRoleChecker {
   async hasOperatorRole(userId: string): Promise<boolean> {
     return withRetry(
       async () => {
-        const response = await fetch(
+        const response = await this.rateLimiter.fetch(
+          'guildMember',
           `https://discord.com/api/v10/guilds/${this.guildId}/members/${userId}`,
           { headers: { Authorization: `Bot ${this.botToken}` } },
         )

@@ -158,3 +158,11 @@ export interface MemorySummaryStore {
 export interface MemoryAgent {
   tidyAndSummarize(): Promise<string | null>
 }
+
+/** A source refused the request for its rate limit, as opposed to failing it. */
+export class RateLimitedError extends Error {
+  constructor(source: string) {
+    super(`${source} rate limited`)
+    this.name = 'RateLimitedError'
+  }
+}
