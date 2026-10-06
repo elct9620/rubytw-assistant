@@ -1,6 +1,10 @@
 import { http, HttpResponse } from 'msw'
 import { describe, it, expect, vi } from 'vitest'
+import { container } from '../../src/container'
 import { DiscordSourceAdapter } from '../../src/adapters/discord-source'
+import { DiscordRateLimiter } from '../../src/adapters/discord-rate-limit'
+import { TOKENS } from '../../src/tokens'
+import type { DiscordSource } from '../../src/usecases/ports'
 import { RateLimitedError } from '../../src/usecases/ports'
 import { network } from '../msw-server'
 
@@ -12,7 +16,77 @@ const newAdapter = () =>
 const emptyHits = (headers: Record<string, string> = {}) =>
   HttpResponse.json({ total_results: 0, messages: [] }, { headers })
 
+function spentLimitServer() {
+  let inFlight = 0
+  const seen = { maxInFlight: 0 }
+  network.use(
+    http.get(SEARCH_URL, async () => {
+      seen.maxInFlight = Math.max(seen.maxInFlight, ++inFlight)
+      await new Promise((resolve) => setTimeout(resolve, 10))
+      inFlight--
+      return emptyHits({
+        'X-RateLimit-Remaining': '0',
+        'X-RateLimit-Reset-After': '0.05',
+      })
+    }),
+  )
+  return seen
+}
+
 describe('Discord rate limit pacing', () => {
+  it('should pace every Discord adapter resolved for one invocation together', async () => {
+    const seen = spentLimitServer()
+    const child = container.createChildContainer()
+    child.register(TOKENS.DiscordBotToken, { useValue: 'bot-token' })
+    child.register(TOKENS.DiscordChannelId, { useValue: 'channel-123' })
+    child.register(TOKENS.DiscordClientId, { useValue: 'assistant-1' })
+    child.register(TOKENS.DiscordGuildId, { useValue: 'guild-1' })
+    const first = child.resolve<DiscordSource>(TOKENS.DiscordSource)
+    const second = child.resolve<DiscordSource>(TOKENS.DiscordSource)
+
+    await Promise.all([
+      first.searchMessages({ query: 'a' }),
+      second.searchMessages({ query: 'b' }),
+    ])
+
+    expect(seen.maxInFlight).toBe(1)
+  })
+
+  it('should not hold a request behind one that failed', async () => {
+    const limiter = new DiscordRateLimiter()
+    let calls = 0
+    network.use(
+      http.get(SEARCH_URL, () =>
+        ++calls === 1 ? HttpResponse.error() : emptyHits(),
+      ),
+    )
+
+    const failed = limiter.fetch('route', SEARCH_URL)
+    const next = limiter.fetch('route', SEARCH_URL)
+
+    await expect(failed).rejects.toThrow()
+    expect((await next).status).toBe(200)
+  })
+
+  it('should refuse at once rather than wait out an unreasonably long limit', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    network.use(
+      http.get(SEARCH_URL, () =>
+        HttpResponse.json(
+          { message: 'You are being rate limited.', retry_after: 600 },
+          { status: 429, headers: { 'Retry-After': '600' } },
+        ),
+      ),
+    )
+    const started = Date.now()
+
+    await expect(
+      newAdapter().searchMessages({ query: 'a' }),
+    ).rejects.toBeInstanceOf(RateLimitedError)
+    expect(Date.now() - started).toBeLessThan(5_000)
+    vi.restoreAllMocks()
+  })
+
   it('should send requests issued together one at a time, waiting while the limit is spent', async () => {
     const started: number[] = []
     let inFlight = 0

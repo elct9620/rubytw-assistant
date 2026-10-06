@@ -116,14 +116,14 @@ export function formatMessageToXml(
 
 @injectable()
 export class DiscordSourceAdapter implements DiscordSource {
-  private rateLimiter = new DiscordRateLimiter()
-
   constructor(
     @inject(TOKENS.DiscordBotToken) private botToken: string,
     @inject(TOKENS.DiscordChannelId) private channelId: string,
     // The bot's user id is its application's client id.
     @inject(TOKENS.DiscordClientId) private selfId: string,
     @inject(TOKENS.DiscordGuildId) private guildId: string,
+    @inject(TOKENS.DiscordRateLimiter)
+    private rateLimiter: DiscordRateLimiter = new DiscordRateLimiter(),
   ) {}
 
   async readMessages({

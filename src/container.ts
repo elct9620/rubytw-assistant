@@ -1,5 +1,5 @@
 import 'reflect-metadata'
-import { container } from 'tsyringe'
+import { container, Lifecycle } from 'tsyringe'
 import { env } from 'cloudflare:workers'
 import { Octokit } from '@octokit/core'
 import { createAppAuth } from '@octokit/auth-app'
@@ -13,6 +13,7 @@ import { DiscordNotifierAdapter } from './adapters/discord-notifier'
 import { DiscordGuildRoleAdapter } from './adapters/discord-guild-role'
 import { DiscordOAuthAdapter } from './adapters/discord-oauth'
 import { KVLoginStateStoreAdapter } from './adapters/kv-login-state-store'
+import { DiscordRateLimiter } from './adapters/discord-rate-limit'
 import { DiscordSourceAdapter } from './adapters/discord-source'
 import { DiscordSummaryPresenter } from './adapters/discord-summary-presenter'
 import { GitHubSourceAdapter } from './adapters/github-source'
@@ -90,6 +91,13 @@ container.register(TOKENS.MemoryStore, { useClass: KVMemoryStoreAdapter })
 container.register(TOKENS.MemorySummaryStore, {
   useClass: KVMemorySummaryStoreAdapter,
 })
+// Discord's limits follow the bot, so one limiter serves every adapter in an
+// invocation; it is never shared across invocations.
+container.register(
+  TOKENS.DiscordRateLimiter,
+  { useClass: DiscordRateLimiter },
+  { lifecycle: Lifecycle.ContainerScoped },
+)
 container.register(TOKENS.DiscordNotifier, { useClass: DiscordNotifierAdapter })
 container.register(TOKENS.DiscordSource, { useClass: DiscordSourceAdapter })
 container.register(TOKENS.GuildRoleChecker, {

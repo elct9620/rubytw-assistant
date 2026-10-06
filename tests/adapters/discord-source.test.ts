@@ -1,5 +1,5 @@
 import { http, HttpResponse } from 'msw'
-import { container } from 'tsyringe'
+import { container } from '../../src/container'
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import {
   DiscordSourceAdapter,

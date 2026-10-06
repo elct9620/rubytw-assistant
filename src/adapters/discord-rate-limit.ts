@@ -1,9 +1,18 @@
+import { injectable } from 'tsyringe'
+import { RateLimitedError } from '../usecases/ports'
+
+/** Longer than this, waiting would outlast the invocation, so the request is refused instead. */
+const MAX_WAIT_MS = 60_000
+
 /**
  * Paces Discord requests by the limits Discord reports on each response
  * (https://docs.discord.com/developers/topics/rate-limits): requests to one
  * route go out one at a time, and wait while that route's limit is spent or
- * after Discord refused one, instead of being sent into a refusal.
+ * after Discord refused one, instead of being sent into a refusal. One
+ * instance serves a whole invocation, so every adapter shares what Discord
+ * last reported.
  */
+@injectable()
 export class DiscordRateLimiter {
   private queues = new Map<string, Promise<unknown>>()
   private resumeAt = new Map<string, number>()
@@ -23,6 +32,9 @@ export class DiscordRateLimiter {
     init?: RequestInit,
   ): Promise<Response> {
     const wait = (this.resumeAt.get(route) ?? 0) - Date.now()
+    if (wait > MAX_WAIT_MS) {
+      throw new RateLimitedError('Discord')
+    }
     if (wait > 0) {
       await new Promise((resolve) => setTimeout(resolve, wait))
     }

@@ -62,6 +62,7 @@ export const TOKENS = {
   DiscordSource: 'DiscordSource',
   FollowUpAgent: 'FollowUpAgent',
   DiscordNotifier: 'DiscordNotifier',
+  DiscordRateLimiter: 'DiscordRateLimiter',
   GuildRoleChecker: 'GuildRoleChecker',
   DiscordIdentityProvider: 'DiscordIdentityProvider',
   LoginStateStore: 'LoginStateStore',

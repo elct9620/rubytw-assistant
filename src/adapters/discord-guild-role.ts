@@ -11,12 +11,12 @@ interface DiscordGuildMember {
 
 @injectable()
 export class DiscordGuildRoleAdapter implements GuildRoleChecker {
-  private rateLimiter = new DiscordRateLimiter()
-
   constructor(
     @inject(TOKENS.DiscordBotToken) private botToken: string,
     @inject(TOKENS.DiscordGuildId) private guildId: string,
     @inject(TOKENS.DiscordOperatorRoleId) private operatorRoleId: string,
+    @inject(TOKENS.DiscordRateLimiter)
+    private rateLimiter: DiscordRateLimiter = new DiscordRateLimiter(),
   ) {}
 
   async hasOperatorRole(userId: string): Promise<boolean> {

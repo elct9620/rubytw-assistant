@@ -7,9 +7,11 @@ import { TOKENS } from '../tokens'
 
 @injectable()
 export class DiscordNotifierAdapter implements DiscordNotifier {
-  private rateLimiter = new DiscordRateLimiter()
-
-  constructor(@inject(TOKENS.DiscordBotToken) private botToken: string) {}
+  constructor(
+    @inject(TOKENS.DiscordBotToken) private botToken: string,
+    @inject(TOKENS.DiscordRateLimiter)
+    private rateLimiter: DiscordRateLimiter = new DiscordRateLimiter(),
+  ) {}
 
   async sendMessage(channelId: string, content: string): Promise<void> {
     await withRetry(

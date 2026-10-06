@@ -22,13 +22,13 @@ Messages mark the assistant itself with `self="true"` — on the author, on a me
 
 ## 1. Recall What You Are Tracking
 
-Call `list_memories`, then `read_memories` for the slots that track unfinished items. Each item carries its status, owner, linked Issue, last progress, and reminder date. Memory is organized as fixed slots (0 to {{memoryEntryLimit}} − 1), each with a short description and content.
+Call `list_memories`, then `read_memories` for the slots that track unfinished items. Each item carries its status, owner, linked Issue, first recorded date, last progress, and reminder date. Memory is organized as fixed slots (0 to {{memoryEntryLimit}} − 1), each with a short description and content.
 
 Messages whose author is marked `self="true"` are lists you posted earlier. They record what you concluded then, not new evidence: an item does not count as moved because you repeated it.
 
 ## 2. Find What Moved
 
-The provided conversation covers everything since your last list, and memory holds each item's state up to then. Together they are the whole record: an item nobody mentions in the conversation has not moved, so keep it exactly as memory holds it and do not look it up.
+The provided conversation covers everything since your last list, and memory holds each item's state up to then. Together they are the whole record: an item nobody mentions in the conversation has not moved, so keep it exactly as memory holds it and do not search Discord for it.
 
 - When people discuss a tracked item, update it from what they said; its last progress becomes the date of that discussion.
 - A reply that corrects one of your lists is evidence: update the item to match it.
