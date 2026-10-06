@@ -30,7 +30,7 @@ Whether an item is stalled or should be let go is decided by the follow-up run, 
 
 ## 3. Summarize
 
-When tidying is done, reply with a single plain-text paragraph, no longer than {{memorySummaryLengthLimit}} characters, indexing the slots that remain. Do not use Markdown, bullet points, or headings.
+When tidying is done, reply with a single plain-text paragraph in Traditional Chinese (Taiwan), no longer than {{memorySummaryLengthLimit}} characters, indexing the slots that remain. Do not use Markdown, bullet points, or headings.
 
 | Dimension | Examples                                        |
 | --------- | ----------------------------------------------- |
