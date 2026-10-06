@@ -115,6 +115,6 @@ Tests use `cloudflare:test` helpers for the Workers runtime environment:
 - Cron trigger runs at `0 16 * * *` UTC (midnight Taiwan time, UTC+8)
 - Services use AI SDK's `generateText()` with Zod schemas for structured output extraction
 - Services constrain AI tool loops with `isStepCount(MAX_TOOL_STEPS)`
-- AI model is created via `createAIModel(config)` which chains through AI Gateway
+- AI model is created via `createAIModel(config)`, which reaches the shared AI Gateway through the `AI` binding and tags each request with this service's metadata
 - Debug endpoint at `/debug/summary?channel_id=X&hours=Y` for dev-only summary previews
 - Compatibility flag `nodejs_compat` is enabled for crypto API support

@@ -31,9 +31,7 @@ container.register(TOKENS.DiscordOperatorRoleId, {
 })
 container.register(TOKENS.AiGatewayConfig, {
   useValue: {
-    accountId: env.CF_ACCOUNT_ID,
-    gatewayId: env.AI_GATEWAY_ID,
-    apiKey: env.CF_AIG_TOKEN,
+    gateway: env.AI.gateway(env.AI_GATEWAY_ID),
     modelId: env.AI_MODEL,
   },
 })

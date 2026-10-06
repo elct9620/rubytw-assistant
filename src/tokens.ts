@@ -1,9 +1,7 @@
 import type { ToolSet } from 'ai'
 
 export interface AiGatewayConfig {
-  accountId: string
-  gatewayId: string
-  apiKey: string
+  gateway: AiGateway
   modelId: string
 }
 

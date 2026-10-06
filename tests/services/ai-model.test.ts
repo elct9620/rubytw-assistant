@@ -1,30 +1,39 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect } from 'vitest'
+import { generateText } from 'ai'
+import { createAIModel } from '../../src/services/ai-model'
 
-const mockOpenAIProvider = vi.fn().mockReturnValue('mock-model')
-const mockCreateOpenAI = vi.fn().mockReturnValue(mockOpenAIProvider)
-vi.mock('ai-gateway-provider/providers/openai', () => ({
-  createOpenAI: (...args: unknown[]) => mockCreateOpenAI(...args),
-}))
+interface GatewayRequest {
+  provider: string
+  headers: Record<string, string>
+  query: { model?: string }
+}
 
-const mockAiGateway = vi.fn().mockImplementation((model: unknown) => model)
-vi.mock('ai-gateway-provider', () => ({
-  createAiGateway: () => mockAiGateway,
-}))
+function recordingGateway() {
+  const requests: GatewayRequest[] = []
+  const gateway = {
+    run: async (data: unknown) => {
+      requests.push(...(data as GatewayRequest[]))
+      return new Response('{}', { status: 500 })
+    },
+  } as unknown as AiGateway
+  return { gateway, requests }
+}
 
 describe('createAIModel', () => {
-  it('should create model using OpenAI Responses API via AI Gateway', async () => {
-    const { createAIModel } = await import('../../src/services/ai-model')
+  it('should send the request through the AI binding tagged with this service', async () => {
+    const { gateway, requests } = recordingGateway()
 
-    const model = createAIModel({
-      accountId: 'test-account',
-      gatewayId: 'test-gateway',
-      apiKey: 'test-key',
-      modelId: 'test-model',
+    await generateText({
+      model: createAIModel({ gateway, modelId: 'test-model' }),
+      prompt: 'hello',
+      maxRetries: 0,
+    }).catch(() => undefined)
+
+    expect(requests).toHaveLength(1)
+    expect(requests[0].provider).toBe('openai')
+    expect(requests[0].query.model).toBe('test-model')
+    expect(JSON.parse(requests[0].headers['cf-aig-metadata'])).toEqual({
+      service: 'rubytw-assistant',
     })
-
-    expect(mockCreateOpenAI).toHaveBeenCalled()
-    expect(mockOpenAIProvider).toHaveBeenCalledWith('test-model')
-    expect(mockAiGateway).toHaveBeenCalledWith('mock-model')
-    expect(model).toBe('mock-model')
   })
 })

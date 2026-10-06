@@ -28,9 +28,7 @@ function createService(
   const githubSource = createStubGitHubSource()
   return new ConversationGrouperService(
     {
-      accountId: 'test-account-id',
-      gatewayId: 'test-gateway',
-      apiKey: 'test-token',
+      gateway: {} as AiGateway,
       modelId: 'openai/gpt-4.1-mini',
     },
     32,

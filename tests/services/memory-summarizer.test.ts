@@ -17,9 +17,7 @@ function createService(): MemorySummarizerService {
   const memoryStore = new KVMemoryStoreAdapter(env.MEMORY_KV, 4, 128)
   return new MemorySummarizerService(
     {
-      accountId: 'test-account-id',
-      gatewayId: 'test-gateway',
-      apiKey: 'test-token',
+      gateway: {} as AiGateway,
       modelId: 'openai/gpt-4.1-mini',
     },
     memoryStore,
