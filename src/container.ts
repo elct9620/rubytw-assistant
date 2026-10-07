@@ -30,11 +30,12 @@ container.register(TOKENS.DiscordGuildId, { useValue: env.DISCORD_GUILD_ID })
 container.register(TOKENS.DiscordOperatorRoleId, {
   useValue: env.DISCORD_OPERATOR_ROLE_ID,
 })
+// The AI binding is absent while the deploy validates the module's global scope
 container.register(TOKENS.AiGatewayConfig, {
-  useValue: {
+  useFactory: () => ({
     gateway: env.AI.gateway(env.AI_GATEWAY_ID),
     modelId: env.AI_MODEL,
-  },
+  }),
 })
 container.register(TOKENS.DiscordClientId, { useValue: env.DISCORD_CLIENT_ID })
 container.register(TOKENS.DiscordClientSecret, {
