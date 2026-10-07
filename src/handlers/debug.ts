@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import { container } from '../container'
 import { TOKENS } from '../tokens'
 import { GenerateSummary } from '../usecases/generate-summary'
+import { withConversation } from '../services/cloudflare-ai-telemetry'
 import { runWithTrace, setupTrace } from './telemetry-setup'
 import { classifySummaryResult, summarizeResult } from './summarize-result'
 
@@ -34,13 +35,15 @@ debug.get('/summary', async (c) => {
   const hours = Number(c.req.query('hours')) || Number(c.env.SUMMARY_HOURS)
 
   try {
-    const result = await runWithTrace(trace, {
-      spanName: 'generate-summary',
-      input: { channelId, hours, debug: true },
-      summarizeOutput: summarizeResult,
-      classifyResult: classifySummaryResult,
-      fn: () => usecase.execute(hours),
-    })
+    const result = await withConversation(crypto.randomUUID(), () =>
+      runWithTrace(trace, {
+        spanName: 'generate-summary',
+        input: { channelId, hours, debug: true },
+        summarizeOutput: summarizeResult,
+        classifyResult: classifySummaryResult,
+        fn: () => usecase.execute(hours),
+      }),
+    )
     if (result.kind === 'fallback') {
       return c.json({ error: result.reason }, 500)
     }

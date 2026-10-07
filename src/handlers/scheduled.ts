@@ -2,6 +2,7 @@ import { container } from '../container'
 import { GenerateSummary } from '../usecases/generate-summary'
 import type { SummaryPresenter } from '../usecases/ports'
 import { TOKENS } from '../tokens'
+import { withConversation } from '../services/cloudflare-ai-telemetry'
 import { runWithTrace, setupTrace } from './telemetry-setup'
 import { classifySummaryResult, summarizeResult } from './summarize-result'
 
@@ -19,15 +20,18 @@ export async function scheduledHandler(
   const presenter = child.resolve<SummaryPresenter>(TOKENS.SummaryPresenter)
   const hours = child.resolve<number>(TOKENS.SummaryHours)
 
-  await runWithTrace(trace, {
-    spanName: 'generate-summary',
-    input: { cron: controller.cron, hours },
-    summarizeOutput: summarizeResult,
-    classifyResult: classifySummaryResult,
-    fn: async () => {
-      const result = await usecase.execute(hours)
-      await presenter.present(result)
-      return result
-    },
-  })
+  const conversationId = new Date(controller.scheduledTime).toISOString()
+  await withConversation(conversationId, () =>
+    runWithTrace(trace, {
+      spanName: 'generate-summary',
+      input: { cron: controller.cron, hours },
+      summarizeOutput: summarizeResult,
+      classifyResult: classifySummaryResult,
+      fn: async () => {
+        const result = await usecase.execute(hours)
+        await presenter.present(result)
+        return result
+      },
+    }),
+  )
 }

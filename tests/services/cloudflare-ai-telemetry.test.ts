@@ -5,6 +5,7 @@ import { z } from 'zod'
 import {
   createCloudflareAITelemetry,
   invokeAgent,
+  withConversation,
 } from '../../src/services/cloudflare-ai-telemetry'
 import { scriptedModel } from '../helpers/scripted-model'
 import { recordingTracer } from '../helpers/recording-tracer'
@@ -122,9 +123,54 @@ describe('createCloudflareAITelemetry', () => {
 
     await expect(runAgent(model, recording.tracer)).rejects.toThrow()
 
-    expect(recording.find('chat mock-model-id')?.status).toEqual({
-      code: 'error',
-      message: 'gateway down',
+    const chat = recording.find('chat mock-model-id')
+    expect(chat?.attributes['error.type']).toBe('Error')
+    expect(chat?.exceptions).toEqual([
+      { name: 'Error', message: 'gateway down' },
+    ])
+  })
+
+  it('should identify the agent and conversation on both agent and chat spans', async () => {
+    const recording = recordingTracer()
+
+    await withConversation('2026-10-08T16:00:00.000Z', () =>
+      invokeAgent(
+        'followUp',
+        () => runAgent(scriptedModel(['done']), recording.tracer),
+        recording.tracer,
+      ),
+    )
+
+    const identity = {
+      'gen_ai.agent.name': 'followUp',
+      'gen_ai.agent.id': 'followUp-production',
+      'gen_ai.conversation.id': '2026-10-08T16:00:00.000Z',
+    }
+    expect(recording.find('invoke_agent followUp')?.attributes).toMatchObject(
+      identity,
+    )
+    expect(recording.find('chat mock-model-id')?.attributes).toMatchObject(
+      identity,
+    )
+  })
+
+  it('should put every agent in one conversation under the same session', async () => {
+    const recording = recordingTracer()
+    const agent = (name: string) =>
+      invokeAgent(
+        name,
+        () => runAgent(scriptedModel(['done']), recording.tracer),
+        recording.tracer,
+      )
+
+    await withConversation('run-1', async () => {
+      await agent('followUp')
+      await agent('memoryAgent')
     })
+
+    const conversations = recording.spans
+      .filter((span) => span.name.startsWith('invoke_agent'))
+      .map((span) => span.attributes['gen_ai.conversation.id'])
+    expect(conversations).toEqual(['run-1', 'run-1'])
   })
 })

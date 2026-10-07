@@ -1,7 +1,7 @@
 export interface RecordedSpan {
   name: string
   attributes: Record<string, boolean | number | string | undefined>
-  status?: { code: string; message?: string }
+  exceptions: { name?: string; message?: string }[]
   parent?: RecordedSpan
 }
 
@@ -18,6 +18,7 @@ export function recordingTracer() {
     const recorded: RecordedSpan = {
       name,
       attributes: {},
+      exceptions: [],
       parent: open[open.length - 1],
     }
     spans.push(recorded)
@@ -35,9 +36,8 @@ export function recordingTracer() {
         Object.assign(recorded.attributes, attributes)
         return span
       },
-      setStatus(status: { code: string; message?: string }) {
-        recorded.status = status
-        return span
+      recordException(exception: { name?: string; message?: string }) {
+        recorded.exceptions.push(exception)
       },
     } as unknown as Span
 

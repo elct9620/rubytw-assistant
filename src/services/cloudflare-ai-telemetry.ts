@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from 'node:async_hooks'
 import { tracing } from 'cloudflare:workers'
 import type { Telemetry } from 'ai'
 
@@ -19,14 +20,30 @@ interface ModelCallResult {
   response?: { headers?: Record<string, string | undefined> }
 }
 
+/** The Agents dashboard recognizes an agent only when its spans carry all three. */
+interface AgentIdentity {
+  'gen_ai.agent.name': string
+  'gen_ai.agent.id': string
+  'gen_ai.conversation.id': string
+}
+
+const conversation = new AsyncLocalStorage<string>()
+const agentIdentity = new AsyncLocalStorage<AgentIdentity>()
+
+/** Groups every agent run inside `run` into one dashboard session. */
+export function withConversation<T>(conversationId: string, run: () => T): T {
+  return conversation.run(conversationId, run)
+}
+
+// Custom spans have no setStatus yet, so a failure is recorded as an exception.
 async function recordFailure<T>(span: Span, run: () => PromiseLike<T>) {
   try {
     return await run()
   } catch (error) {
-    span.setStatus({
-      code: 'error',
-      message: error instanceof Error ? error.message : String(error),
-    })
+    const { name, message } =
+      error instanceof Error ? error : new Error(String(error))
+    span.setAttribute('error.type', name)
+    span.recordException({ name, message })
     throw error
   }
 }
@@ -37,12 +54,14 @@ export function invokeAgent<T>(
   run: () => PromiseLike<T>,
   tracer: Pick<Tracing, 'enterSpan'> = tracing,
 ): Promise<T> {
+  const identity: AgentIdentity = {
+    'gen_ai.agent.name': agentName,
+    'gen_ai.agent.id': `${agentName}-production`,
+    'gen_ai.conversation.id': conversation.getStore() ?? crypto.randomUUID(),
+  }
   return tracer.enterSpan(spanName('invoke_agent', agentName), (span) => {
-    span.setAttributes({
-      'gen_ai.operation.name': 'invoke_agent',
-      'gen_ai.agent.name': agentName,
-    })
-    return recordFailure(span, run)
+    span.setAttributes({ 'gen_ai.operation.name': 'invoke_agent', ...identity })
+    return agentIdentity.run(identity, () => recordFailure(span, run))
   })
 }
 
@@ -60,6 +79,7 @@ export function createCloudflareAITelemetry(
           'gen_ai.operation.name': 'chat',
           'gen_ai.provider.name': provider,
           'gen_ai.request.model': modelId,
+          ...agentIdentity.getStore(),
         })
         const result = await recordFailure(span, execute)
         const { usage, response } = result as ModelCallResult
