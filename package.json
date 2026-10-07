@@ -28,7 +28,7 @@
     "ai-gateway-provider": "^4.0.0",
     "discord-api-types": "^0.38.54",
     "discord-interactions": "^4.4.0",
-    "hono": "^4.13.5",
+    "hono": "^4.13.7",
     "reflect-metadata": "^0.2.2",
     "tsyringe": "^4.10.0",
     "zod": "^4.4.3"
