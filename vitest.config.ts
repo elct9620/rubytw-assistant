@@ -12,6 +12,8 @@ export default defineConfig({
   plugins: [
     cloudflareTest({
       wrangler: { configPath: './wrangler.jsonc' },
+      // The remote AI binding would need Cloudflare credentials CI lacks.
+      remoteBindings: false,
       miniflare: {
         bindings: { DEBUG_MODE: 'true' },
       },
