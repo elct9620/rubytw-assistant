@@ -775,3 +775,93 @@ describe('DiscordSourceAdapter.searchMessages', () => {
     warnSpy.mockRestore()
   })
 })
+
+describe('DiscordSourceAdapter.readMessage', () => {
+  const MESSAGE_URL = `${MESSAGES_URL}/:id`
+
+  it('should read one message of the configured channel by id', async () => {
+    let requestedId: string | undefined
+    network.use(
+      http.get(MESSAGE_URL, ({ params }) => {
+        requestedId = String(params.id)
+        return HttpResponse.json(
+          makeMessage('42', '我來問場地', {
+            timestamp: '2026-10-08T14:40:41.343000+00:00',
+          }),
+        )
+      }),
+    )
+
+    const message = await newAdapter().readMessage('42')
+
+    expect(requestedId).toBe('42')
+    expect(message).toEqual({
+      id: '42',
+      text: '我來問場地',
+      timestamp: '2026-10-08T14:40:41.343000+00:00',
+      fromSelf: false,
+    })
+  })
+
+  it('should mark a message the assistant wrote', async () => {
+    network.use(
+      http.get(MESSAGE_URL, () =>
+        HttpResponse.json(
+          makeMessage('42', 'list', { author: { id: SELF_ID } }),
+        ),
+      ),
+    )
+
+    const message = await newAdapter().readMessage('42')
+
+    expect(message?.fromSelf).toBe(true)
+  })
+
+  it('should include the forwarded text in what a quote is matched against', async () => {
+    network.use(
+      http.get(MESSAGE_URL, () =>
+        HttpResponse.json(
+          makeMessage('42', '', {
+            message_reference: { type: 1, message_id: '9' },
+            message_snapshots: [
+              { message: { content: '報名開始', attachments: [] } },
+            ],
+          }),
+        ),
+      ),
+    )
+
+    const message = await newAdapter().readMessage('42')
+
+    expect(message?.text).toContain('報名開始')
+  })
+
+  it('should answer null without retrying when the channel has no such message', async () => {
+    let calls = 0
+    network.use(
+      http.get(MESSAGE_URL, () => {
+        calls++
+        return HttpResponse.json(
+          { code: 10008, message: 'Unknown Message' },
+          { status: 404 },
+        )
+      }),
+    )
+
+    const message = await newAdapter().readMessage('42')
+
+    expect(message).toBeNull()
+    expect(calls).toBe(1)
+  })
+
+  it('should fail when Discord refuses the read', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    network.use(
+      http.get(MESSAGE_URL, () =>
+        HttpResponse.json({ message: 'Missing Access' }, { status: 403 }),
+      ),
+    )
+
+    await expect(newAdapter().readMessage('42')).rejects.toThrow(/403/)
+  })
+})

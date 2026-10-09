@@ -72,9 +72,20 @@ export interface MessageSearchPage {
   nextCursor: string | null
 }
 
+/** A message as the Evidence Check reads it. */
+export interface ChannelMessage {
+  id: string
+  /** What a quote is matched against: the message's own text and any text it forwards. */
+  text: string
+  timestamp: string
+  fromSelf: boolean
+}
+
 export interface DiscordSource {
   readMessages(query: ReadMessagesQuery): Promise<MessagePage>
   searchMessages(query: SearchMessagesQuery): Promise<MessageSearchPage>
+  /** Null when the designated channel holds no message with that id. */
+  readMessage(id: string): Promise<ChannelMessage | null>
 }
 
 export interface FollowUpAgent {

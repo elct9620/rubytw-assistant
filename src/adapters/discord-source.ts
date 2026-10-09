@@ -1,5 +1,6 @@
 import { injectable, inject } from 'tsyringe'
 import type {
+  ChannelMessage,
   DiscordSource,
   MessagePage,
   MessageSearchPage,
@@ -19,6 +20,7 @@ const MAX_MESSAGES_PER_REQUEST = 100
 const SEARCH_PAGE_SIZE = 25
 const SEARCH_MAX_OFFSET = 9975
 const SEARCH_INDEX_NOT_READY = 202
+const NOT_FOUND = 404
 const SELF_FILTERS = {
   mention: 'mentions',
   reply: 'replied_to_user_id',
@@ -93,6 +95,19 @@ function attachmentsXml(attachments: DiscordAttachment[]): string[] {
     attachments.map((a) => `${escapeXml(a.filename)} - ${a.url}`).join('\n'),
     '</attachments>',
   ]
+}
+
+export function toChannelMessage(
+  msg: DiscordMessage,
+  selfId: string,
+): ChannelMessage {
+  const forwarded = forwardedOf(msg)
+  return {
+    id: msg.id,
+    text: forwarded ? `${msg.content}\n${forwarded.content}` : msg.content,
+    timestamp: msg.timestamp,
+    fromSelf: msg.author.id === selfId,
+  }
 }
 
 export function formatMessageToXml(
@@ -251,6 +266,16 @@ export class DiscordSourceAdapter implements DiscordSource {
     }
   }
 
+  async readMessage(id: string): Promise<ChannelMessage | null> {
+    const msg = await this.request(
+      'readMessage',
+      `${DISCORD_API}/channels/${this.channelId}/messages/${id}`,
+      async (response) => (await response.json()) as DiscordMessage,
+      () => null,
+    )
+    return msg && toChannelMessage(msg, this.selfId)
+  }
+
   private fetchMessages(
     after: string,
     limit: number,
@@ -264,16 +289,21 @@ export class DiscordSourceAdapter implements DiscordSource {
     )
   }
 
-  private request<T>(
+  private request<T, M = never>(
     label: string,
     url: string,
     read: (response: Response) => Promise<T>,
-  ): Promise<T> {
+    missing?: () => M,
+  ): Promise<T | M> {
     return withRetry(
       async () => {
         const response = await this.rateLimiter.fetch(label, url, {
           headers: { Authorization: `Bot ${this.botToken}` },
         })
+        if (missing && response.status === NOT_FOUND) {
+          await response.body?.cancel()
+          return missing()
+        }
         await assertDiscordResponse(response)
         return read(response)
       },
