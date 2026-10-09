@@ -10,7 +10,7 @@ const item = (description: string): FollowUpItem => ({
   status: 'to-do',
   description,
   assignee: 'someone',
-  lastProgress: null,
+  lastProgress: '2026-10-01',
   reason: 'reason',
 })
 

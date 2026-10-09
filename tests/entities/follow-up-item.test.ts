@@ -25,7 +25,7 @@ describe('formatFollowUpItems', () => {
         status: 'to-do',
         description: '訂購杯套',
         assignee: null,
-        lastProgress: null,
+        lastProgress: '2026-10-01',
         reason: '活動前需到貨',
       },
     ]
@@ -85,19 +85,19 @@ describe('formatFollowUpItems', () => {
     )
   })
 
-  it('should leave out the assignee and say no progress was found when either is missing', () => {
+  it('should leave out the assignee when nobody owns the action', () => {
     const items: FollowUpItem[] = [
       {
         status: 'stalled',
         description: '徵求線上聚會主持人',
         assignee: null,
-        lastProgress: null,
+        lastProgress: '2026-09-28',
         reason: '無人回應',
       },
     ]
 
     expect(formatFollowUpItems(items)).toBe(
-      '- [停滯] 徵求線上聚會主持人 — 無人回應，尚無進展紀錄',
+      '- [停滯] 徵求線上聚會主持人 — 無人回應，最後進展 9/28',
     )
   })
 })

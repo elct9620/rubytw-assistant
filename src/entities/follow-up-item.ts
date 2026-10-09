@@ -4,8 +4,8 @@ export interface FollowUpItem {
   status: FollowUpStatus
   description: string
   assignee: string | null
-  /** ISO date people last moved the item, or null when no movement was found. */
-  lastProgress: string | null
+  /** ISO date of the item's newest evidence. */
+  lastProgress: string
   reason: string
 }
 
@@ -28,11 +28,9 @@ export function formatFollowUpItems(items: FollowUpItem[]): string {
   return items
     .map((item) => {
       const assignee = item.assignee ? ` (${item.assignee})` : ''
-      const progress = !DATED_STATUSES.has(item.status)
-        ? ''
-        : item.lastProgress
-          ? `，最後進展 ${monthDay(item.lastProgress)}`
-          : '，尚無進展紀錄'
+      const progress = DATED_STATUSES.has(item.status)
+        ? `，最後進展 ${monthDay(item.lastProgress)}`
+        : ''
       return `- [${STATUS_LABELS[item.status]}] ${item.description}${assignee} — ${item.reason}${progress}`
     })
     .join('\n')

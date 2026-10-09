@@ -22,12 +22,30 @@ const ITEM = {
   lastProgress: '2026-09-20',
   reason: '兩週無人提起',
 }
+const KASA_PROMISE = {
+  id: '100',
+  text: '贊助報告我晚點寄',
+  timestamp: '2026-09-20T03:00:00.000Z',
+  fromSelf: false,
+}
+const EVIDENCED = {
+  ...ITEM,
+  evidence: [{ type: 'message', id: '100', quote: '贊助報告我晚點寄' }],
+}
 
 const LOOKED_UP: ScriptedCall[] = [
   { toolName: 'list_memories', input: {} },
   { toolName: 'read_memories', input: { indices: [0] } },
 ]
-const SUBMIT: ScriptedCall = { toolName: 'submit', input: { items: [ITEM] } }
+const SUBMIT: ScriptedCall = {
+  toolName: 'submit',
+  input: { items: [EVIDENCED] },
+}
+/** Refused: its last progress is not the date of its evidence. */
+const MISDATED: ScriptedCall = {
+  toolName: 'submit',
+  input: { items: [{ ...EVIDENCED, lastProgress: '2026-10-01' }] },
+}
 
 function createService(budget = 1_000) {
   const service = new FollowUpAgentService(
@@ -44,6 +62,10 @@ function createService(budget = 1_000) {
         memoryDescriptionLimit: 128,
         issueBodyLengthLimit: 500,
       }),
+    createStubDiscordSource({
+      readMessage: vi.fn().mockResolvedValue(KASA_PROMISE),
+    }),
+    createStubGitHubSource(),
     [],
   )
   return { service }
@@ -54,7 +76,7 @@ describe('FollowUpAgentService', () => {
     await env.MEMORY_KV.delete(KV_KEY)
   })
 
-  it('should return the submitted list once the Goal Check accepts it', async () => {
+  it('should return the submitted list, without its evidence, once the Evidence Check accepts it', async () => {
     model = scriptedModel([LOOKED_UP, [SUBMIT]])
     const { service } = createService()
 
@@ -64,24 +86,25 @@ describe('FollowUpAgentService', () => {
   })
 
   it('should hand back an item the agent abandoned this run', async () => {
-    const abandoned = {
-      ...ITEM,
-      status: 'abandoned',
-      reason: '提醒後一週仍無進展',
-    }
+    const abandoned = { status: 'abandoned', reason: '提醒後一週仍無進展' }
     model = scriptedModel([
       LOOKED_UP,
-      [{ toolName: 'submit', input: { items: [abandoned] } }],
+      [
+        {
+          toolName: 'submit',
+          input: { items: [{ ...EVIDENCED, ...abandoned }] },
+        },
+      ],
     ])
     const { service } = createService()
 
     const items = await service.followUp(['msg'])
 
-    expect(items).toEqual([abandoned])
+    expect(items).toEqual([{ ...ITEM, ...abandoned }])
   })
 
   it('should keep working after a refused submission and return the list it later hands in', async () => {
-    model = scriptedModel([[SUBMIT], LOOKED_UP, [SUBMIT]])
+    model = scriptedModel([[MISDATED], LOOKED_UP, [SUBMIT]])
     const { service } = createService()
 
     const items = await service.followUp(['msg'])
@@ -90,7 +113,7 @@ describe('FollowUpAgentService', () => {
   })
 
   it('should stop at the step that spends the token budget and fail', async () => {
-    const scripted = scriptedModel([[SUBMIT]], 400)
+    const scripted = scriptedModel([[MISDATED]], 400)
     model = scripted
     const { service } = createService(1_000)
 

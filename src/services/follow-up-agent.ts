@@ -2,7 +2,11 @@ import { injectable, inject } from 'tsyringe'
 import { isStepCount, ToolLoopAgent } from 'ai'
 import type { Telemetry } from 'ai'
 import { z } from 'zod'
-import type { FollowUpAgent } from '../usecases/ports'
+import type {
+  DiscordSource,
+  FollowUpAgent,
+  GitHubSource,
+} from '../usecases/ports'
 import type { FollowUpItem } from '../entities/follow-up-item'
 import { taiwanDate } from '../entities/taiwan-date'
 import { TOKENS, type AiGatewayConfig, type AIToolsFactory } from '../tokens'
@@ -10,12 +14,14 @@ import { createAIModel } from './ai-model'
 import { invokeAgent } from './cloudflare-ai-telemetry'
 import {
   acceptedSubmission,
+  createEvidenceCheck,
   createSubmitTool,
+  EvidenceSchema,
   isOverTokenBudget,
   isSubmissionAccepted,
   SUBMIT_TOOL,
   tokensSpent,
-} from './follow-up-goal'
+} from './evidence-check'
 import FOLLOW_UP_PROMPT from '../prompts/follow-up.md'
 
 /** Guards against a loop that never spends its budget, e.g. one stuck on empty tool results. */
@@ -43,14 +49,18 @@ const FollowUpListSchema = z.object({
         ),
       lastProgress: z
         .string()
-        .nullable()
         .describe(
-          'YYYY-MM-DD people last moved the item, or null when no movement was found',
+          'YYYY-MM-DD in Taiwan of the newest evidence: when people last committed to, discussed, or updated the Issue of the item',
         ),
       reason: z
         .string()
         .describe(
           'what the item waits on, or why it matters, within 15 characters',
+        ),
+      evidence: z
+        .array(EvidenceSchema)
+        .describe(
+          'the messages people wrote and the Issues this item rests on; checked, never shown',
         ),
     }),
   ),
@@ -63,6 +73,8 @@ export class FollowUpAgentService implements FollowUpAgent {
     @inject(TOKENS.MemoryEntryLimit) private memoryEntryLimit: number,
     @inject(TOKENS.FollowUpTokenBudget) private tokenBudget: number,
     @inject(TOKENS.AIToolsFactory) private toolsFactory: AIToolsFactory,
+    @inject(TOKENS.DiscordSource) private discord: DiscordSource,
+    @inject(TOKENS.GitHubSource) private github: GitHubSource,
     @inject(TOKENS.Telemetry) private telemetry: Telemetry[],
   ) {}
 
@@ -84,7 +96,10 @@ export class FollowUpAgentService implements FollowUpAgent {
       instructions,
       tools: {
         ...this.toolsFactory(),
-        [SUBMIT_TOOL]: createSubmitTool(FollowUpListSchema, messages),
+        [SUBMIT_TOOL]: createSubmitTool(
+          FollowUpListSchema,
+          createEvidenceCheck({ discord: this.discord, github: this.github }),
+        ),
       },
       // Every step must call a tool, so the run can only end through submit or a limit.
       toolChoice: 'required',
@@ -114,6 +129,12 @@ export class FollowUpAgentService implements FollowUpAgent {
       )
     }
 
-    return FollowUpListSchema.parse(submitted).items
+    return FollowUpListSchema.parse(submitted).items.map((item) => ({
+      status: item.status,
+      description: item.description,
+      assignee: item.assignee,
+      lastProgress: item.lastProgress,
+      reason: item.reason,
+    }))
   }
 }

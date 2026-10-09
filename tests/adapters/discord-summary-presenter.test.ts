@@ -84,7 +84,7 @@ describe('DiscordSummaryPresenter', () => {
       status: 'to-do' as const,
       description: `任務 ${i + 1}`,
       assignee: 'X',
-      lastProgress: null,
+      lastProgress: '2026-10-01',
       reason: '原因',
     }))
 
@@ -110,7 +110,7 @@ describe('DiscordSummaryPresenter', () => {
       status: 'to-do' as const,
       description: `長任務描述第${i + 1}項${'詳'.repeat(40)}`,
       assignee: `負責人${i + 1}`,
-      lastProgress: null,
+      lastProgress: '2026-10-01',
       reason: `原因說明需要足夠長${'補'.repeat(40)}`,
     }))
 
@@ -197,7 +197,7 @@ describe('DiscordSummaryPresenter', () => {
       status: 'to-do',
       description: '任'.repeat(2000),
       assignee: 'Alice',
-      lastProgress: null,
+      lastProgress: '2026-10-01',
       reason: '原因',
     }
 
@@ -272,7 +272,7 @@ describe('DiscordSummaryPresenter DI integration', () => {
       status: 'to-do' as const,
       description: `長任務描述第${i + 1}項${'詳'.repeat(40)}`,
       assignee: `負責人${i + 1}`,
-      lastProgress: null,
+      lastProgress: '2026-10-01',
       reason: `原因說明需要足夠長${'補'.repeat(40)}`,
     }))
 
