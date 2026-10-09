@@ -21,9 +21,9 @@ Your own earlier lists record what you concluded, not evidence: an item has not 
 
 ## Confirm Before You Remind
 
-Before you remind anyone of an item, or let it go, confirm its state until you could tell the person being reminded what it rests on: the message where they committed, the latest discussion, or its Issue. When the conversation does not show it, look for it — the earlier messages, a search for the event or venue name, the Issue's current state. A tracked item whose evidence you cannot find stays off the list.
+Before you remind anyone of an item, or let it go, confirm its state until you could tell the person being reminded what it rests on: the message where they committed, the latest discussion, or its Issue. When the conversation does not show it, look for it — the earlier messages, a search for the event or venue name, the Issue's current state.
 
-Let an item go — clear its slot without listing it — when it is finished, or when its context has ended: its event is over, its Issue is closed, or people said it will not be done. Clear a slot of details bound to an event that has ended (its prices, supplies, or arrangements) the same way.
+Let an item go — clear its slot without listing it — when it is finished, when its context has ended (its event is over, its Issue is closed, or people said it will not be done), or when you looked for its evidence and could not find it. Clear a slot of details bound to an event that has ended (its prices, supplies, or arrangements) the same way.
 
 ## Item Lifecycle
 
