@@ -37,7 +37,7 @@ const FollowUpListSchema = z.object({
       status: z
         .enum(['to-do', 'in-progress', 'stalled', 'abandoned'])
         .describe(
-          'to-do: not started; in-progress: moved recently; stalled: reminded after 7 days without progress; abandoned: no progress 7 days after the reminder, listed this once',
+          'to-do: committed, not started; in-progress: moved this run; stalled: reminded this run after 7 days without progress; abandoned: no progress 7 days after the reminder, listed this once',
         ),
       description: z
         .string()
@@ -91,7 +91,7 @@ export class FollowUpAgentService implements FollowUpAgent {
       String(this.memoryEntryLimit),
     ).replaceAll('{{today}}', today)
     if (memorySummary) {
-      instructions += `\n\n# Memory Summary\n\n${memorySummary}`
+      instructions += `\n\n# Community Situation\n\n${memorySummary}`
     }
 
     const model = createAIModel(this.aiGatewayConfig)

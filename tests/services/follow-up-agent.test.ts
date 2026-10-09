@@ -163,7 +163,7 @@ describe('FollowUpAgentService', () => {
     const system = scripted.doGenerateCalls[0].prompt.find(
       (m) => m.role === 'system',
     )
-    expect(system?.content).toContain('Today is 2026-10-09.')
+    expect(system?.content).toContain('Today is 2026-10-09 in Taiwan.')
   })
 
   it('should give the model the collected messages and the stored memory summary', async () => {
