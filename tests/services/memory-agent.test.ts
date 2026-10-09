@@ -39,6 +39,9 @@ async function seedSlots(
   await env.MEMORY_KV.put(KV_KEY, JSON.stringify(padded))
 }
 
+const brief = (summary: string) => [{ toolName: 'submit', input: { summary } }]
+const BRIEF = brief('Kasa 負責宣傳。')
+
 const READ_ALL = [
   { toolName: 'list_memories', input: {} },
   { toolName: 'read_memories', input: { indices: [0, 1] } },
@@ -59,7 +62,7 @@ describe('MemoryAgentService', () => {
     expect(scripted.doGenerateCalls).toHaveLength(0)
   })
 
-  it('should let the agent clear a slot and return the summary of what remains', async () => {
+  it('should let the agent clear a slot and return the briefing it submits', async () => {
     await seedSlots([
       { description: 'Kasa: RT organizer', content: 'Handles promotion' },
       { description: '車輪餅團購', content: '2026-05-08: 待分發' },
@@ -72,13 +75,13 @@ describe('MemoryAgentService', () => {
           input: { index: 1, description: '', content: '' },
         },
       ],
-      'Kasa 負責宣傳（#0）。',
+      BRIEF,
     ])
     const { service, memoryStore } = createService()
 
     const result = await service.tidyAndSummarize()
 
-    expect(result).toBe('Kasa 負責宣傳（#0）。')
+    expect(result).toBe('Kasa 負責宣傳。')
     const slots = await memoryStore.list()
     expect(slots.map((slot) => slot.description)).toEqual([
       'Kasa: RT organizer',
@@ -88,9 +91,9 @@ describe('MemoryAgentService', () => {
     ])
   })
 
-  it('should offer the agent the memory tools only', async () => {
+  it('should offer the agent the memory tools and submit only', async () => {
     await seedSlots([{ description: 'Kasa', content: 'organizer' }])
-    const scripted = scriptedModel(['summary'])
+    const scripted = scriptedModel([BRIEF])
     model = scripted
 
     await createService().service.tidyAndSummarize()
@@ -99,13 +102,14 @@ describe('MemoryAgentService', () => {
     expect(tools.sort()).toEqual([
       'list_memories',
       'read_memories',
+      'submit',
       'update_memory',
     ])
   })
 
   it('should give the agent instructions with every placeholder filled', async () => {
     await seedSlots([{ description: 'Kasa', content: 'organizer' }])
-    const scripted = scriptedModel(['summary'])
+    const scripted = scriptedModel([BRIEF])
     model = scripted
 
     await createService().service.tidyAndSummarize()
@@ -120,7 +124,7 @@ describe('MemoryAgentService', () => {
     vi.useFakeTimers({ toFake: ['Date'] })
     vi.setSystemTime(new Date('2026-10-08T16:00:30Z'))
     await seedSlots([{ description: 'Kasa', content: 'organizer' }])
-    const scripted = scriptedModel(['summary'])
+    const scripted = scriptedModel([BRIEF])
     model = scripted
 
     await createService().service.tidyAndSummarize()
@@ -145,7 +149,7 @@ describe('MemoryAgentService', () => {
           input: { index: 0, description: '', content: '' },
         },
       ],
-      'nothing left',
+      BRIEF,
     ])
 
     const result = await createService().service.tidyAndSummarize()
@@ -153,12 +157,26 @@ describe('MemoryAgentService', () => {
     expect(result).toBeNull()
   })
 
-  it('should cut the summary to the configured length', async () => {
+  it('should refuse an over-long briefing and return the shorter one submitted next', async () => {
     await seedSlots([{ description: 'Kasa', content: 'organizer' }])
-    model = scriptedModel(['字'.repeat(LENGTH_LIMIT + 50)])
+    const scripted = scriptedModel([
+      brief('字'.repeat(LENGTH_LIMIT + 1)),
+      brief('字'.repeat(LENGTH_LIMIT)),
+    ])
+    model = scripted
 
     const result = await createService().service.tidyAndSummarize()
 
-    expect(result).toHaveLength(LENGTH_LIMIT)
+    expect(result).toBe('字'.repeat(LENGTH_LIMIT))
+    expect(scripted.doGenerateCalls).toHaveLength(2)
+  })
+
+  it('should fail when the step cap is reached without an accepted briefing', async () => {
+    await seedSlots([{ description: 'Kasa', content: 'organizer' }])
+    model = scriptedModel([brief('字'.repeat(LENGTH_LIMIT + 1))])
+
+    await expect(createService().service.tidyAndSummarize()).rejects.toThrow(
+      /without an accepted summary/,
+    )
   })
 })

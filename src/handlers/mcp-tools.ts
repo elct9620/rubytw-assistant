@@ -108,7 +108,7 @@ export function registerMemoryTools(server: McpServer): void {
     {
       title: 'Read the memory summary',
       description:
-        'Read the condensed summary injected into the next pipeline run.',
+        "Read the briefing on the community's current situation that the next follow-up run starts from.",
       inputSchema: z.object({}),
     },
     async () => json({ summary: await summary.read() }),
@@ -118,7 +118,7 @@ export function registerMemoryTools(server: McpServer): void {
     'write_memory_summary',
     {
       title: 'Replace the memory summary',
-      description: `Replace the condensed summary injected into the next pipeline run. Max ${summaryLimit} characters.`,
+      description: `Replace the briefing on the community's current situation that the next follow-up run starts from. Max ${summaryLimit} characters.`,
       inputSchema: z.object({
         summary: z
           .string()

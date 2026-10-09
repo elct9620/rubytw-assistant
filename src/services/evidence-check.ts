@@ -9,8 +9,6 @@ import type {
 } from '../usecases/ports'
 import { taiwanDate } from '../entities/taiwan-date'
 
-export const SUBMIT_TOOL = 'submit'
-
 const READ_ISSUES_MAX = 10
 const XML_ENTITIES: Record<string, string> = {
   '&lt;': '<',
@@ -248,25 +246,6 @@ export function createSubmitTool<
     },
   })
 }
-
-export function acceptedSubmission<TOOLS extends ToolSet>(
-  steps: StepResult<TOOLS>[],
-): unknown {
-  for (const step of steps) {
-    for (const result of step.toolResults) {
-      if (
-        result.toolName === SUBMIT_TOOL &&
-        (result.output as SubmitResult).accepted
-      ) {
-        return result.input
-      }
-    }
-  }
-  return undefined
-}
-
-export const isSubmissionAccepted: StopCondition<ToolSet> = ({ steps }) =>
-  acceptedSubmission(steps) !== undefined
 
 export function tokensSpent<TOOLS extends ToolSet>(
   steps: StepResult<TOOLS>[],

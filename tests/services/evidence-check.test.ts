@@ -3,12 +3,14 @@ import { generateText } from 'ai'
 import { z } from 'zod'
 import {
   acceptedSubmission,
+  isSubmissionAccepted,
+  SUBMIT_TOOL,
+} from '../../src/services/submission'
+import {
   createEvidenceCheck,
   createSubmitTool,
   EvidenceSchema,
   isOverTokenBudget,
-  isSubmissionAccepted,
-  SUBMIT_TOOL,
   type Evidence,
   type RelevanceJudge,
   type SubmitResult,

@@ -14,15 +14,17 @@ import { createAIModel } from './ai-model'
 import { invokeAgent } from './cloudflare-ai-telemetry'
 import { createRelevanceJudge } from './relevance-judge'
 import {
-  acceptedSubmission,
   createEvidenceCheck,
   createSubmitTool,
   EvidenceSchema,
   isOverTokenBudget,
-  isSubmissionAccepted,
-  SUBMIT_TOOL,
   tokensSpent,
 } from './evidence-check'
+import {
+  acceptedSubmission,
+  isSubmissionAccepted,
+  SUBMIT_TOOL,
+} from './submission'
 import FOLLOW_UP_PROMPT from '../prompts/follow-up.md'
 
 /** Guards against a loop that never spends its budget, e.g. one stuck on empty tool results. */
