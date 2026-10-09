@@ -5,38 +5,6 @@ import {
 } from '../../src/entities/follow-up-item'
 
 describe('formatFollowUpItems', () => {
-  it('should show status, description, assignee, and reason without a date for moving items', () => {
-    const items: FollowUpItem[] = [
-      {
-        status: 'to-do',
-        description: '寄出贊助報告',
-        assignee: 'Kasa',
-        lastProgress: '2026-10-01',
-        reason: '贊助商等待中',
-      },
-      {
-        status: 'in-progress',
-        description: '確認 11 月場地',
-        assignee: '竜堂',
-        lastProgress: '2026-10-05',
-        reason: '已聯絡場地方',
-      },
-      {
-        status: 'to-do',
-        description: '訂購杯套',
-        assignee: null,
-        lastProgress: '2026-10-01',
-        reason: '活動前需到貨',
-      },
-    ]
-
-    expect(formatFollowUpItems(items)).toBe(
-      '- [待辦] 寄出贊助報告 (Kasa) — 贊助商等待中\n' +
-        '- [進行中] 確認 11 月場地 (竜堂) — 已聯絡場地方\n' +
-        '- [待辦] 訂購杯套 — 活動前需到貨',
-    )
-  })
-
   it('should add the last progress as month and day to a stalled item', () => {
     const items: FollowUpItem[] = [
       {

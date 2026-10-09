@@ -117,6 +117,20 @@ describe('FollowUpAgentService', () => {
     expect(items).toEqual([ITEM])
   })
 
+  it('should refuse an item that is not a reminder and return the list handed in next', async () => {
+    const notAReminder: ScriptedCall = {
+      toolName: 'submit',
+      input: { items: [{ ...EVIDENCED, status: 'in-progress' }] },
+    }
+    const scripted = scriptedModel([[notAReminder], [SUBMIT], RELEVANT])
+    model = scripted
+    const { service } = createService()
+
+    const items = await service.followUp(['msg'])
+
+    expect(items).toEqual([ITEM])
+  })
+
   it('should stop at the step that spends the token budget and fail', async () => {
     const scripted = scriptedModel([[MISDATED]], 400)
     model = scripted

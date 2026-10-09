@@ -26,7 +26,7 @@ function registerStubPorts() {
     useValue: {
       followUp: vi.fn().mockResolvedValue([
         {
-          status: 'to-do',
+          status: 'stalled',
           description: '整理官網改版 issue',
           assignee: 'Bob',
           lastProgress: '2026-10-05',

@@ -1,4 +1,5 @@
-export type FollowUpStatus = 'to-do' | 'in-progress' | 'stalled' | 'abandoned'
+/** A listed item is a reminder: stalled this run, or let go after its reminder. */
+export type FollowUpStatus = 'stalled' | 'abandoned'
 
 export interface FollowUpItem {
   status: FollowUpStatus
@@ -10,13 +11,9 @@ export interface FollowUpItem {
 }
 
 const STATUS_LABELS: Record<FollowUpStatus, string> = {
-  'to-do': '待辦',
-  'in-progress': '進行中',
   stalled: '停滯',
   abandoned: '已放棄',
 }
-
-const DATED_STATUSES = new Set<FollowUpStatus>(['stalled', 'abandoned'])
 
 /** `2026-09-08` → `9/8`, short enough to sit inside the reason; any other form is shown as written. */
 function monthDay(date: string): string {
@@ -28,10 +25,7 @@ export function formatFollowUpItems(items: FollowUpItem[]): string {
   return items
     .map((item) => {
       const assignee = item.assignee ? ` (${item.assignee})` : ''
-      const progress = DATED_STATUSES.has(item.status)
-        ? `，最後進展 ${monthDay(item.lastProgress)}`
-        : ''
-      return `- [${STATUS_LABELS[item.status]}] ${item.description}${assignee} — ${item.reason}${progress}`
+      return `- [${STATUS_LABELS[item.status]}] ${item.description}${assignee} — ${item.reason}，最後進展 ${monthDay(item.lastProgress)}`
     })
     .join('\n')
 }

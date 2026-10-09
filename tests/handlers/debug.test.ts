@@ -64,7 +64,7 @@ describe('debug handler', () => {
       kind: 'success',
       items: [
         {
-          status: 'to-do',
+          status: 'stalled',
           description: 'Do thing',
           assignee: 'Bob',
           lastProgress: '2026-10-05',

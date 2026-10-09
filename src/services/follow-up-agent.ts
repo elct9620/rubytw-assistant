@@ -33,9 +33,9 @@ const FollowUpListSchema = z.object({
   items: z.array(
     z.object({
       status: z
-        .enum(['to-do', 'in-progress', 'stalled', 'abandoned'])
+        .enum(['stalled', 'abandoned'])
         .describe(
-          'to-do: committed, not started; in-progress: moved this run; stalled: reminded this run after 7 days without progress; abandoned: no progress 7 days after the reminder, listed this once',
+          'stalled: reminded this run after 7 days without progress; abandoned: no progress 7 days after the reminder, listed this once',
         ),
       description: z
         .string()

@@ -7,7 +7,7 @@ import type { SummaryResult } from '../../src/usecases/ports'
 import type { FollowUpItem } from '../../src/entities/follow-up-item'
 
 const item = (description: string): FollowUpItem => ({
-  status: 'to-do',
+  status: 'stalled',
   description,
   assignee: 'someone',
   lastProgress: '2026-10-01',

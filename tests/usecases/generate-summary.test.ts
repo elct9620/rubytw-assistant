@@ -6,7 +6,7 @@ import {
 import type { FollowUpItem } from '../../src/entities/follow-up-item'
 
 const sampleItem: FollowUpItem = {
-  status: 'to-do',
+  status: 'stalled',
   description: '寄出贊助報告',
   assignee: 'Kasa',
   lastProgress: '2026-03-30',

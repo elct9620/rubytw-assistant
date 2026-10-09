@@ -20,7 +20,7 @@ function createMockNotifier() {
 }
 
 const sampleItem: FollowUpItem = {
-  status: 'to-do',
+  status: 'stalled',
   description: '更新官網',
   assignee: 'Alice',
   lastProgress: '2026-10-01',
@@ -43,7 +43,7 @@ describe('DiscordSummaryPresenter', () => {
 
     expect(notifier.sendMessage).toHaveBeenCalledWith(
       'channel-123',
-      '- [待辦] 更新官網 (Alice) — 官網資訊過舊',
+      '- [停滯] 更新官網 (Alice) — 官網資訊過舊，最後進展 10/1',
     )
   })
 
@@ -66,7 +66,7 @@ describe('DiscordSummaryPresenter', () => {
     const presenter = new DiscordSummaryPresenter(notifier, 'channel-123', 5)
 
     const manyItems: FollowUpItem[] = Array.from({ length: 10 }, (_, i) => ({
-      status: 'to-do' as const,
+      status: 'stalled' as const,
       description: `任務 ${i + 1}`,
       assignee: 'X',
       lastProgress: '2026-10-01',
@@ -92,7 +92,7 @@ describe('DiscordSummaryPresenter', () => {
     const presenter = new DiscordSummaryPresenter(notifier, 'channel-123', 30)
 
     const longItems: FollowUpItem[] = Array.from({ length: 30 }, (_, i) => ({
-      status: 'to-do' as const,
+      status: 'stalled' as const,
       description: `長任務描述第${i + 1}項${'詳'.repeat(40)}`,
       assignee: `負責人${i + 1}`,
       lastProgress: '2026-10-01',
@@ -178,7 +178,7 @@ describe('DiscordSummaryPresenter', () => {
     const presenter = new DiscordSummaryPresenter(notifier, 'channel-123', 30)
 
     const oversizedItem: FollowUpItem = {
-      status: 'to-do',
+      status: 'stalled',
       description: '任'.repeat(2000),
       assignee: 'Alice',
       lastProgress: '2026-10-01',
@@ -229,7 +229,9 @@ describe('DiscordSummaryPresenter DI integration', () => {
     await presenter.present(result)
 
     expect(sentMessages).toHaveLength(1)
-    expect(sentMessages[0]).toBe('- [待辦] 更新官網 (Alice) — 官網資訊過舊')
+    expect(sentMessages[0]).toBe(
+      '- [停滯] 更新官網 (Alice) — 官網資訊過舊，最後進展 10/1',
+    )
   })
 
   it('should send chunked messages via Discord API when content is long', async () => {
@@ -253,7 +255,7 @@ describe('DiscordSummaryPresenter DI integration', () => {
     const presenter = child.resolve(DiscordSummaryPresenter)
 
     const longItems: FollowUpItem[] = Array.from({ length: 30 }, (_, i) => ({
-      status: 'to-do' as const,
+      status: 'stalled' as const,
       description: `長任務描述第${i + 1}項${'詳'.repeat(40)}`,
       assignee: `負責人${i + 1}`,
       lastProgress: '2026-10-01',
