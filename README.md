@@ -4,7 +4,7 @@ A Cloudflare Worker that provides automated information aggregation and query to
 
 ## Features
 
-- **Daily Follow-up** — Collects Discord channel messages on a schedule; a Follow-up Agent reads memory, the day's messages, and GitHub Issues, then posts what is still unfinished and when it last moved, reminding after 7 days without progress and letting go 7 days after that. A Memory Agent then clears finished and abandoned memory and condenses the rest for the next run
+- **Daily Follow-up** — Collects Discord channel messages on a schedule; a Follow-up Agent works from the day's messages and the items whose time has come, and posts commitments that need a reminder only when there are any. Every item cites messages or Issues the system verifies; an item is reminded after 7 days without progress and let go 7 days later, or as soon as its context has ended. A Memory Agent then tidies memory and writes a briefing for the next run
 - **Discord Slash Commands** — Operators query GitHub Issues and Project status directly from Discord
 - **GitHub App Integration** — Read-only access to GitHub Projects and Issues via GitHub App
 

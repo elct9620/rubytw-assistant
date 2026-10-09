@@ -115,7 +115,7 @@ describe('cron entry point after the OAuth provider wraps fetch', () => {
     container.register(GenerateSummary, {
       useFactory: () => ({ execute: mockExecute }),
     })
-    mockExecute.mockReset().mockResolvedValue({ kind: 'empty' })
+    mockExecute.mockReset().mockResolvedValue({ kind: 'success', items: [] })
     mockPresent.mockReset().mockResolvedValue(undefined)
   })
 

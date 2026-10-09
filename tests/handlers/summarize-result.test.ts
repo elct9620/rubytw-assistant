@@ -53,10 +53,9 @@ describe('classifySummaryResult', () => {
     ).toEqual({ level: 'WARNING', statusMessage: 'AI service down' })
   })
 
-  it.each([
-    ['success', { kind: 'success', items: [] }],
-    ['empty', { kind: 'empty' }],
-  ] as const)('should leave a %s run unclassified', (_kind, result) => {
-    expect(classifySummaryResult(result as SummaryResult)).toBeUndefined()
+  it('should leave a successful run unclassified', () => {
+    expect(
+      classifySummaryResult({ kind: 'success', items: [] }),
+    ).toBeUndefined()
   })
 })

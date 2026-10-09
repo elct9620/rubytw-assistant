@@ -77,7 +77,7 @@ describe('scheduledHandler', () => {
   it('should not export anything when telemetry is disabled', async () => {
     const langfuse = captureLangfuseSpans()
 
-    mockExecute.mockResolvedValue({ kind: 'empty' })
+    mockExecute.mockResolvedValue({ kind: 'success', items: [] })
     mockPresent.mockResolvedValue(undefined)
 
     const controller = { cron: '0 16 * * *', scheduledTime: Date.now() }
@@ -90,7 +90,7 @@ describe('scheduledHandler', () => {
     enableTelemetry()
     const langfuse = captureLangfuseSpans()
 
-    mockExecute.mockResolvedValue({ kind: 'empty' })
+    mockExecute.mockResolvedValue({ kind: 'success', items: [] })
     mockPresent.mockResolvedValue(undefined)
 
     const controller = { cron: '0 16 * * *', scheduledTime: Date.now() }
