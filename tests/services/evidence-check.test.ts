@@ -10,6 +10,7 @@ import {
   isSubmissionAccepted,
   SUBMIT_TOOL,
   type Evidence,
+  type RelevanceJudge,
   type SubmitResult,
 } from '../../src/services/evidence-check'
 import type { ChannelMessage, IssueDetail } from '../../src/usecases/ports'
@@ -57,11 +58,15 @@ const fromKasa: Evidence = {
   quote: '我來問他我們平常用kktix 能不能導過去',
 }
 
+const allRelevant: RelevanceJudge = async (questions) =>
+  questions.map(() => ({ relevant: true, reason: '' }))
+
 function sources(
   messages: ChannelMessage[] = [KASA, LATE_NIGHT, OWN_LIST],
   issues: IssueDetail[] = [VENUE_ISSUE],
 ) {
   return {
+    judge: vi.fn(allRelevant),
     discord: createStubDiscordSource({
       readMessage: vi.fn(
         async (id: string) => messages.find((m) => m.id === id) ?? null,
@@ -249,6 +254,58 @@ describe('Evidence Check', () => {
     expect(
       vi.mocked(deps.github.readIssues).mock.calls.map(([n]) => n.length),
     ).toEqual([10, 1])
+  })
+
+  it('should refuse an item whose quotes the judge finds are about something else', async () => {
+    const deps = sources()
+    deps.judge.mockResolvedValueOnce([
+      { relevant: false, reason: 'the quote is about KKTIX, not the venue' },
+    ])
+
+    const result = await runFollowUp([[submit(item([fromKasa]))]], deps)
+
+    expect(submitResults(result)[0]).toEqual({
+      accepted: false,
+      failures: [
+        '"詢問場地導流" — Relevant: the quote is about KKTIX, not the venue',
+      ],
+    })
+  })
+
+  it('should ask the judge only about items whose evidence holds up and that quote messages', async () => {
+    const deps = sources()
+    const issueOnly = {
+      ...item([{ type: 'issue', number: 93 }], '2026-10-09'),
+      description: '預約場地',
+    }
+    const misdated = {
+      ...item([fromKasa], '2026-10-01'),
+      description: '補上日期',
+    }
+
+    await runFollowUp([[submit(item([fromKasa]), issueOnly, misdated)]], deps)
+
+    expect(deps.judge).toHaveBeenCalledWith([
+      { description: '詢問場地導流', quotes: [fromKasa.quote] },
+    ])
+  })
+
+  it('should refuse items the judge could not judge, and judge them again on the next submission', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const deps = sources()
+    deps.judge.mockRejectedValueOnce(new Error('AI Gateway timeout'))
+
+    const result = await runFollowUp(
+      [[submit(item([fromKasa]))], [submit(item([fromKasa]))]],
+      deps,
+    )
+
+    const [refused, accepted] = submitResults(result)
+    expect(refused).toEqual({
+      accepted: false,
+      failures: ['"詢問場地導流" — Relevant: could not be judged now'],
+    })
+    expect(accepted).toEqual({ accepted: true })
   })
 
   it('should stop without an accepted list once the token budget is spent', async () => {

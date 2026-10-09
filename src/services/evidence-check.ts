@@ -45,9 +45,21 @@ export interface EvidencedItem {
 export type SubmitResult =
   { accepted: true } | { accepted: false; failures: string[] }
 
+/** An item the Relevant check asks about: its next action and what it quotes. */
+export interface RelevanceQuestion {
+  description: string
+  quotes: string[]
+}
+
+/** Whether each item's quotes are about it, in the order asked, with why not. */
+export type RelevanceJudge = (
+  questions: RelevanceQuestion[],
+) => Promise<{ relevant: boolean; reason: string }[]>
+
 export interface EvidenceSources {
   discord: Pick<DiscordSource, 'readMessage'>
   github: Pick<GitHubSource, 'readIssues'>
+  judge: RelevanceJudge
 }
 
 /** Each failure names the item and the check it failed; an empty list accepts. */
@@ -66,6 +78,7 @@ const unescapeXml = (text: string) =>
 export function createEvidenceCheck({
   discord,
   github,
+  judge,
 }: EvidenceSources): EvidenceCheck {
   const messages = new Map<string, ChannelMessage | null>()
   const issues = new Map<number, IssueDetail | null>()
@@ -179,13 +192,43 @@ export function createEvidenceCheck({
     return failures
   }
 
+  /** Judged only for items whose evidence holds up, so one judgement covers the list. */
+  async function checkRelevance(items: EvidencedItem[]): Promise<string[]> {
+    const questions = items
+      .map((item) => ({
+        description: item.description,
+        quotes: item.evidence.flatMap((e) =>
+          e.type === 'message' ? [e.quote] : [],
+        ),
+      }))
+      .filter((question) => question.quotes.length > 0)
+    if (questions.length === 0) return []
+
+    let verdicts: Awaited<ReturnType<RelevanceJudge>>
+    try {
+      verdicts = await judge(questions)
+    } catch (error) {
+      console.warn('Evidence Check could not judge relevance:', error)
+      return questions.map(
+        (q) => `"${q.description}" — Relevant: could not be judged now`,
+      )
+    }
+    return questions.flatMap((q, i) => {
+      const verdict = verdicts[i]
+      return verdict.relevant
+        ? []
+        : [`"${q.description}" — Relevant: ${verdict.reason}`]
+    })
+  }
+
   return async (items) => {
     const cited = items.flatMap((item) =>
       item.evidence.flatMap((e) => (e.type === 'issue' ? [e.number] : [])),
     )
     await readIssues(cited)
     const results = await Promise.all(items.map(checkItem))
-    return results.flat()
+    const grounded = items.filter((_, i) => results[i].length === 0)
+    return [...results.flat(), ...(await checkRelevance(grounded))]
   }
 }
 

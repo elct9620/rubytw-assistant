@@ -12,6 +12,7 @@ import { taiwanDate } from '../entities/taiwan-date'
 import { TOKENS, type AiGatewayConfig, type AIToolsFactory } from '../tokens'
 import { createAIModel } from './ai-model'
 import { invokeAgent } from './cloudflare-ai-telemetry'
+import { createRelevanceJudge } from './relevance-judge'
 import {
   acceptedSubmission,
   createEvidenceCheck,
@@ -91,14 +92,19 @@ export class FollowUpAgentService implements FollowUpAgent {
       instructions += `\n\n# Memory Summary\n\n${memorySummary}`
     }
 
+    const model = createAIModel(this.aiGatewayConfig)
     const agent = new ToolLoopAgent({
-      model: createAIModel(this.aiGatewayConfig),
+      model,
       instructions,
       tools: {
         ...this.toolsFactory(),
         [SUBMIT_TOOL]: createSubmitTool(
           FollowUpListSchema,
-          createEvidenceCheck({ discord: this.discord, github: this.github }),
+          createEvidenceCheck({
+            discord: this.discord,
+            github: this.github,
+            judge: createRelevanceJudge(model, this.telemetry),
+          }),
         ),
       },
       // Every step must call a tool, so the run can only end through submit or a limit.

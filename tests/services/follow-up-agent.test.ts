@@ -41,6 +41,10 @@ const SUBMIT: ScriptedCall = {
   toolName: 'submit',
   input: { items: [EVIDENCED] },
 }
+/** The relevance judge's answer, which the submission's check asks the same model for. */
+const RELEVANT = JSON.stringify({
+  verdicts: [{ item: 1, relevant: true, reason: '' }],
+})
 /** Refused: its last progress is not the date of its evidence. */
 const MISDATED: ScriptedCall = {
   toolName: 'submit',
@@ -77,7 +81,7 @@ describe('FollowUpAgentService', () => {
   })
 
   it('should return the submitted list, without its evidence, once the Evidence Check accepts it', async () => {
-    model = scriptedModel([LOOKED_UP, [SUBMIT]])
+    model = scriptedModel([LOOKED_UP, [SUBMIT], RELEVANT])
     const { service } = createService()
 
     const items = await service.followUp(['[2026-10-05] Kasa: 報告晚點寄'])
@@ -95,6 +99,7 @@ describe('FollowUpAgentService', () => {
           input: { items: [{ ...EVIDENCED, ...abandoned }] },
         },
       ],
+      RELEVANT,
     ])
     const { service } = createService()
 
@@ -104,7 +109,7 @@ describe('FollowUpAgentService', () => {
   })
 
   it('should keep working after a refused submission and return the list it later hands in', async () => {
-    model = scriptedModel([[MISDATED], LOOKED_UP, [SUBMIT]])
+    model = scriptedModel([[MISDATED], LOOKED_UP, [SUBMIT], RELEVANT])
     const { service } = createService()
 
     const items = await service.followUp(['msg'])
@@ -124,7 +129,7 @@ describe('FollowUpAgentService', () => {
   })
 
   it('should fail a list accepted on the step that went over the token budget', async () => {
-    model = scriptedModel([LOOKED_UP, [SUBMIT]], 600)
+    model = scriptedModel([LOOKED_UP, [SUBMIT], RELEVANT], 600)
     const { service } = createService(1_000)
 
     await expect(service.followUp(['msg'])).rejects.toThrow(
@@ -149,7 +154,7 @@ describe('FollowUpAgentService', () => {
   it('should date the run in Taiwan, where the midnight cron is already the next day', async () => {
     vi.useFakeTimers({ toFake: ['Date'] })
     vi.setSystemTime(new Date('2026-10-08T16:00:30Z'))
-    const scripted = scriptedModel([LOOKED_UP, [SUBMIT]])
+    const scripted = scriptedModel([LOOKED_UP, [SUBMIT], RELEVANT])
     model = scripted
 
     await createService().service.followUp(['msg'])
@@ -162,7 +167,7 @@ describe('FollowUpAgentService', () => {
   })
 
   it('should give the model the collected messages and the stored memory summary', async () => {
-    const scripted = scriptedModel([LOOKED_UP, [SUBMIT]])
+    const scripted = scriptedModel([LOOKED_UP, [SUBMIT], RELEVANT])
     model = scripted
     const { service } = createService()
 
