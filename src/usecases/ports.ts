@@ -101,17 +101,13 @@ export interface SummarySuccess {
   items: FollowUpItem[]
 }
 
-export interface SummaryEmpty {
-  kind: 'empty'
-}
-
 export interface SummaryFallback {
   kind: 'fallback'
   rawMessages: string[]
   reason: string
 }
 
-export type SummaryResult = SummarySuccess | SummaryEmpty | SummaryFallback
+export type SummaryResult = SummarySuccess | SummaryFallback
 
 export interface SummaryPresenter {
   present(result: SummaryResult): Promise<void>

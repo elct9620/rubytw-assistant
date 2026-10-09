@@ -56,7 +56,7 @@ describe('GenerateSummary', () => {
     expect(result).toEqual({ kind: 'success', items: [sampleItem] })
   })
 
-  it('should run neither agent when no messages were found', async () => {
+  it('should run both agents when the window holds no messages', async () => {
     const deps = createStubDeps({
       discord: {
         readMessages: vi
@@ -67,9 +67,9 @@ describe('GenerateSummary', () => {
 
     const result = await new GenerateSummary(deps).execute(24)
 
-    expect(result).toEqual({ kind: 'empty' })
-    expect(deps.followUpAgent.followUp).not.toHaveBeenCalled()
-    expect(deps.memoryAgent.tidyAndSummarize).not.toHaveBeenCalled()
+    expect(result.kind).toBe('success')
+    expect(deps.followUpAgent.followUp).toHaveBeenCalledWith([], undefined)
+    expect(deps.memoryAgent.tidyAndSummarize).toHaveBeenCalled()
   })
 
   it('should fall back to raw messages and leave memory alone when the Follow-up Agent fails', async () => {

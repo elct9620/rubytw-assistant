@@ -47,7 +47,7 @@ describe('DiscordSummaryPresenter', () => {
     )
   })
 
-  it('should send nothing-pending notice when the list is empty', async () => {
+  it('should send nothing when no item is due', async () => {
     const notifier = createMockNotifier()
     const presenter = new DiscordSummaryPresenter(notifier, 'channel-123', 30)
 
@@ -58,22 +58,7 @@ describe('DiscordSummaryPresenter', () => {
 
     await presenter.present(result)
 
-    expect(notifier.sendMessage).toHaveBeenCalledWith(
-      'channel-123',
-      '本次摘要期間內無待辦事項。',
-    )
-  })
-
-  it('should say the window held no messages when it was empty', async () => {
-    const notifier = createMockNotifier()
-    const presenter = new DiscordSummaryPresenter(notifier, 'channel-123', 30)
-
-    await presenter.present({ kind: 'empty' })
-
-    expect(notifier.sendMessage).toHaveBeenCalledWith(
-      'channel-123',
-      '本次期間內頻道沒有新訊息。',
-    )
+    expect(notifier.sendMessage).not.toHaveBeenCalled()
   })
 
   it('should cap the list at the configured limit', async () => {
@@ -150,7 +135,7 @@ describe('DiscordSummaryPresenter', () => {
     expect(secondCall[1]).toBe('<msg>one</msg>\n<msg>two</msg>')
   })
 
-  it('should send only the error notice when fallback has no raw messages', async () => {
+  it('should send nothing when a run fails with no messages to hand over', async () => {
     const notifier = createMockNotifier()
     const presenter = new DiscordSummaryPresenter(notifier, 'channel-123', 30)
 
@@ -160,8 +145,7 @@ describe('DiscordSummaryPresenter', () => {
       reason: 'AI service down',
     })
 
-    expect(notifier.sendMessage).toHaveBeenCalledOnce()
-    expect(notifier.sendMessage.mock.calls[0]?.[1]).toContain('AI 分析失敗')
+    expect(notifier.sendMessage).not.toHaveBeenCalled()
   })
 
   it('should chunk long raw messages on fallback', async () => {

@@ -25,10 +25,6 @@ export class GenerateSummary {
       limit: COLLECTION_MESSAGE_LIMIT,
     })
 
-    if (messages.length === 0) {
-      return { kind: 'empty' }
-    }
-
     let memorySummary: string | undefined
     try {
       memorySummary = (await this.deps.memorySummaryStore.read()) ?? undefined

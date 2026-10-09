@@ -10,8 +10,6 @@ import { formatFollowUpItems } from '../entities/follow-up-item'
 import { TOKENS } from '../tokens'
 
 const DISCORD_MAX_CONTENT_LENGTH = 2000
-const EMPTY_WINDOW_NOTICE = '本次期間內頻道沒有新訊息。'
-const NOTHING_PENDING_NOTICE = '本次摘要期間內無待辦事項。'
 
 @injectable()
 export class DiscordSummaryPresenter implements SummaryPresenter {
@@ -23,9 +21,6 @@ export class DiscordSummaryPresenter implements SummaryPresenter {
 
   async present(result: SummaryResult): Promise<void> {
     switch (result.kind) {
-      case 'empty':
-        await this.notifier.sendMessage(this.channelId, EMPTY_WINDOW_NOTICE)
-        return
       case 'success':
         await this.presentSuccess(result)
         return
@@ -36,21 +31,18 @@ export class DiscordSummaryPresenter implements SummaryPresenter {
   }
 
   private async presentSuccess(result: SummarySuccess): Promise<void> {
-    if (result.items.length === 0) {
-      await this.notifier.sendMessage(this.channelId, NOTHING_PENDING_NOTICE)
-      return
-    }
+    if (result.items.length === 0) return
 
     const capped = result.items.slice(0, this.summaryItemLimit)
     const body = formatFollowUpItems(capped)
     await this.sendChunked(body)
   }
 
+  /** With no messages to hand over, the logged error is the only report. */
   private async presentFallback(result: SummaryFallback): Promise<void> {
+    if (result.rawMessages.length === 0) return
     const notice = `⚠️ AI 分析失敗，改傳原始訊息以利人工檢視。\n失敗原因：${result.reason}`
     await this.notifier.sendMessage(this.channelId, notice)
-
-    if (result.rawMessages.length === 0) return
     await this.sendChunked(result.rawMessages.join('\n'))
   }
 

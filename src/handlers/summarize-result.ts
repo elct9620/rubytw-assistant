@@ -10,8 +10,6 @@ export function summarizeResult(
   result: SummaryResult,
 ): Record<string, unknown> {
   switch (result.kind) {
-    case 'empty':
-      return { kind: 'empty' }
     case 'success':
       return {
         kind: 'success',
@@ -28,7 +26,7 @@ export function summarizeResult(
 
 /**
  * Flag fallback results as WARNING so Langfuse/OTel viewers can surface
- * degraded runs at a glance. Success and empty results are normal and
+ * degraded runs at a glance. Successful results are normal and
  * return undefined (no classification).
  */
 export function classifySummaryResult(

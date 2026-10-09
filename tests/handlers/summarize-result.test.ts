@@ -27,10 +27,6 @@ describe('summarizeResult', () => {
     })
   })
 
-  it('should reduce an empty run to its kind alone', () => {
-    expect(summarizeResult({ kind: 'empty' })).toEqual({ kind: 'empty' })
-  })
-
   it('should keep the reason a fallback was taken', () => {
     const result: SummaryResult = {
       kind: 'fallback',

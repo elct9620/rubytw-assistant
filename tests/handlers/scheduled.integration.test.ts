@@ -82,7 +82,7 @@ describe('scheduled pipeline integration', () => {
     expect(result.items[0].assignee).toBe('Bob')
   })
 
-  it('should present empty result when no messages', async () => {
+  it('should still follow up when the window holds no messages', async () => {
     container.register(TOKENS.DiscordSource, {
       useValue: {
         readMessages: vi
@@ -99,7 +99,10 @@ describe('scheduled pipeline integration', () => {
     await scheduledHandler(controller)
 
     expect(presentedResults).toHaveLength(1)
-    expect(presentedResults[0]).toEqual({ kind: 'empty' })
+    expect(presentedResults[0]).toMatchObject({
+      kind: 'success',
+      items: [expect.objectContaining({ description: '整理官網改版 issue' })],
+    })
   })
 
   it('should present the raw messages when the Follow-up Agent fails', async () => {
