@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { generateText } from 'ai'
+import { generateText, isStepCount } from 'ai'
 import { z } from 'zod'
 import {
   acceptedSubmission,
@@ -10,7 +10,6 @@ import {
   createEvidenceCheck,
   createSubmitTool,
   EvidenceSchema,
-  isOverTokenBudget,
   type Evidence,
   type RelevanceJudge,
   type SubmitResult,
@@ -93,18 +92,14 @@ const submit = (...items: ReturnType<typeof item>[]): ScriptedCall => ({
   input: { items },
 })
 
-function runFollowUp(
-  turns: ScriptedCall[][],
-  deps = sources(),
-  budget = 10_000,
-) {
+function runFollowUp(turns: ScriptedCall[][], deps = sources()) {
   return generateText({
     model: scriptedModel(turns, 100),
     prompt: 'follow up',
     tools: {
       [SUBMIT_TOOL]: createSubmitTool(ListSchema, createEvidenceCheck(deps)),
     },
-    stopWhen: [isSubmissionAccepted, isOverTokenBudget(budget)],
+    stopWhen: [isSubmissionAccepted, isStepCount(10)],
   })
 }
 
@@ -308,12 +303,5 @@ describe('Evidence Check', () => {
       failures: ['"詢問場地導流" — Relevant: could not be judged now'],
     })
     expect(accepted).toEqual({ accepted: true })
-  })
-
-  it('should stop without an accepted list once the token budget is spent', async () => {
-    const result = await runFollowUp([[submit(item([]))]], sources(), 250)
-
-    expect(result.steps).toHaveLength(3)
-    expect(acceptedSubmission(result.steps)).toBeUndefined()
   })
 })

@@ -1,5 +1,4 @@
 import { tool } from 'ai'
-import type { StepResult, StopCondition, ToolSet } from 'ai'
 import { z } from 'zod'
 import type {
   ChannelMessage,
@@ -245,20 +244,4 @@ export function createSubmitTool<
         : { accepted: false, failures }
     },
   })
-}
-
-export function tokensSpent<TOOLS extends ToolSet>(
-  steps: StepResult<TOOLS>[],
-): number {
-  return steps.reduce(
-    (total, step) =>
-      total +
-      (step.usage.totalTokens ??
-        (step.usage.inputTokens ?? 0) + (step.usage.outputTokens ?? 0)),
-    0,
-  )
-}
-
-export function isOverTokenBudget(budget: number): StopCondition<ToolSet> {
-  return ({ steps }) => tokensSpent(steps) > budget
 }

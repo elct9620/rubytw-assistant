@@ -1,6 +1,6 @@
 import { injectable, inject } from 'tsyringe'
 import { isStepCount, ToolLoopAgent } from 'ai'
-import type { Telemetry } from 'ai'
+import type { StepResult, StopCondition, Telemetry, ToolSet } from 'ai'
 import { z } from 'zod'
 import type {
   DiscordSource,
@@ -17,8 +17,6 @@ import {
   createEvidenceCheck,
   createSubmitTool,
   EvidenceSchema,
-  isOverTokenBudget,
-  tokensSpent,
 } from './evidence-check'
 import {
   acceptedSubmission,
@@ -68,6 +66,22 @@ const FollowUpListSchema = z.object({
     }),
   ),
 })
+
+function tokensSpent<TOOLS extends ToolSet>(
+  steps: StepResult<TOOLS>[],
+): number {
+  return steps.reduce(
+    (total, step) =>
+      total +
+      (step.usage.totalTokens ??
+        (step.usage.inputTokens ?? 0) + (step.usage.outputTokens ?? 0)),
+    0,
+  )
+}
+
+function isOverTokenBudget(budget: number): StopCondition<ToolSet> {
+  return ({ steps }) => tokensSpent(steps) > budget
+}
 
 @injectable()
 export class FollowUpAgentService implements FollowUpAgent {
