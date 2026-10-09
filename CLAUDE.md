@@ -78,6 +78,17 @@ Handlers create a **child container** per request/cron trigger via `container.cr
 
 Markdown files in `src/prompts/` are imported as strings via a custom type declaration (`text-modules.d.ts` + wrangler text rule). Templates use `{{variable}}` placeholders replaced via string interpolation in services.
 
+### Agent Submission
+
+Both agents end only by handing their result to a `submit` tool (`services/submission.ts`), which accepts or refuses it.
+
+| Agent     | Submits             | Accepted when                                              |
+| --------- | ------------------- | ---------------------------------------------------------- |
+| Follow-up | Items with evidence | Every item passes the Evidence Check (`evidence-check.ts`) |
+| Memory    | Situation briefing  | It fits the Memory Summary Length Limit                    |
+
+The Evidence Check reads each cited message and Issue once per run. Its Relevant check asks one `relevance-judge.ts` model call per submission. The Follow-up loop also stops on `FOLLOWUP_TOKEN_BUDGET` or a step cap.
+
 ### DI Container (tsyringe)
 
 The project uses tsyringe for dependency injection. Env bindings are accessed at module scope via `import { env } from 'cloudflare:workers'` and registered as values. Use cases are registered with `useFactory` so they receive plain dep objects (no DI decorators on use case classes).
@@ -115,12 +126,15 @@ Tests use `cloudflare:test` helpers for the Workers runtime environment:
 
 ## Key Conventions
 
-- Hono app should use `Env` generic for type-safe bindings: `new Hono<{ Bindings: Env }>()`
-- Tests run inside the Cloudflare Workers runtime via `@cloudflare/vitest-pool-workers`, not Node.js
-- ESLint ignores `dist/`, `.wrangler/`, and `worker-configuration.d.ts`
-- Production secrets are deployed via `wrangler secret put`; local secrets go in `.dev.vars` (see Configuration Files above)
-- Cron trigger runs at `0 16 * * *` UTC (midnight Taiwan time, UTC+8)
-- The Follow-up Agent hands in its list through a `submit` tool whose input schema is the output; the Goal Check (`follow-up-goal.ts`) accepts it only after the run's tool calls show memory and referenced Issues were checked, and the loop stops on acceptance, on `FOLLOWUP_TOKEN_BUDGET`, or on a step cap
-- AI model is created via `createAIModel(config)`, which reaches the shared AI Gateway through the `AI` binding and tags each request with this service's metadata
-- Debug endpoint at `/debug/summary?channel_id=X&hours=Y` for dev-only follow-up previews
-- Compatibility flag `nodejs_compat` is enabled for crypto API support
+These hold across the codebase; check them before changing the matching area.
+
+| Area          | Convention                                                                  |
+| ------------- | --------------------------------------------------------------------------- |
+| Hono app      | `new Hono<{ Bindings: Env }>()` for typed bindings                          |
+| Tests         | Run in the Workers runtime via `@cloudflare/vitest-pool-workers`            |
+| ESLint        | Ignores `dist/`, `.wrangler/`, `worker-configuration.d.ts`                  |
+| Secrets       | `wrangler secret put` in production; `.dev.vars` locally                    |
+| Cron          | `0 16 * * *` UTC, midnight in Taiwan; dates use `taiwanDate()`              |
+| AI model      | `createAIModel(config)` reaches the shared AI Gateway with service metadata |
+| Debug         | `/debug/summary?channel_id=X&hours=Y`, dev-only previews                    |
+| Compatibility | `nodejs_compat` for the crypto API                                          |
