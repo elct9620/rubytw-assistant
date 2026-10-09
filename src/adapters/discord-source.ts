@@ -31,6 +31,9 @@ function snowflakeAt(time: Date): bigint {
 
 // https://docs.discord.com/developers/resources/message#message-object-message-types
 const REPLY_MESSAGE_TYPE = 19
+// https://docs.discord.com/developers/resources/message#message-reference-types
+const FORWARD_REFERENCE_TYPE = 1
+const REPLIED_TEXT_LIMIT = 200
 
 interface DiscordUser {
   id: string
@@ -52,9 +55,17 @@ interface DiscordMessage {
   timestamp: string
   attachments: DiscordAttachment[]
   mentions: DiscordUser[]
-  message_reference?: { message_id?: string }
+  message_reference?: { type?: number; message_id?: string }
   /** Null once the replied-to message has been deleted. */
-  referenced_message?: { id: string; author: DiscordUser } | null
+  referenced_message?: {
+    id: string
+    content: string
+    author: DiscordUser
+  } | null
+  /** A forward carries the forwarded message here, without its author. */
+  message_snapshots?: {
+    message: { content: string; attachments: DiscordAttachment[] }
+  }[]
 }
 
 /** Each hit arrives wrapped in its own array. */
@@ -65,6 +76,24 @@ interface DiscordSearchResult {
 
 const displayName = (user: DiscordUser) =>
   escapeXml(user.global_name ?? user.username)
+
+const forwardedOf = (msg: DiscordMessage) =>
+  msg.message_reference?.type === FORWARD_REFERENCE_TYPE
+    ? msg.message_snapshots?.[0]?.message
+    : undefined
+
+/** Whether the message carries anything to read: text, files, or a forward. */
+const hasSubstance = (msg: DiscordMessage) =>
+  msg.content !== '' || msg.attachments.length > 0 || !!forwardedOf(msg)
+
+function attachmentsXml(attachments: DiscordAttachment[]): string[] {
+  if (attachments.length === 0) return []
+  return [
+    `<attachments size="${attachments.length}">`,
+    attachments.map((a) => `${escapeXml(a.filename)} - ${a.url}`).join('\n'),
+    '</attachments>',
+  ]
+}
 
 export function formatMessageToXml(
   msg: DiscordMessage,
@@ -85,20 +114,27 @@ export function formatMessageToXml(
     const target = msg.referenced_message
     parts.push(
       target
-        ? `<reply-to id="${target.id}"${selfMark(target.author)}>${displayName(target.author)}</reply-to>`
+        ? [
+            `<reply-to id="${target.id}"${selfMark(target.author)}>`,
+            `<user>${displayName(target.author)}</user>`,
+            `<content>${escapeXml([...target.content].slice(0, REPLIED_TEXT_LIMIT).join(''))}</content>`,
+            '</reply-to>',
+          ].join('\n')
         : `<reply-to id="${repliedToId}"/>`,
     )
   }
 
   parts.push(`<content>${escapeXml(msg.content)}</content>`)
+  parts.push(...attachmentsXml(msg.attachments))
 
-  if (msg.attachments.length > 0) {
-    const attachmentLines = msg.attachments
-      .map((a) => `${escapeXml(a.filename)} - ${a.url}`)
-      .join('\n')
-    parts.push(`<attachments size="${msg.attachments.length}">`)
-    parts.push(attachmentLines)
-    parts.push('</attachments>')
+  const forwarded = forwardedOf(msg)
+  if (forwarded) {
+    parts.push(
+      '<forwarded>',
+      `<content>${escapeXml(forwarded.content)}</content>`,
+      ...attachmentsXml(forwarded.attachments),
+      '</forwarded>',
+    )
   }
 
   if (msg.mentions.length > 0) {
@@ -143,7 +179,7 @@ export class DiscordSourceAdapter implements DiscordSource {
       const batch = await this.fetchMessages(after, pageSize)
       const inRange = end ? batch.filter((msg) => BigInt(msg.id) < end) : batch
       fetched += inRange.length
-      collected.push(...inRange.filter((msg) => msg.content))
+      collected.push(...inRange.filter(hasSubstance))
 
       exhausted = batch.length < pageSize || inRange.length < batch.length
       if (!exhausted) after = batch[batch.length - 1].id
@@ -151,7 +187,7 @@ export class DiscordSourceAdapter implements DiscordSource {
 
     if (fetched > 0 && collected.length === 0) {
       console.warn(
-        `Discord returned ${fetched} messages but all had empty content. ` +
+        `Discord returned ${fetched} messages but none had content. ` +
           'Ensure the MESSAGE_CONTENT privileged intent is enabled in the Discord Developer Portal.',
       )
     }
@@ -205,7 +241,7 @@ export class DiscordSourceAdapter implements DiscordSource {
     return {
       messages: result.messages
         .flat()
-        .filter((msg) => msg.content)
+        .filter(hasSubstance)
         .map((msg) => formatMessageToXml(msg, this.selfId)),
       total: result.total_results,
       nextCursor:

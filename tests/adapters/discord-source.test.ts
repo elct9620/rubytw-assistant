@@ -51,11 +51,18 @@ function makeMessage(
     attachments?: { filename: string; url: string }[]
     mentions?: { id: string; global_name: string | null; username: string }[]
     type?: number
-    message_reference?: { message_id?: string }
+    message_reference?: { type?: number; message_id?: string }
     referenced_message?: {
       id: string
+      content: string
       author: { id: string; global_name: string | null; username: string }
     } | null
+    message_snapshots?: {
+      message: {
+        content: string
+        attachments: { filename: string; url: string }[]
+      }
+    }[]
   },
 ) {
   return {
@@ -64,6 +71,7 @@ function makeMessage(
     type: overrides?.type ?? 0,
     message_reference: overrides?.message_reference,
     referenced_message: overrides?.referenced_message,
+    message_snapshots: overrides?.message_snapshots,
     author: {
       id: 'user-1',
       global_name: 'Test User',
@@ -109,7 +117,7 @@ describe('DiscordSourceAdapter', () => {
     expect(capturedAuth).toBe('Bot bot-token')
   })
 
-  it('should return formatted XML messages and filter out empty content', async () => {
+  it('should return formatted XML messages and leave out those carrying nothing', async () => {
     network.use(
       http.get(MESSAGES_URL, () => {
         return HttpResponse.json([
@@ -128,6 +136,52 @@ describe('DiscordSourceAdapter', () => {
     expect(result[0]).toContain('<content>hello</content>')
     expect(result[1]).toContain('<item id="3">')
     expect(result[1]).toContain('<content>world</content>')
+  })
+
+  it('should keep a message that only carries an attachment', async () => {
+    network.use(
+      http.get(MESSAGES_URL, () =>
+        HttpResponse.json([
+          makeMessage('1', '', {
+            attachments: [{ filename: 'venue.png', url: 'https://cdn/v.png' }],
+          }),
+        ]),
+      ),
+    )
+
+    const { messages } = await newAdapter().readMessages(lastDay())
+
+    expect(messages).toHaveLength(1)
+    expect(messages[0]).toContain('venue.png - https://cdn/v.png')
+  })
+
+  it('should keep a forward and hand over the forwarded text and files', async () => {
+    network.use(
+      http.get(MESSAGES_URL, () =>
+        HttpResponse.json([
+          makeMessage('1', '', {
+            message_reference: { type: 1, message_id: '9' },
+            message_snapshots: [
+              {
+                message: {
+                  content: '10/27 RubyJam 報名開始',
+                  attachments: [
+                    { filename: 'poster.png', url: 'https://cdn/p.png' },
+                  ],
+                },
+              },
+            ],
+          }),
+        ]),
+      ),
+    )
+
+    const { messages } = await newAdapter().readMessages(lastDay())
+
+    expect(messages).toHaveLength(1)
+    expect(messages[0]).toContain(
+      '<forwarded>\n<content>10/27 RubyJam 報名開始</content>\n<attachments size="1">\nposter.png - https://cdn/p.png\n</attachments>\n</forwarded>',
+    )
   })
 
   it('should throw error with response body when API returns non-ok response', async () => {
@@ -439,19 +493,39 @@ describe('formatMessageToXml', () => {
     expect(xml).toContain('<user id="u2">Bob</user>')
   })
 
-  it('should name who a reply answers without quoting them', () => {
+  it('should name who a reply answers and quote what they wrote', () => {
     const msg = makeMessage('2', 'done already', {
       type: REPLY,
       message_reference: { message_id: '1' },
       referenced_message: {
         id: '1',
+        content: 'who books the venue?',
         author: { id: 'u2', global_name: 'Bob', username: 'bob' },
       },
     })
 
     const xml = formatMessageToXml(msg, SELF_ID)
 
-    expect(xml).toContain('<reply-to id="1">Bob</reply-to>')
+    expect(xml).toContain(
+      '<reply-to id="1">\n<user>Bob</user>\n<content>who books the venue?</content>\n</reply-to>',
+    )
+  })
+
+  it('should cut the replied-to text to its first 200 characters', () => {
+    const msg = makeMessage('2', 'noted', {
+      type: REPLY,
+      message_reference: { message_id: '1' },
+      referenced_message: {
+        id: '1',
+        content: '停'.repeat(250),
+        author: { id: 'u2', global_name: 'Bob', username: 'bob' },
+      },
+    })
+
+    const xml = formatMessageToXml(msg, SELF_ID)
+
+    expect(xml).toContain(`<content>${'停'.repeat(200)}</content>`)
+    expect(xml).not.toContain('停'.repeat(201))
   })
 
   it('should mark a reply to the assistant', () => {
@@ -460,13 +534,16 @@ describe('formatMessageToXml', () => {
       message_reference: { message_id: '1' },
       referenced_message: {
         id: '1',
+        content: '- [停滯] 追問場地',
         author: { id: SELF_ID, global_name: 'Assistant', username: 'a' },
       },
     })
 
     const xml = formatMessageToXml(msg, SELF_ID)
 
-    expect(xml).toContain('<reply-to id="1" self="true">Assistant</reply-to>')
+    expect(xml).toContain(
+      '<reply-to id="1" self="true">\n<user>Assistant</user>\n<content>- [停滯] 追問場地</content>\n</reply-to>',
+    )
   })
 
   it('should carry only the id when the replied-to message is gone', () => {
@@ -553,6 +630,27 @@ describe('DiscordSourceAdapter.searchMessages', () => {
       sort_by: 'timestamp',
       sort_order: 'desc',
     })
+  })
+
+  it('should keep a hit that only carries an attachment', async () => {
+    network.use(
+      http.get(SEARCH_URL, () =>
+        hits(
+          [
+            makeMessage('1', '', {
+              attachments: [{ filename: 'a.png', url: 'https://cdn/a.png' }],
+            }),
+            makeMessage('2', ''),
+          ],
+          2,
+        ),
+      ),
+    )
+
+    const { messages } = await newAdapter().searchMessages({ query: 'x' })
+
+    expect(messages).toHaveLength(1)
+    expect(messages[0]).toContain('a.png - https://cdn/a.png')
   })
 
   it('should return the hits in the message format with the total', async () => {
