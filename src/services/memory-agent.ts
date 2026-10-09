@@ -2,6 +2,7 @@ import { injectable, inject } from 'tsyringe'
 import { isStepCount, ToolLoopAgent } from 'ai'
 import type { Telemetry } from 'ai'
 import type { MemoryAgent, MemoryStore } from '../usecases/ports'
+import { taiwanDate } from '../entities/taiwan-date'
 import { TOKENS, type AiGatewayConfig } from '../tokens'
 import { createAIModel } from './ai-model'
 import { invokeAgent } from './cloudflare-ai-telemetry'
@@ -29,7 +30,7 @@ export class MemoryAgentService implements MemoryAgent {
       return null
     }
 
-    const today = new Date().toISOString().slice(0, 10)
+    const today = taiwanDate()
     const agent = new ToolLoopAgent({
       model: createAIModel(this.aiGatewayConfig),
       instructions: MEMORY_AGENT_PROMPT.replaceAll(

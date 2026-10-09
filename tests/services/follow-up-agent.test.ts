@@ -123,6 +123,21 @@ describe('FollowUpAgentService', () => {
     expect(scripted.doGenerateCalls).toHaveLength(50)
   })
 
+  it('should date the run in Taiwan, where the midnight cron is already the next day', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-10-08T16:00:30Z'))
+    const scripted = scriptedModel([LOOKED_UP, [SUBMIT]])
+    model = scripted
+
+    await createService().service.followUp(['msg'])
+    vi.useRealTimers()
+
+    const system = scripted.doGenerateCalls[0].prompt.find(
+      (m) => m.role === 'system',
+    )
+    expect(system?.content).toContain('Today is 2026-10-09.')
+  })
+
   it('should give the model the collected messages and the stored memory summary', async () => {
     const scripted = scriptedModel([LOOKED_UP, [SUBMIT]])
     model = scripted

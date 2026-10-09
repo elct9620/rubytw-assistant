@@ -116,6 +116,22 @@ describe('MemoryAgentService', () => {
     expect(system?.content).not.toMatch(/\{\{\w+\}\}/)
   })
 
+  it('should date the run in Taiwan, where the midnight cron is already the next day', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-10-08T16:00:30Z'))
+    await seedSlots([{ description: 'Kasa', content: 'organizer' }])
+    const scripted = scriptedModel(['summary'])
+    model = scripted
+
+    await createService().service.tidyAndSummarize()
+    vi.useRealTimers()
+
+    const system = scripted.doGenerateCalls[0].prompt.find(
+      (m) => m.role === 'system',
+    )
+    expect(system?.content).toContain('Today is 2026-10-09.')
+  })
+
   it('should return null when tidying leaves memory empty', async () => {
     await seedSlots([{ description: '舊任務', content: '2026-01-01: 已完成' }])
     model = scriptedModel([

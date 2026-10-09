@@ -4,6 +4,7 @@ import type { Telemetry } from 'ai'
 import { z } from 'zod'
 import type { FollowUpAgent } from '../usecases/ports'
 import type { FollowUpItem } from '../entities/follow-up-item'
+import { taiwanDate } from '../entities/taiwan-date'
 import { TOKENS, type AiGatewayConfig, type AIToolsFactory } from '../tokens'
 import { createAIModel } from './ai-model'
 import { invokeAgent } from './cloudflare-ai-telemetry'
@@ -69,7 +70,7 @@ export class FollowUpAgentService implements FollowUpAgent {
     messages: string[],
     memorySummary?: string,
   ): Promise<FollowUpItem[]> {
-    const today = new Date().toISOString().slice(0, 10)
+    const today = taiwanDate()
     let instructions = FOLLOW_UP_PROMPT.replaceAll(
       '{{memoryEntryLimit}}',
       String(this.memoryEntryLimit),
