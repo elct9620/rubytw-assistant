@@ -12,11 +12,11 @@ Provide automated information aggregation and query tools for Ruby Taiwan commun
 
 ## Impacts
 
-| Behavior Change    | Current State                                                                | Target State                                                               |
-| ------------------ | ---------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
-| Progress Follow-up | Operators manually browse GitHub and Discord to recall what is still pending | System reminds operators of open commitments, each with when it last moved |
-| Data Querying      | Operators switch to GitHub UI to search Issues or Project status             | _(Deferred)_ Query directly in Discord via commands                        |
-| Memory Correction  | Wrong or stale memory can only be displaced by a later daily run             | Operators inspect and correct memory directly through an MCP client        |
+| Behavior Change    | Current State                                                                | Target State                                                                  |
+| ------------------ | ---------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| Progress Follow-up | Operators manually browse GitHub and Discord to recall what is still pending | System reminds operators of stalled commitments, each with when it last moved |
+| Data Querying      | Operators switch to GitHub UI to search Issues or Project status             | _(Deferred)_ Query directly in Discord via commands                           |
+| Memory Correction  | Wrong or stale memory can only be displaced by a later daily run             | Operators inspect and correct memory directly through an MCP client           |
 
 ## Success Criteria
 
@@ -36,17 +36,17 @@ Provide automated information aggregation and query tools for Ruby Taiwan commun
 
 ### 1. Daily Follow-up
 
-On a schedule the system collects the designated Discord channel's messages over a configurable time window (default: 24 hours), has the Follow-up Agent decide which commitments operators need to be reminded of, and sends that list to the same channel. The Memory Agent then tidies memory and writes a briefing for the next run.
+On a schedule the system collects the designated Discord channel's messages over a configurable time window (default: 24 hours), has the Follow-up Agent decide which stalled commitments operators need to be reminded of, and sends that list to the same channel. The Memory Agent then tidies memory and writes a briefing for the next run.
 
 The list reminds operators of commitments that have stopped moving, rather than restating what was discussed. Every item on it rests on evidence the system can check; an item whose context has ended, or that has gone unanswered after its reminder, is let go. A run with nothing worth saying sends nothing.
 
 **Processing:**
 
-| Stage           | Input                                                   | Output                                                                                 |
-| --------------- | ------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| Data Collection | Discord channel message history                         | Time-sorted message list in the Message Format; may be empty                           |
-| Follow-up Agent | Sorted message list + stored Memory Summary (if exists) | Follow-up list: items worth reminding operators of, each with the evidence it rests on |
-| Memory Agent    | All memory slots (after the Follow-up Agent's updates)  | Tidied memory slots, and a Memory Summary briefing (≤ Memory Summary Length Limit)     |
+| Stage           | Input                                                   | Output                                                                             |
+| --------------- | ------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| Data Collection | Discord channel message history                         | Time-sorted message list in the Message Format; may be empty                       |
+| Follow-up Agent | Sorted message list + stored Memory Summary (if exists) | Follow-up list: the reminders due this run, each with the evidence it rests on     |
+| Memory Agent    | All memory slots (after the Follow-up Agent's updates)  | Tidied memory slots, and a Memory Summary briefing (≤ Memory Summary Length Limit) |
 
 **AI Available Tools:**
 
@@ -59,11 +59,11 @@ The list reminds operators of commitments that have stopped moving, rather than 
 
 **User Journey:**
 
-| Context                          | Action                                                 | Outcome                                                                                            |
-| -------------------------------- | ------------------------------------------------------ | -------------------------------------------------------------------------------------------------- |
-| Operator starts their daily work | System has sent a list, or nothing when nothing is due | Operator sees which commitments are open or stalled, who holds them, and how long since they moved |
-| An operator finishes an item     | People say so in the channel, or the Issue closes      | The next list no longer shows the item                                                             |
-| A list is wrong                  | A member replies to the assistant's list to correct it | The next run reads the reply alongside the list it answers and corrects the item                   |
+| Context                          | Action                                                 | Outcome                                                                                               |
+| -------------------------------- | ------------------------------------------------------ | ----------------------------------------------------------------------------------------------------- |
+| Operator starts their daily work | System has sent a list, or nothing when nothing is due | Operator sees which commitments have stalled or been let go, who holds them, and when they last moved |
+| An operator finishes an item     | People say so in the channel, or the Issue closes      | The next list no longer shows the item                                                                |
+| A list is wrong                  | A member replies to the assistant's list to correct it | The next run reads the reply alongside the list it answers and corrects the item                      |
 
 ### 2. Discord Interaction Commands (Deferred)
 
@@ -175,7 +175,7 @@ The Follow-up Agent's instructions state a goal, the means it has to reach it, a
 
 | Aspect     | Decision                                                                                                                                                                                                                                                        |
 | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Goal       | Operators notice commitments that have stopped moving; work that has ended or no longer matters does not reach them                                                                                                                                             |
+| Goal       | Operators are reminded of commitments that have stopped moving; work that has ended, or is still moving, does not reach them                                                                                                                                    |
 | Leads      | The collected messages (new commitments, progress, corrections to an earlier list) and tracked items whose time has come (7 days without progress, an agreed date reached)                                                                                      |
 | Means      | Memory slots relevant to a lead are read as needed, not all at once; before an item is reminded or let go, its state is confirmed from Issues, the original messages, and later discussion, until the agent can state the evidence to the person being reminded |
 | Acceptance | The list holds exactly the items that are Listed This Run; every one passes the Evidence Check; none has finished or been corrected away; a run with none submits an empty list                                                                                 |
@@ -186,7 +186,7 @@ The assistant's own earlier lists record what it concluded, not evidence: an ite
 
 | State                                                                                                                                   | Action                                                   | Result                                                                                    |
 | --------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| People commit to something in the collected messages                                                                                    | Track it as an item, with the commitment as its evidence | The item appears on this run's list; its last progress is the commitment's date           |
+| People commit to something in the collected messages                                                                                    | Track it as an item, with the commitment as its evidence | The item is tracked in memory, not listed; its last progress is the commitment's date     |
 | People move a tracked item (discuss it, or its Issue changes)                                                                           | Update the item                                          | Its last progress becomes the date of that movement, and any reminder is cleared          |
 | People agree on a date for an item's next step                                                                                          | Note the date in the item's slot                         | The item waits as planned; its 7 days count from the later of that date and last progress |
 | A tracked item's last progress — or, when it has none, the date it was first recorded — is more than 7 days ago, and it has no reminder | Mark it stalled and record today as its reminder date    | The item is listed as stalled on this run                                                 |
@@ -198,7 +198,7 @@ The assistant's own earlier lists record what it concluded, not evidence: an ite
 
 A tracked item's slot records its status, owner, evidence (message ids and Issue numbers), first recorded date, last progress, reminder date, and its next step, with absolute dates (never relative words such as this year), so a later run can place it in time and cite its evidence.
 
-**Listed This Run:** an item appears on a run's list when that run added it, moved it, marked it stalled, or marked it abandoned. A tracked item that did none of these stays in memory without being listed, so each stalled item is reminded once.
+**Listed This Run:** an item appears on a run's list only when that run marked it stalled or abandoned, so each stalled item is reminded once. New commitments and progress update memory without being listed.
 
 **Run Outcome:**
 
@@ -226,21 +226,19 @@ An item with no evidence fails Exists.
 
 | Field         | A Good Value                                                                                             | Example              |
 | ------------- | -------------------------------------------------------------------------------------------------------- | -------------------- |
-| Status        | to-do, in-progress, stalled, or abandoned                                                                | stalled              |
+| Status        | stalled or abandoned, as marked this run                                                                 | stalled              |
 | Description   | The one next action, starting with a verb, within 20 characters                                          | 追問 PicCollage 場地 |
 | Assignee      | The person who spoke in the channel and owns the action; none when nobody who spoke owns it              | Kasa                 |
 | Last Progress | Date of the item's newest evidence: when people last committed to it, discussed it, or updated its Issue | 2026-09-28           |
 | Reason        | What the item waits on, or why it matters, within 15 characters                                          | 場地方未回覆         |
 | Evidence      | The messages (with quotes) and Issues the item rests on; checked, never displayed                        | Kasa's message, #93  |
 
-**Follow-up Item Display:** `- [狀態] Description (Assignee) — Reason`, one line per item. The assignee part is omitted when there is none. A stalled or abandoned item adds its last progress to the reason as `，最後進展 M/D`; other items show no date.
+**Follow-up Item Display:** `- [狀態] Description (Assignee) — Reason，最後進展 M/D`, one line per item. The assignee part is omitted when there is none.
 
-| Status      | Display Text |
-| ----------- | ------------ |
-| to-do       | `[待辦]`     |
-| in-progress | `[進行中]`   |
-| stalled     | `[停滯]`     |
-| abandoned   | `[已放棄]`   |
+| Status    | Display Text |
+| --------- | ------------ |
+| stalled   | `[停滯]`     |
+| abandoned | `[已放棄]`   |
 
 #### Memory Agent
 
@@ -465,7 +463,7 @@ When the Follow-up Agent fails, the system logs the failure as an error and send
 | Operator                | A member of the Ruby Taiwan core team responsible for community operations                                                                                                                                                                                                                                                                                                 |
 | Command                 | A query request issued by an operator via Discord Slash Command                                                                                                                                                                                                                                                                                                            |
 | Follow-up Item          | A structured item on the follow-up list: status, description, assignee, last progress, reason, and the evidence it rests on; an abandoned item appears once, on the run that abandons it                                                                                                                                                                                   |
-| Follow-up Status        | Classification label for follow-up items: to-do, in-progress, stalled, or abandoned                                                                                                                                                                                                                                                                                        |
+| Follow-up Status        | Classification label for listed items: stalled or abandoned                                                                                                                                                                                                                                                                                                                |
 | Memory Tool             | An AI-accessible tool set (`list_memories`, `read_memories`, `update_memory`) for index-based context memory with description and content fields, retaining information across executions                                                                                                                                                                                  |
 | GitHub Tool             | An AI-accessible tool set (`list_issues`, `search_issues`, `read_issues`) that retrieves Issues via GitHub App: `list_issues` returns an overview of the Project board with optional state filter; `search_issues` finds Issues in the configured repository by keyword; `read_issues` returns full details including body and recent comments for specified Issue numbers |
 | Discord Tool            | An AI-accessible tool set (`read_messages`, `search_messages`) over the designated channel: `read_messages` returns a time range in order, a bounded page per call; `search_messages` returns the messages matching a condition                                                                                                                                            |
