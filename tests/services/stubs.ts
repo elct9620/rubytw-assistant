@@ -21,6 +21,7 @@ export function createStubDiscordSource(
       .fn()
       .mockResolvedValue({ messages: [], total: 0, nextCursor: null }),
     readMessage: vi.fn().mockResolvedValue(null),
+    readMessageContext: vi.fn().mockResolvedValue(null),
     ...overrides,
   }
 }

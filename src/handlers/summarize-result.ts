@@ -15,24 +15,23 @@ export function summarizeResult(
         kind: 'success',
         itemCount: result.items.length,
       }
-    case 'fallback':
+    case 'failure':
       return {
-        kind: 'fallback',
-        rawMessageCount: result.rawMessages.length,
+        kind: 'failure',
         reason: result.reason,
       }
   }
 }
 
 /**
- * Flag fallback results as WARNING so Langfuse/OTel viewers can surface
+ * Flag failed results as WARNING so Langfuse/OTel viewers can surface
  * degraded runs at a glance. Successful results are normal and
  * return undefined (no classification).
  */
 export function classifySummaryResult(
   result: SummaryResult,
 ): ResultClassification | undefined {
-  if (result.kind === 'fallback') {
+  if (result.kind === 'failure') {
     return { level: 'WARNING', statusMessage: result.reason }
   }
   return undefined

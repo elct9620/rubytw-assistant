@@ -84,7 +84,7 @@ describe('FollowUpAgentService', () => {
     model = scriptedModel([LOOKED_UP, [SUBMIT], RELEVANT])
     const { service } = createService()
 
-    const items = await service.followUp(['[2026-10-05] Kasa: 報告晚點寄'])
+    const items = await service.followUp(['[2026-10-05] Kasa: 報告晚點寄'], 24)
 
     expect(items).toEqual([ITEM])
   })
@@ -103,7 +103,7 @@ describe('FollowUpAgentService', () => {
     ])
     const { service } = createService()
 
-    const items = await service.followUp(['msg'])
+    const items = await service.followUp(['msg'], 24)
 
     expect(items).toEqual([{ ...ITEM, ...abandoned }])
   })
@@ -112,7 +112,7 @@ describe('FollowUpAgentService', () => {
     model = scriptedModel([[MISDATED], LOOKED_UP, [SUBMIT], RELEVANT])
     const { service } = createService()
 
-    const items = await service.followUp(['msg'])
+    const items = await service.followUp(['msg'], 24)
 
     expect(items).toEqual([ITEM])
   })
@@ -126,29 +126,46 @@ describe('FollowUpAgentService', () => {
     model = scripted
     const { service } = createService()
 
-    const items = await service.followUp(['msg'])
+    const items = await service.followUp(['msg'], 24)
 
     expect(items).toEqual([ITEM])
   })
 
-  it('should stop at the step that spends the token budget and fail', async () => {
+  it('should keep a list accepted on the step that went over the token budget', async () => {
+    model = scriptedModel([LOOKED_UP, [SUBMIT], RELEVANT], 600)
+    const { service } = createService(1_000)
+
+    const items = await service.followUp(['msg'], 24)
+
+    expect(items).toEqual([ITEM])
+  })
+
+  it('should offer only submit once the token budget is spent', async () => {
+    const scripted = scriptedModel(
+      [LOOKED_UP, LOOKED_UP, [SUBMIT], RELEVANT],
+      600,
+    )
+    model = scripted
+    const { service } = createService(1_000)
+
+    const items = await service.followUp(['msg'], 24)
+
+    const toolsOffered = (call: number) =>
+      scripted.doGenerateCalls[call].tools?.map((tool) => tool.name)
+    expect(toolsOffered(1)).toContain('list_memories')
+    expect(toolsOffered(2)).toEqual(['submit'])
+    expect(items).toEqual([ITEM])
+  })
+
+  it('should fail when the wrap-up ends without an accepted list', async () => {
     const scripted = scriptedModel([[MISDATED]], 400)
     model = scripted
     const { service } = createService(1_000)
 
-    await expect(service.followUp(['msg'])).rejects.toThrow(
-      /token budget exceeded/,
+    await expect(service.followUp(['msg'], 24)).rejects.toThrow(
+      /wrap-up ended without an accepted list/,
     )
-    expect(scripted.doGenerateCalls).toHaveLength(3)
-  })
-
-  it('should fail a list accepted on the step that went over the token budget', async () => {
-    model = scriptedModel([LOOKED_UP, [SUBMIT], RELEVANT], 600)
-    const { service } = createService(1_000)
-
-    await expect(service.followUp(['msg'])).rejects.toThrow(
-      /token budget exceeded/,
-    )
+    expect(scripted.doGenerateCalls).toHaveLength(6)
   })
 
   it('should fail when the step cap is reached without an accepted list', async () => {
@@ -159,7 +176,7 @@ describe('FollowUpAgentService', () => {
     model = scripted
     const { service } = createService(1_000_000)
 
-    await expect(service.followUp(['msg'])).rejects.toThrow(
+    await expect(service.followUp(['msg'], 24)).rejects.toThrow(
       /without an accepted list/,
     )
     expect(scripted.doGenerateCalls).toHaveLength(50)
@@ -171,7 +188,7 @@ describe('FollowUpAgentService', () => {
     const scripted = scriptedModel([LOOKED_UP, [SUBMIT], RELEVANT])
     model = scripted
 
-    await createService().service.followUp(['msg'])
+    await createService().service.followUp(['msg'], 24)
     vi.useRealTimers()
 
     const system = scripted.doGenerateCalls[0].prompt.find(
@@ -180,17 +197,18 @@ describe('FollowUpAgentService', () => {
     expect(system?.content).toContain('Today is 2026-10-09 in Taiwan.')
   })
 
-  it('should give the model the collected messages and the stored memory summary', async () => {
+  it('should give the model the collected messages, how far back they reach, and the stored memory summary', async () => {
     const scripted = scriptedModel([LOOKED_UP, [SUBMIT], RELEVANT])
     model = scripted
     const { service } = createService()
 
-    await service.followUp(['msg-1', 'msg-2'], 'previous summary context')
+    await service.followUp(['msg-1', 'msg-2'], 12, 'previous summary context')
 
     const [firstCall] = scripted.doGenerateCalls
     const system = firstCall.prompt.find((m) => m.role === 'system')
     const user = firstCall.prompt.find((m) => m.role === 'user')
     expect(system?.content).toContain('previous summary context')
+    expect(system?.content).toContain('the past 12 hours')
     expect(system?.content).not.toMatch(/\{\{\w+\}\}/)
     expect(JSON.stringify(user?.content)).toContain('msg-1\\nmsg-2')
   })

@@ -865,3 +865,42 @@ describe('DiscordSourceAdapter.readMessage', () => {
     await expect(newAdapter().readMessage('42')).rejects.toThrow(/403/)
   })
 })
+
+describe('DiscordSourceAdapter.readMessageContext', () => {
+  it('should read the messages around the id, oldest first', async () => {
+    let params: URLSearchParams | undefined
+    network.use(
+      http.get(MESSAGES_URL, ({ request }) => {
+        params = new URL(request.url).searchParams
+        return HttpResponse.json([
+          makeMessage('43', '好，我週五前回覆'),
+          makeMessage('42', '我來問場地'),
+          makeMessage('41', '誰能問場地？'),
+        ])
+      }),
+    )
+
+    const messages = await newAdapter().readMessageContext('42', 5)
+
+    expect(params?.get('around')).toBe('42')
+    expect(params?.get('limit')).toBe('5')
+    expect(params?.has('after')).toBe(false)
+    expect(messages?.map(idOf)).toEqual(['41', '42', '43'])
+    expect(messages?.[1]).toContain('<content>我來問場地</content>')
+  })
+
+  it('should answer null when the answer does not hold the message', async () => {
+    network.use(
+      http.get(MESSAGES_URL, () =>
+        HttpResponse.json([
+          makeMessage('43', 'later'),
+          makeMessage('41', 'earlier'),
+        ]),
+      ),
+    )
+
+    const messages = await newAdapter().readMessageContext('42', 5)
+
+    expect(messages).toBeNull()
+  })
+})

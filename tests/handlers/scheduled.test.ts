@@ -103,13 +103,12 @@ describe('scheduledHandler', () => {
     ).toBe(JSON.stringify({ cron: '0 16 * * *', hours: 12 }))
   })
 
-  it('should flag fallback results as WARNING on the root span', async () => {
+  it('should flag failed results as WARNING on the root span', async () => {
     enableTelemetry()
     const langfuse = captureLangfuseSpans()
 
     mockExecute.mockResolvedValue({
-      kind: 'fallback',
-      rawMessages: ['msg-1'],
+      kind: 'failure',
       reason: 'AI service down',
     })
     mockPresent.mockResolvedValue(undefined)

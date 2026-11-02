@@ -37,16 +37,16 @@ export class GenerateSummary {
 
     let items
     try {
-      items = await this.deps.followUpAgent.followUp(messages, memorySummary)
+      items = await this.deps.followUpAgent.followUp(
+        messages,
+        hours,
+        memorySummary,
+      )
     } catch (error) {
       const message = error instanceof Error ? error.message : 'unknown error'
-      console.error(
-        `${FOLLOW_UP_AGENT} failed, falling back to raw messages:`,
-        error,
-      )
+      console.error(`${FOLLOW_UP_AGENT} failed:`, error)
       return {
-        kind: 'fallback',
-        rawMessages: messages,
+        kind: 'failure',
         reason: `[${FOLLOW_UP_AGENT}] ${message}`,
       }
     }

@@ -87,7 +87,7 @@ Both agents end only by handing their result to a `submit` tool (`services/submi
 | Follow-up | Items with evidence | Every item passes the Evidence Check (`evidence-check.ts`) |
 | Memory    | Situation briefing  | It fits the Memory Summary Length Limit                    |
 
-The Evidence Check reads each cited message and Issue once per run. Its Relevant check asks one `relevance-judge.ts` model call per submission. The Follow-up loop also stops on `FOLLOWUP_TOKEN_BUDGET` or a step cap.
+The Evidence Check reads each cited message and Issue once per run. Its Relevant check asks one `relevance-judge.ts` model call per submission. Once the Follow-up loop spends `FOLLOWUP_TOKEN_BUDGET` it wraps up, offered only `submit` for 3 more steps; a step cap guards the rest.
 
 ### DI Container (tsyringe)
 

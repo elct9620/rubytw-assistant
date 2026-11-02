@@ -86,10 +86,17 @@ export interface DiscordSource {
   searchMessages(query: SearchMessagesQuery): Promise<MessageSearchPage>
   /** Null when the designated channel holds no message with that id. */
   readMessage(id: string): Promise<ChannelMessage | null>
+  /** The message and those around it, `size` in all, oldest first; null when the channel has no message with that id. */
+  readMessageContext(id: string, size: number): Promise<string[] | null>
 }
 
 export interface FollowUpAgent {
-  followUp(messages: string[], memorySummary?: string): Promise<FollowUpItem[]>
+  /** `messages` is every message of the past `hours` hours. */
+  followUp(
+    messages: string[],
+    hours: number,
+    memorySummary?: string,
+  ): Promise<FollowUpItem[]>
 }
 
 export interface DiscordNotifier {
@@ -101,13 +108,12 @@ export interface SummarySuccess {
   items: FollowUpItem[]
 }
 
-export interface SummaryFallback {
-  kind: 'fallback'
-  rawMessages: string[]
+export interface SummaryFailure {
+  kind: 'failure'
   reason: string
 }
 
-export type SummaryResult = SummarySuccess | SummaryFallback
+export type SummaryResult = SummarySuccess | SummaryFailure
 
 export interface SummaryPresenter {
   present(result: SummaryResult): Promise<void>

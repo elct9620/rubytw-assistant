@@ -27,27 +27,24 @@ describe('summarizeResult', () => {
     })
   })
 
-  it('should keep the reason a fallback was taken', () => {
+  it('should keep the reason a run failed', () => {
     const result: SummaryResult = {
-      kind: 'fallback',
-      rawMessages: ['msg-1', 'msg-2'],
+      kind: 'failure',
       reason: 'AI service down',
     }
 
     expect(summarizeResult(result)).toEqual({
-      kind: 'fallback',
-      rawMessageCount: 2,
+      kind: 'failure',
       reason: 'AI service down',
     })
   })
 })
 
 describe('classifySummaryResult', () => {
-  it('should flag a fallback as degraded', () => {
+  it('should flag a failure as degraded', () => {
     expect(
       classifySummaryResult({
-        kind: 'fallback',
-        rawMessages: [],
+        kind: 'failure',
         reason: 'AI service down',
       }),
     ).toEqual({ level: 'WARNING', statusMessage: 'AI service down' })

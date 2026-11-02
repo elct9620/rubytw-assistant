@@ -62,7 +62,7 @@ Production secrets are managed via `wrangler secret put`.
 | `GITHUB_INSTALLATION_ID` | GitHub App installation ID                                 |
 | `AI_GATEWAY_ID`          | AI Gateway the `AI` binding routes model calls through     |
 | `AI_MODEL`               | Model the agents use                                       |
-| `FOLLOWUP_TOKEN_BUDGET`  | Token ceiling for one Follow-up Agent run                  |
+| `FOLLOWUP_TOKEN_BUDGET`  | Tokens one Follow-up Agent run spends before it wraps up   |
 
 See [SPEC.md](./SPEC.md) for the full specification.
 

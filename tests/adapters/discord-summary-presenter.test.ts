@@ -115,62 +115,13 @@ describe('DiscordSummaryPresenter', () => {
     }
   })
 
-  it('should send error notice and raw messages on fallback', async () => {
+  it('should send nothing when the run failed', async () => {
     const notifier = createMockNotifier()
     const presenter = new DiscordSummaryPresenter(notifier, 'channel-123', 30)
 
-    await presenter.present({
-      kind: 'fallback',
-      rawMessages: ['<msg>one</msg>', '<msg>two</msg>'],
-      reason: 'AI service down',
-    })
-
-    expect(notifier.sendMessage).toHaveBeenCalledTimes(2)
-    const [firstCall, secondCall] = notifier.sendMessage.mock.calls as [
-      [string, string],
-      [string, string],
-    ]
-    expect(firstCall[1]).toContain('AI 分析失敗')
-    expect(firstCall[1]).toContain('AI service down')
-    expect(secondCall[1]).toBe('<msg>one</msg>\n<msg>two</msg>')
-  })
-
-  it('should send nothing when a run fails with no messages to hand over', async () => {
-    const notifier = createMockNotifier()
-    const presenter = new DiscordSummaryPresenter(notifier, 'channel-123', 30)
-
-    await presenter.present({
-      kind: 'fallback',
-      rawMessages: [],
-      reason: 'AI service down',
-    })
+    await presenter.present({ kind: 'failure', reason: 'AI service down' })
 
     expect(notifier.sendMessage).not.toHaveBeenCalled()
-  })
-
-  it('should chunk long raw messages on fallback', async () => {
-    const notifier = createMockNotifier()
-    const presenter = new DiscordSummaryPresenter(notifier, 'channel-123', 30)
-
-    const longMessages = Array.from(
-      { length: 30 },
-      (_, i) => `<msg>${i}: ${'內容'.repeat(80)}</msg>`,
-    )
-
-    // Precondition: joined body exceeds Discord limit
-    expect(longMessages.join('\n').length).toBeGreaterThan(2000)
-
-    await presenter.present({
-      kind: 'fallback',
-      rawMessages: longMessages,
-      reason: 'down',
-    })
-
-    // 1 notice + 2+ chunks
-    expect(notifier.sendMessage.mock.calls.length).toBeGreaterThan(2)
-    for (const call of notifier.sendMessage.mock.calls) {
-      expect((call as [string, string])[1].length).toBeLessThanOrEqual(2000)
-    }
   })
 
   it('should truncate a single item that exceeds 2000 chars', async () => {

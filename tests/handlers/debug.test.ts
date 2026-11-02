@@ -108,8 +108,7 @@ describe('debug handler', () => {
 
   it('should answer with an error naming the Follow-up Agent when it fails', async () => {
     mockExecute.mockResolvedValue({
-      kind: 'fallback',
-      rawMessages: ['msg-1'],
+      kind: 'failure',
       reason: '[Follow-up Agent] token budget exceeded',
     })
 

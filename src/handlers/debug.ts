@@ -44,7 +44,7 @@ debug.get('/summary', async (c) => {
         fn: () => usecase.execute(hours),
       }),
     )
-    if (result.kind === 'fallback') {
+    if (result.kind === 'failure') {
       return c.json({ error: result.reason }, 500)
     }
     return c.json(result)

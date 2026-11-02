@@ -2,8 +2,6 @@ import { injectable, inject } from 'tsyringe'
 import type {
   SummaryPresenter,
   SummaryResult,
-  SummarySuccess,
-  SummaryFallback,
   DiscordNotifier,
 } from '../usecases/ports'
 import { formatFollowUpItems } from '../entities/follow-up-item'
@@ -19,31 +17,13 @@ export class DiscordSummaryPresenter implements SummaryPresenter {
     @inject(TOKENS.SummaryItemLimit) private summaryItemLimit: number,
   ) {}
 
+  /** A failed run sends nothing: the channel carries reminders only, and the logged error reaches operators. */
   async present(result: SummaryResult): Promise<void> {
-    switch (result.kind) {
-      case 'success':
-        await this.presentSuccess(result)
-        return
-      case 'fallback':
-        await this.presentFallback(result)
-        return
-    }
-  }
-
-  private async presentSuccess(result: SummarySuccess): Promise<void> {
-    if (result.items.length === 0) return
+    if (result.kind === 'failure' || result.items.length === 0) return
 
     const capped = result.items.slice(0, this.summaryItemLimit)
     const body = formatFollowUpItems(capped)
     await this.sendChunked(body)
-  }
-
-  /** With no messages to hand over, the logged error is the only report. */
-  private async presentFallback(result: SummaryFallback): Promise<void> {
-    if (result.rawMessages.length === 0) return
-    const notice = `⚠️ AI 分析失敗，改傳原始訊息以利人工檢視。\n失敗原因：${result.reason}`
-    await this.notifier.sendMessage(this.channelId, notice)
-    await this.sendChunked(result.rawMessages.join('\n'))
   }
 
   private async sendChunked(body: string): Promise<void> {

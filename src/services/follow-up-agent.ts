@@ -27,6 +27,8 @@ import FOLLOW_UP_PROMPT from '../prompts/follow-up.md'
 
 /** Guards against a loop that never spends its budget, e.g. one stuck on empty tool results. */
 const MAX_STEPS = 50
+/** Steps left to hand in a list once the token budget is spent. */
+const WRAP_UP_STEPS = 3
 const AGENT_NAME = 'followUp'
 
 const FollowUpListSchema = z.object({
@@ -67,20 +69,27 @@ const FollowUpListSchema = z.object({
   ),
 })
 
-function tokensSpent<TOOLS extends ToolSet>(
-  steps: StepResult<TOOLS>[],
-): number {
-  return steps.reduce(
-    (total, step) =>
-      total +
-      (step.usage.totalTokens ??
-        (step.usage.inputTokens ?? 0) + (step.usage.outputTokens ?? 0)),
-    0,
+function tokensOf<TOOLS extends ToolSet>(step: StepResult<TOOLS>): number {
+  return (
+    step.usage.totalTokens ??
+    (step.usage.inputTokens ?? 0) + (step.usage.outputTokens ?? 0)
   )
 }
 
-function isOverTokenBudget(budget: number): StopCondition<ToolSet> {
-  return ({ steps }) => tokensSpent(steps) > budget
+/** The index of the step that went over the budget, or -1 while the run is within it. */
+function budgetSpentAt<TOOLS extends ToolSet>(
+  steps: StepResult<TOOLS>[],
+  budget: number,
+): number {
+  let spent = 0
+  return steps.findIndex((step) => (spent += tokensOf(step)) > budget)
+}
+
+function isWrapUpOver(budget: number): StopCondition<ToolSet> {
+  return ({ steps }) => {
+    const spentAt = budgetSpentAt(steps, budget)
+    return spentAt >= 0 && steps.length - 1 - spentAt >= WRAP_UP_STEPS
+  }
 }
 
 @injectable()
@@ -97,13 +106,15 @@ export class FollowUpAgentService implements FollowUpAgent {
 
   async followUp(
     messages: string[],
+    hours: number,
     memorySummary?: string,
   ): Promise<FollowUpItem[]> {
-    const today = taiwanDate()
     let instructions = FOLLOW_UP_PROMPT.replaceAll(
       '{{memoryEntryLimit}}',
       String(this.memoryEntryLimit),
-    ).replaceAll('{{today}}', today)
+    )
+      .replaceAll('{{today}}', taiwanDate())
+      .replaceAll('{{hours}}', String(hours))
     if (memorySummary) {
       instructions += `\n\n# Community Situation\n\n${memorySummary}`
     }
@@ -125,9 +136,13 @@ export class FollowUpAgentService implements FollowUpAgent {
       },
       // Every step must call a tool, so the run can only end through submit or a limit.
       toolChoice: 'required',
+      prepareStep: ({ steps }) =>
+        budgetSpentAt(steps, this.tokenBudget) >= 0
+          ? { activeTools: [SUBMIT_TOOL] }
+          : {},
       stopWhen: [
         isSubmissionAccepted,
-        isOverTokenBudget(this.tokenBudget),
+        isWrapUpOver(this.tokenBudget),
         isStepCount(MAX_STEPS),
       ],
       providerOptions: { openai: { reasoningEffort: 'high' } },
@@ -138,16 +153,12 @@ export class FollowUpAgentService implements FollowUpAgent {
       agent.generate({ prompt: messages.join('\n') }),
     )
 
-    const spent = tokensSpent(steps)
-    if (spent > this.tokenBudget) {
-      throw new Error(
-        `token budget exceeded (${spent} of ${this.tokenBudget} tokens)`,
-      )
-    }
     const submitted = acceptedSubmission(steps)
     if (submitted === undefined) {
       throw new Error(
-        `stopped after ${steps.length} steps without an accepted list`,
+        budgetSpentAt(steps, this.tokenBudget) >= 0
+          ? `token budget of ${this.tokenBudget} spent and wrap-up ended without an accepted list`
+          : `stopped after ${steps.length} steps without an accepted list`,
       )
     }
 

@@ -191,7 +191,7 @@ export class DiscordSourceAdapter implements DiscordSource {
 
     while (!exhausted && fetched < limit) {
       const pageSize = Math.min(MAX_MESSAGES_PER_REQUEST, limit - fetched)
-      const batch = await this.fetchMessages(after, pageSize)
+      const batch = await this.fetchMessages(`after=${after}`, pageSize)
       const inRange = end ? batch.filter((msg) => BigInt(msg.id) < end) : batch
       fetched += inRange.length
       collected.push(...inRange.filter(hasSubstance))
@@ -276,14 +276,24 @@ export class DiscordSourceAdapter implements DiscordSource {
     return msg && toChannelMessage(msg, this.selfId)
   }
 
+  async readMessageContext(id: string, size: number): Promise<string[] | null> {
+    const batch = await this.fetchMessages(`around=${id}`, size)
+    // Discord answers around any id, so a missing message shows only by its absence.
+    if (!batch.some((msg) => msg.id === id)) return null
+    return batch
+      .filter((msg) => msg.id === id || hasSubstance(msg))
+      .map((msg) => formatMessageToXml(msg, this.selfId))
+  }
+
+  /** `anchor` is one of Discord's mutually exclusive `after` or `around` parameters. */
   private fetchMessages(
-    after: string,
+    anchor: string,
     limit: number,
   ): Promise<DiscordMessage[]> {
     return this.request(
       'fetchMessages',
-      `${DISCORD_API}/channels/${this.channelId}/messages?after=${after}&limit=${limit}`,
-      // Discord answers newest first, even when paging forward with `after`.
+      `${DISCORD_API}/channels/${this.channelId}/messages?${anchor}&limit=${limit}`,
+      // Discord answers newest first, whichever anchor it is given.
       async (response) =>
         ((await response.json()) as DiscordMessage[]).reverse(),
     )

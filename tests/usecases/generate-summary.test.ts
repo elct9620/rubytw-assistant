@@ -42,15 +42,16 @@ describe('GenerateSummary', () => {
     const usecase = new GenerateSummary(deps)
 
     vi.setSystemTime(new Date('2026-04-01T00:00:00Z'))
-    const result = await usecase.execute(24)
+    const result = await usecase.execute(12)
     vi.useRealTimers()
 
     expect(deps.discord.readMessages).toHaveBeenCalledWith({
-      since: new Date('2026-03-31T00:00:00Z'),
+      since: new Date('2026-03-31T12:00:00Z'),
       limit: 500,
     })
     expect(deps.followUpAgent.followUp).toHaveBeenCalledWith(
       ['msg-1', 'msg-2'],
+      12,
       undefined,
     )
     expect(result).toEqual({ kind: 'success', items: [sampleItem] })
@@ -68,11 +69,11 @@ describe('GenerateSummary', () => {
     const result = await new GenerateSummary(deps).execute(24)
 
     expect(result.kind).toBe('success')
-    expect(deps.followUpAgent.followUp).toHaveBeenCalledWith([], undefined)
+    expect(deps.followUpAgent.followUp).toHaveBeenCalledWith([], 24, undefined)
     expect(deps.memoryAgent.tidyAndSummarize).toHaveBeenCalled()
   })
 
-  it('should fall back to raw messages and leave memory alone when the Follow-up Agent fails', async () => {
+  it('should fail and leave memory alone when the Follow-up Agent fails', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {})
     const deps = createStubDeps({
       followUpAgent: {
@@ -83,15 +84,14 @@ describe('GenerateSummary', () => {
     const result = await new GenerateSummary(deps).execute(24)
 
     expect(result).toEqual({
-      kind: 'fallback',
-      rawMessages: ['msg-1', 'msg-2'],
+      kind: 'failure',
       reason: '[Follow-up Agent] token budget exceeded',
     })
     expect(deps.memoryAgent.tidyAndSummarize).not.toHaveBeenCalled()
     vi.restoreAllMocks()
   })
 
-  it('should propagate Discord collection errors without fallback', async () => {
+  it('should propagate Discord collection errors', async () => {
     const deps = createStubDeps({
       discord: {
         readMessages: vi.fn().mockRejectedValue(new Error('discord down')),
@@ -115,6 +115,7 @@ describe('GenerateSummary', () => {
 
     expect(deps.followUpAgent.followUp).toHaveBeenCalledWith(
       ['msg-1', 'msg-2'],
+      24,
       'previous summary context',
     )
   })
@@ -133,6 +134,7 @@ describe('GenerateSummary', () => {
     expect(result.kind).toBe('success')
     expect(deps.followUpAgent.followUp).toHaveBeenCalledWith(
       ['msg-1', 'msg-2'],
+      24,
       undefined,
     )
     vi.restoreAllMocks()

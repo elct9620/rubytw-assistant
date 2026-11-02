@@ -69,6 +69,7 @@ describe('createAITools', () => {
         'search_issues',
         'read_issues',
         'read_messages',
+        'read_message_context',
         'search_messages',
       ]),
     )
@@ -709,6 +710,79 @@ describe('createAITools', () => {
       )
 
       expect(result.success).toBe(true)
+    })
+
+    it('read_message_context should return each message with the messages around it', async () => {
+      const readMessageContext = vi
+        .fn()
+        .mockResolvedValue(['<item id="1"/>', '<item id="2"/>'])
+      const tools = createTools({
+        discordSource: createStubDiscordSource({ readMessageContext }),
+      })
+
+      const result = await getTool(tools, 'read_message_context').execute({
+        ids: ['2'],
+      })
+
+      expect(readMessageContext).toHaveBeenCalledWith('2', 5)
+      expect(result).toEqual({
+        contexts: [{ id: '2', messages: ['<item id="1"/>', '<item id="2"/>'] }],
+      })
+    })
+
+    it('read_message_context should name an id the channel does not hold and return the rest', async () => {
+      const tools = createTools({
+        discordSource: createStubDiscordSource({
+          readMessageContext: vi.fn(async (id: string) =>
+            id === '1' ? ['<item id="1"/>'] : null,
+          ),
+        }),
+      })
+
+      const result = await getTool(tools, 'read_message_context').execute({
+        ids: ['1', '9'],
+      })
+
+      expect(result.contexts).toEqual([
+        { id: '1', messages: ['<item id="1"/>'] },
+        { id: '9', error: expect.stringMatching(/^not found/) },
+      ])
+    })
+
+    it('read_message_context should say the channel is rate limited rather than that the message is gone', async () => {
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+      const tools = createTools({
+        discordSource: createStubDiscordSource({
+          readMessageContext: vi
+            .fn()
+            .mockRejectedValue(new RateLimitedError('Discord')),
+        }),
+      })
+
+      const result = await getTool(tools, 'read_message_context').execute({
+        ids: ['1'],
+      })
+
+      expect(result.contexts[0].error).toMatch(/^rate limited/)
+      warnSpy.mockRestore()
+    })
+
+    it.each([
+      ['no ids', { ids: [] }],
+      [
+        'more than 10 ids',
+        { ids: Array.from({ length: 11 }, (_, i) => String(i)) },
+      ],
+      ['an id that is not numeric', { ids: ['abc'] }],
+    ])('read_message_context schema should reject %s', (_, input) => {
+      const tools = createTools()
+
+      const result = getTool(
+        tools,
+        'read_message_context',
+      ).inputSchema.safeParse(input)
+
+      expect(result.success).toBe(false)
     })
 
     it.each([

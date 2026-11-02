@@ -122,7 +122,7 @@ describe('scheduled pipeline integration', () => {
 
     expect(presentedResults).toHaveLength(1)
     expect(presentedResults[0]).toMatchObject({
-      kind: 'fallback',
+      kind: 'failure',
       reason: '[Follow-up Agent] token budget exceeded',
     })
     vi.restoreAllMocks()

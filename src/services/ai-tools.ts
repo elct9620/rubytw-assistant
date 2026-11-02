@@ -20,6 +20,9 @@ export interface AIToolsDeps {
 
 const READ_MESSAGES_DEFAULT_LIMIT = 50
 const READ_MESSAGES_MAX_LIMIT = 100
+/** A cited message with the 2 messages on each side of it. */
+const MESSAGE_CONTEXT_SIZE = 5
+const MESSAGE_CONTEXT_MAX_IDS = 10
 
 // The model fills in every parameter of a call, so optional ones are nullish:
 // null is how it says it has nothing to give.
@@ -264,6 +267,35 @@ function createDiscordTools({
           return noMessages(queryError(error))
         }
       },
+    }),
+    read_message_context: tool({
+      description:
+        "Read messages by id, each with the 2 messages before and after it, oldest first. Use it for the messages an item's evidence names, to see what was committed and what followed.",
+      inputSchema: z.object({
+        ids: z
+          .array(numericId)
+          .min(1)
+          .max(MESSAGE_CONTEXT_MAX_IDS)
+          .describe(`message ids (1–${MESSAGE_CONTEXT_MAX_IDS})`),
+      }),
+      execute: async ({ ids }) => ({
+        contexts: await Promise.all(
+          ids.map(async (id) => {
+            try {
+              const messages = await discordSource.readMessageContext(
+                id,
+                MESSAGE_CONTEXT_SIZE,
+              )
+              return messages
+                ? { id, messages }
+                : { id, error: 'not found: the channel has no such message' }
+            } catch (error) {
+              console.warn('Discord read message context failed', error)
+              return { id, error: queryError(error) }
+            }
+          }),
+        ),
+      }),
     }),
     search_messages: tool({
       description:
